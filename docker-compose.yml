@@ -7,4 +7,4 @@ services:
       - .:/my-app
     ports:
       - "3000:3000"
-    command: yarn start
+    command: sh -c "yarn install && yarn start"
