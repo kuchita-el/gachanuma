@@ -1,0 +1,36 @@
+# テキストファイルは自動的に改行を標準化
+* text=auto
+
+# JavaScriptやTypeScriptファイル
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+
+# JSONファイル
+*.json text eol=lf
+
+# CSSやSCSSファイル
+*.css  text eol=lf
+*.scss text eol=lf
+
+# HTMLファイル
+*.html text eol=lf
+
+# Markdownファイル
+*.md   text eol=lf
+
+# バイナリファイル（画像やフォントなど）は改行変換を無効化
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.svg  binary
+*.ico  binary
+*.ttf  binary
+*.woff binary
+*.woff2 binary
+
+# Buildファイルや一時ファイルを除外（必要に応じて）
+build/* -text
+dist/*  -text
