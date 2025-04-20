@@ -4,12 +4,32 @@
 
 ## 使い方
 
-1. DevContainerでディレクトリを開く。
-2. 開発サーバーを起動する。
+開発サーバーで実行または静的サイトとしてホスティングすることで動作します。
+
+### 開発サーバーで実行する
+
+1. 依存関係をインストールする。
+    ```bash
+    npm install
+    ```
+1. 開発サーバーを起動する。
     ```bash
     npm run dev
     ```
-3. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. ブラウザで[http://localhost:3000](http://localhost:3000)を開く。
+
+### 静的サイトとしてホスティングする
+
+1. 依存関係をインストールする。
+    ```bash
+    npm install
+    ```
+1. 静的サイトをビルドする。
+    ```bash
+    npm run build
+    ```
+1. Webサーバー等で`/out`ディレクトリ配下を公開する。
+1. ブラウザでWebサーバー
 
 ## 利用ライブラリ
 
