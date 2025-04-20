@@ -30,7 +30,3 @@
 *.ttf  binary
 *.woff binary
 *.woff2 binary
-
-# Buildファイルや一時ファイルを除外（必要に応じて）
-build/* -text
-dist/*  -text
