@@ -35,3 +35,11 @@
 
 - [Next.js](https://nextjs.org)
 - [Material UI](https://mui.com/material-ui/getting-started/)
+
+## 開発環境
+
+このプロジェクトは、[Dev Containers](https://devcontainers.dev/)を使用して開発しています。
+
+- VSCode
+    - [Dev Containers概要](https://code.visualstudio.com/docs/devcontainers/containers)
+    - [Gitリポジトリをコンテナで開く手順](https://code.visualstudio.com/docs/devcontainers/containers#_quick-start-open-a-git-repository-or-github-pr-in-an-isolated-container-volume)
