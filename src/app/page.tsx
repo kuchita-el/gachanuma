@@ -76,7 +76,7 @@ export default function Home() {
   );
 }
 
-const validate = (value: any): null | string => {
+const validate = (value: unknown): null | string => {
   const num = Number(value);
   if (Number.isNaN(num)) {
     return "数値を入力してください。"
