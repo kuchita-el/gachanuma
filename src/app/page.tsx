@@ -16,7 +16,7 @@ const schema = z.object({
 }).required();
 
 export default function Home() {
-  const { handleSubmit, getValues, control } = useForm<ProbabilityForm>({
+  const { handleSubmit, control } = useForm<ProbabilityForm>({
     resolver: zodResolver(schema),
     reValidateMode: 'onBlur',
     defaultValues: {
