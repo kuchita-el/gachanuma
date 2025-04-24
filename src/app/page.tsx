@@ -1,24 +1,20 @@
 'use client';
 
+import { probabilityPercentageSchema } from "@/probability/probability";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, InputAdornment, TextField } from "@mui/material";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { probabilityPercentageSchema } from "./_lib/probability";
-
-type ProbabilityForm = {
-  successRate: number,
-}
 
 const schema = z.object({
-  successRate: probabilityPercentageSchema,
-}).required();
+  successRate: probabilityPercentageSchema
+});
 
 export default function Home() {
-  const { handleSubmit, control } = useForm<ProbabilityForm>({
+  const { handleSubmit, control } = useForm({
     resolver: zodResolver(schema),
-    reValidateMode: 'onBlur',
+    mode: 'onChange',
     defaultValues: {
       successRate: 0
     }
@@ -49,8 +45,6 @@ export default function Home() {
               {...field}
             />
           </>
-
-
         }></Controller>
         <Button variant="contained" type="submit">計算</Button>
       </form>

@@ -9,7 +9,6 @@ export const probabilityRatioSchema = z
     .max(1, { message: '0から1までの数値を指定してください。' });
 
 export const probabilityPercentageSchema = z
-    .coerce
     .number({
         invalid_type_error: '数値を指定してください。',
         required_error: '数値を指定してください。'
