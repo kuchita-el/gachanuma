@@ -1,6 +1,7 @@
 'use client';
 
 import { probabilityPercentageSchema } from "@/probability/probability";
+import { calculateTrialCountFromPercent } from "@/probability/calculator";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, InputAdornment, TextField } from "@mui/material";
 import { useState } from "react";
@@ -21,8 +22,8 @@ export default function Home() {
   });
 
   const onSubmit = handleSubmit(form => {
-    setTrialCount(calculateTrialCount(Number(form.successRate) / 100))
-  })
+    setTrialCount(calculateTrialCountFromPercent(Number(form.successRate)));
+  });
 
   const [trialCount, setTrialCount] = useState<number>()
 
@@ -51,9 +52,4 @@ export default function Home() {
       <div className={"result"}>{trialCount}</div>
     </Box >
   );
-}
-
-const calculateTrialCount = (successRate: number): number => {
-  const failureRate = 1 - successRate;
-  return Math.ceil(-1 / Math.log10(failureRate));
 }
