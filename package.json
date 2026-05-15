@@ -28,12 +28,12 @@
     "@types/node": "^20",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.10",
-    "jsdom": "^27.2.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.6"
   }
 }
