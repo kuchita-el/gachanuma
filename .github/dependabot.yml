@@ -10,6 +10,10 @@ updates:
         patterns:
           - "@mui/*"
           - "@emotion/*"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       react:
         patterns:
           - "react"
