@@ -39,7 +39,7 @@ npx vitest --watch
 
 ### Tech Stack
 - **Framework**: Next.js (App Router, static export mode)
-- **UI Library**: Material UI v7 with Emotion for styling
+- **UI Library**: Material UI v9 with Emotion for styling
 - **Form Management**: react-hook-form with Zod for validation
 - **Testing**: Vitest with React Testing Library in jsdom environment
 
@@ -51,7 +51,7 @@ npx vitest --watch
 
 **Static Site Generation**: This project uses Next.js with `output: "export"` in `next.config.ts`, meaning it generates a static site deployed from the `/out` directory.
 
-**Material UI Integration**: The app uses Material UI v7 with Next.js App Router integration via `AppRouterCacheProvider`. All client components that use MUI hooks must be marked with `'use client'`.
+**Material UI Integration**: The app uses Material UI v9 with Next.js App Router integration via `AppRouterCacheProvider`. All client components that use MUI hooks must be marked with `'use client'`.
 
 **Path Aliases**: The project uses `@/*` as an alias for `src/*` configured in `tsconfig.json`.
 
