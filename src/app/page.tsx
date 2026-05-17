@@ -2,19 +2,19 @@
 
 import { probabilityPercentageSchema } from '@/probability/probability'
 import { calculateTrialCountFromPercent } from '@/probability/calculator'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { valibotResolver } from '@hookform/resolvers/valibot'
 import { Box, Button, InputAdornment, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { z } from 'zod'
+import * as v from 'valibot'
 
-const schema = z.object({
+const schema = v.object({
   successRate: probabilityPercentageSchema,
 })
 
 export default function Home() {
   const { handleSubmit, control } = useForm({
-    resolver: zodResolver(schema),
+    resolver: valibotResolver(schema),
     mode: 'onBlur',
     defaultValues: {
       successRate: '',

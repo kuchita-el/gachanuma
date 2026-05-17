@@ -36,7 +36,7 @@ describe('calculateTrialCount', () => {
   })
 
   describe('エッジケース: 0% (境界値)', () => {
-    it('0の場合ZodErrorをスローする', () => {
+    it('0の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCount(0)).toThrow()
     })
 
@@ -46,13 +46,13 @@ describe('calculateTrialCount', () => {
       expect(Number.isFinite(result)).toBe(true)
     })
 
-    it('負の値の場合ZodErrorをスローする', () => {
+    it('負の値の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCount(-0.1)).toThrow()
     })
   })
 
   describe('エッジケース: 100% (境界値)', () => {
-    it('1の場合ZodErrorをスローする', () => {
+    it('1の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCount(1)).toThrow()
     })
 
@@ -62,7 +62,7 @@ describe('calculateTrialCount', () => {
       expect(Number.isFinite(result)).toBe(true)
     })
 
-    it('1より大きい値の場合ZodErrorをスローする', () => {
+    it('1より大きい値の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCount(1.1)).toThrow()
     })
   })
@@ -119,13 +119,13 @@ describe('calculateTrialCountFromPercent', () => {
   })
 
   describe('エッジケース: 0%', () => {
-    it('0%の場合ZodErrorをスローする', () => {
+    it('0%の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCountFromPercent(0)).toThrow()
     })
   })
 
   describe('エッジケース: 100%', () => {
-    it('100%の場合ZodErrorをスローする', () => {
+    it('100%の場合ValiErrorをスローする', () => {
       expect(() => calculateTrialCountFromPercent(100)).toThrow()
     })
   })
