@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-確率の泥沼 (Quagmire of Probability) - A web application that calculates how many trials are needed to achieve a reliable success rate based on a single trial's success probability.
+確率の泥沼 (gachanuma) - A web application that calculates how many trials are needed to achieve a reliable success rate based on a single trial's success probability.
 
 ## Essential Commands
 
