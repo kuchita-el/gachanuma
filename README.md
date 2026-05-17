@@ -31,6 +31,22 @@
 1. Webサーバー等で`/out`ディレクトリ配下を公開する。
 1. ブラウザでWebサーバーにアクセスする。
 
+> Note: GitHub Pages へのサブパス公開時のみ `basePath: /gachanuma` が有効になります（環境変数 `GITHUB_PAGES=true` の時のみ）。ローカルビルドおよび E2E では `basePath` なしで動作します。
+
+## デプロイ
+
+`main` ブランチへの push（および CI 成功）をトリガに、GitHub Actions が自動で GitHub Pages へデプロイします。
+
+- 公開 URL: [https://kuchita-el.github.io/gachanuma/](https://kuchita-el.github.io/gachanuma/)
+- ワークフロー: `.github/workflows/deploy.yml`（`workflow_run` で CI 成功時に起動、`workflow_dispatch` で手動実行可）
+- デプロイ時のみ環境変数 `GITHUB_PAGES=true` を渡し、`next.config.ts` の `basePath` を `/gachanuma` に切り替える
+
+### 初回セットアップ手順（リポジトリ管理者が一度だけ実施）
+
+1. リポジトリの **Settings → Pages** を開く。
+2. **Source** を **GitHub Actions** に変更する。
+3. `main` への次の push（または `workflow_dispatch` 手動実行）で `Deploy to GitHub Pages` workflow が起動し、`environment: github-pages` の URL に公開される。
+
 ## 利用ライブラリ
 
 - [Next.js](https://nextjs.org)
