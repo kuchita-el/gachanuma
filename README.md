@@ -16,7 +16,7 @@
     ```bash
     npm run dev
     ```
-1. ブラウザで[http://localhost:3000](http://localhost:3000)を開く。
+1. ブラウザで[http://localhost:3000/gachanuma](http://localhost:3000/gachanuma)を開く（`basePath` 設定により末尾の `/gachanuma` 付きでアクセス）。
 
 ### 静的サイトとしてホスティングする
 
@@ -29,7 +29,20 @@
     npm run build
     ```
 1. Webサーバー等で`/out`ディレクトリ配下を公開する。
-1. ブラウザでWebサーバーにアクセスする。
+1. ブラウザでWebサーバーにアクセスする（`basePath` 設定により `http://<host>/gachanuma/` 配下で公開する想定）。
+
+## デプロイ
+
+`main` ブランチへの push（および CI 成功）をトリガに、GitHub Actions が自動で GitHub Pages へデプロイします。
+
+- 公開 URL: [https://kuchita-el.github.io/gachanuma/](https://kuchita-el.github.io/gachanuma/)
+- ワークフロー: `.github/workflows/deploy.yml`（`workflow_run` で CI 成功時に起動、`workflow_dispatch` で手動実行可）
+
+### 初回セットアップ手順（リポジトリ管理者が一度だけ実施）
+
+1. リポジトリの **Settings → Pages** を開く。
+2. **Source** を **GitHub Actions** に変更する。
+3. `main` への次の push（または `workflow_dispatch` 手動実行）で `Deploy to GitHub Pages` workflow が起動し、`environment: github-pages` の URL に公開される。
 
 ## 利用ライブラリ
 
