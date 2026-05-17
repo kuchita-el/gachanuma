@@ -10,6 +10,7 @@
       "Bash(npm test)",
       "Bash(npm test -- *)",
       "Bash(npm run typecheck)",
+      "Bash(npm run shadcn:add *)",
       "Bash(curl -sI *)"
     ]
   }
