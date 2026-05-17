@@ -11,6 +11,8 @@
       "Bash(npm test -- *)",
       "Bash(npm run typecheck)",
       "Bash(npm run shadcn:add *)",
+      "Bash(npm run prepare)",
+      "Bash(npm run clean*)",
       "Bash(curl -sI *)"
     ]
   }
