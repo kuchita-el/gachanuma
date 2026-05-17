@@ -50,7 +50,7 @@
 ## 利用ライブラリ
 
 - [Next.js](https://nextjs.org)
-- [Material UI](https://mui.com/material-ui/getting-started/)
+- [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)（Radix UI primitives）
 
 ## コードフォーマット
 
