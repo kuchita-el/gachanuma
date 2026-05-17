@@ -1,0 +1,25 @@
+# lefthook 設定
+# 詳細: https://lefthook.dev/configuration/
+#
+# pre-commit フックでステージ済みファイルに対し ESLint（フォーマット+lint兼任）と
+# プロジェクト全体の TypeScript 型チェックを実行する。
+# CI（.github/workflows/ci.yml）と同じ品質ゲートをローカルで先行実施する。
+
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      # ステージ済みの JS/TS 系ファイルのみを対象に lint と format チェックを実行する。
+      # @stylistic/eslint-plugin で format ルールも統合されているため、別途 format コマンドは不要。
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: node_modules/.bin/eslint {staged_files}
+    typecheck:
+      # .ts/.tsx がステージされた場合のみ実行する。
+      # tsc --noEmit は単一ファイル指定だと型解決が壊れるため、プロジェクト全体で実行する。
+      glob: "*.{ts,tsx}"
+      run: npm run typecheck
+
+output:
+  - execution_info
+  - failure
+  - summary
