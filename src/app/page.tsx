@@ -3,10 +3,13 @@
 import { probabilityPercentageSchema } from '@/probability/probability'
 import { calculateTrialCountFromPercent } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { Box, Button, InputAdornment, TextField, Typography } from '@mui/material'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import * as v from 'valibot'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -23,6 +26,7 @@ export default function Home() {
 
   const [trialCount, setTrialCount] = useState<number>()
   const [calculationError, setCalculationError] = useState<string>()
+  const helperId = useId()
 
   const onSubmit = handleSubmit((form) => {
     try {
@@ -37,81 +41,72 @@ export default function Home() {
   })
 
   return (
-    <Box sx={{
-      marginTop: 8,
-    }}
-    >
+    <div className="mt-16">
       <form onSubmit={onSubmit}>
         <Controller
           name="successRate"
           control={control}
-          render={({ field, formState: { errors } }) => (
-            <>
-              <TextField
-                label="成功率"
-                error={!!errors.successRate?.message}
-                helperText={errors.successRate?.message || '0より大きく100未満の数値を入力してください'}
-                slotProps={{
-                  input: {
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                  },
-                  htmlInput: {
-                    'aria-describedby': 'success-rate-helper-text',
-                    'inputMode': 'decimal',
-                    'type': 'number',
-                    'step': 'any',
-                  },
-                }}
-                fullWidth
-                {...field}
-              />
-            </>
-          )}
-        >
-        </Controller>
-        <Button variant="contained" type="submit">計算</Button>
-      </form>
-      {trialCount !== undefined && (
-        <Box
-          sx={{
-            marginTop: 4,
-            padding: 3,
-            backgroundColor: 'primary.light',
-            borderRadius: 2,
+          render={({ field, formState: { errors } }) => {
+            const errorMessage = errors.successRate?.message
+            return (
+              <div className="space-y-2">
+                <Label htmlFor="successRate">成功率</Label>
+                <div className="relative">
+                  <Input
+                    id="successRate"
+                    inputMode="decimal"
+                    type="number"
+                    step="any"
+                    aria-describedby={helperId}
+                    aria-invalid={!!errorMessage}
+                    className="pr-8"
+                    {...field}
+                  />
+                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                    %
+                  </span>
+                </div>
+                <p
+                  id={helperId}
+                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {errorMessage || '0より大きく100未満の数値を入力してください'}
+                </p>
+              </div>
+            )
           }}
+        />
+        <Button type="submit" className="mt-4">計算</Button>
+      </form>
+
+      {trialCount !== undefined && (
+        <div
           role="status"
           aria-live="polite"
           aria-label="計算結果"
+          className="bg-primary/10 mt-8 rounded-lg p-6"
         >
-          <Typography variant="h6" component="h2" gutterBottom>
-            計算結果
-          </Typography>
-          <Typography variant="h4" component="p" sx={{ fontWeight: 'bold' }}>
+          <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
+          <p className="text-3xl font-bold">
             {trialCount}
             回
-          </Typography>
-          <Typography variant="body2" sx={{ marginTop: 1, color: 'text.secondary' }}>
+          </p>
+          <p className="text-muted-foreground mt-1 text-sm">
             90%の確率で成功するために必要な試行回数
-          </Typography>
-        </Box>
+          </p>
+        </div>
       )}
+
       {calculationError && (
-        <Box
-          sx={{
-            marginTop: 2,
-            padding: 2,
-            backgroundColor: 'error.light',
-            borderRadius: 2,
-            color: 'error.contrastText',
-          }}
+        <Alert
+          variant="destructive"
           role="alert"
           aria-live="assertive"
+          className="mt-4"
         >
-          <Typography variant="body1">
-            {calculationError}
-          </Typography>
-        </Box>
+          <AlertDescription>{calculationError}</AlertDescription>
+        </Alert>
       )}
-    </Box>
+    </div>
   )
 }

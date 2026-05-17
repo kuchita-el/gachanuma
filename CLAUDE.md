@@ -39,19 +39,21 @@ npx vitest --watch
 
 ### Tech Stack
 - **Framework**: Next.js (App Router, static export mode)
-- **UI Library**: Material UI v9 with Emotion for styling
-- **Form Management**: react-hook-form with Zod for validation
+- **Styling**: Tailwind CSS v4 + shadcn/ui (Radix UI primitives)
+- **Form Management**: react-hook-form with Valibot for validation
 - **Testing**: Vitest with React Testing Library in jsdom environment
 
 ### Project Structure
 - `src/app/` - Next.js App Router のページ・レイアウト
+- `src/components/ui/` - shadcn/ui で導入したコンポーネント
+- `src/lib/` - ユーティリティ（`cn` ヘルパ等）
 - `src/probability/` - 確率計算ロジック・バリデーションスキーマ・ユニットテスト
 
 ### Key Architectural Patterns
 
 **Static Site Generation**: This project uses Next.js with `output: "export"` in `next.config.ts`, meaning it generates a static site deployed from the `/out` directory.
 
-**Material UI Integration**: The app uses Material UI v9 with Next.js App Router integration via `AppRouterCacheProvider`. All client components that use MUI hooks must be marked with `'use client'`.
+**Styling Architecture**: Tailwind CSS v4 を `@import "tailwindcss"` 構文（`@tailwindcss/postcss`）で導入。shadcn/ui のコンポーネントを `src/components/ui/` に配置し、`cn` ヘルパ（`clsx` + `tailwind-merge`）でクラス結合する。
 
 **Path Aliases**: The project uses `@/*` as an alias for `src/*` configured in `tsconfig.json`.
 
