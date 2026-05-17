@@ -3,3 +3,4 @@
 curl -fsSL https://claude.ai/install.sh | bash
 
 npm install
+npm run prepare
