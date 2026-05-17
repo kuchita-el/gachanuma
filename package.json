@@ -14,7 +14,8 @@
     "format:check": "eslint .",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "lefthook install --reset-hooks-path"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
