@@ -45,6 +45,28 @@
 
 CIの`lint`ジョブで自動チェックされるため、PR作成前にローカルで`npm run format`を実行することを推奨します。
 
+## E2E テスト
+
+[Playwright](https://playwright.dev/) で Chromium 上のフォーム入力 → 計算 → 結果/エラー表示の経路をエンドツーエンドで検証します。
+
+- 初回のみブラウザバイナリを取得
+
+    ```bash
+    npx playwright install chromium
+    ```
+- E2E 実行
+
+    ```bash
+    npm run test:e2e
+    ```
+- 失敗時のレポート確認
+
+    ```bash
+    npx playwright show-report
+    ```
+
+CI 上で失敗した場合は GitHub Actions の `e2e` ジョブの artifact `playwright-report` をダウンロードしてレポートを確認できます。
+
 ## 開発環境
 
 このプロジェクトは、[Dev Containers](https://devcontainers.dev/)を使用して開発しています。
