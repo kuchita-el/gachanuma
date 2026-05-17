@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter'
-import { AppBar, Container, CssBaseline, ThemeProvider, Toolbar, Typography } from '@mui/material'
-import theme from '@/theme'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,19 +27,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <AppBar position="static">
-              <Toolbar>
-                <Typography>確率の泥沼</Typography>
-              </Toolbar>
-            </AppBar>
-            <Container component="main" maxWidth="sm">
-              {children}
-            </Container>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <header className="bg-primary text-primary-foreground">
+          <div className="mx-auto max-w-screen-sm px-4 py-4">
+            <h1 className="text-lg font-semibold">確率の泥沼</h1>
+          </div>
+        </header>
+        <main className="mx-auto max-w-screen-sm px-4">{children}</main>
       </body>
     </html>
   )
