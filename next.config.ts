@@ -2,7 +2,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   output: 'export',
-  basePath: '/gachanuma',
+  basePath: process.env.GITHUB_PAGES === 'true' ? '/gachanuma' : '',
   images: {
     unoptimized: true,
   },
