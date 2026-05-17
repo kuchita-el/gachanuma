@@ -17,17 +17,21 @@ test.describe('確率計算 E2E', () => {
     await expect(page.getByRole('status')).toContainText('230回')
   })
 
-  test('成功率 100 を入力すると範囲外エラーが表示され結果は表示されない', async ({ page }) => {
-    await page.getByLabel('成功率').fill('100')
+  test('成功率 100 を入力するとフィールドエラーが表示され結果は表示されない', async ({ page }) => {
+    const input = page.getByLabel('成功率')
+    await input.fill('100')
     await page.getByRole('button', { name: '計算' }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(input).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByText('0より大きく100未満の数値を指定してください。')).toBeVisible()
     await expect(page.getByRole('status')).toHaveCount(0)
   })
 
-  test('成功率 0 を入力すると範囲外エラーが表示され結果は表示されない', async ({ page }) => {
-    await page.getByLabel('成功率').fill('0')
+  test('成功率 0 を入力するとフィールドエラーが表示され結果は表示されない', async ({ page }) => {
+    const input = page.getByLabel('成功率')
+    await input.fill('0')
     await page.getByRole('button', { name: '計算' }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(input).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByText('0より大きく100未満の数値を指定してください。')).toBeVisible()
     await expect(page.getByRole('status')).toHaveCount(0)
   })
 })
