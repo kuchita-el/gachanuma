@@ -36,6 +36,15 @@
 - [Next.js](https://nextjs.org)
 - [Material UI](https://mui.com/material-ui/getting-started/)
 
+## コードフォーマット
+
+[ESLint Stylistic](https://eslint.style/)（`@stylistic/eslint-plugin`）でフォーマットとlintを一元管理しています。フォーマッタを別ツールとして導入せず、ESLintの`--fix`機能で書き換えを行います。
+
+- `npm run format` - 全ファイルを自動修正する
+- `npm run format:check` - 違反を検出するのみ（`npm run lint`と同義）
+
+CIの`lint`ジョブで自動チェックされるため、PR作成前にローカルで`npm run format`を実行することを推奨します。
+
 ## 開発環境
 
 このプロジェクトは、[Dev Containers](https://devcontainers.dev/)を使用して開発しています。
