@@ -45,7 +45,7 @@ jobs:
           node-version-file: 'package.json'
           cache: npm
       - run: npm ci
-      - run: npm test -- --run
+      - run: npm run test:coverage
 
   build:
     runs-on: ubuntu-latest
