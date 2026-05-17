@@ -1,3 +1,4 @@
+import * as v from 'valibot'
 import { validProbabilityRatioSchema } from './probability'
 
 /**
@@ -11,11 +12,11 @@ import { validProbabilityRatioSchema } from './probability'
  *
  * @param successRate - 成功率 (0から1の範囲、0と1は含まない)
  * @returns 必要な試行回数
- * @throws {ZodError} 成功率が0以下または1以上の場合
+ * @throws {ValiError} 成功率が0以下または1以上の場合
  */
 export function calculateTrialCount(successRate: number): number {
-  // Zodでバリデーション（エラーメッセージも一元管理）
-  const validated = validProbabilityRatioSchema.parse(successRate)
+  // Valibotでバリデーション（エラーメッセージも一元管理）
+  const validated = v.parse(validProbabilityRatioSchema, successRate)
 
   const failureRate = 1 - validated
   return Math.ceil(-1 / Math.log10(failureRate))
