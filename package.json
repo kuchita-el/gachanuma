@@ -18,6 +18,10 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "shadcn:add": "shadcn add",
+    "clean": "rm -rf out .next coverage playwright-report test-results",
+    "clean:build": "rm -rf out .next",
+    "clean:coverage": "rm -rf coverage",
+    "clean:e2e": "rm -rf playwright-report test-results",
     "prepare": "lefthook install --reset-hooks-path"
   },
   "dependencies": {
