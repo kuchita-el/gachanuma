@@ -1,4 +1,4 @@
-import { validProbabilityRatioSchema } from './probability';
+import { validProbabilityRatioSchema } from './probability'
 
 /**
  * 指定された成功率で90%の確率で成功するために必要な試行回数を計算する
@@ -15,10 +15,10 @@ import { validProbabilityRatioSchema } from './probability';
  */
 export function calculateTrialCount(successRate: number): number {
   // Zodでバリデーション（エラーメッセージも一元管理）
-  const validated = validProbabilityRatioSchema.parse(successRate);
+  const validated = validProbabilityRatioSchema.parse(successRate)
 
-  const failureRate = 1 - validated;
-  return Math.ceil(-1 / Math.log10(failureRate));
+  const failureRate = 1 - validated
+  return Math.ceil(-1 / Math.log10(failureRate))
 }
 
 /**
@@ -29,5 +29,5 @@ export function calculateTrialCount(successRate: number): number {
  * @throws {Error} 成功率が0%または100%の場合
  */
 export function calculateTrialCountFromPercent(successRatePercent: number): number {
-  return calculateTrialCount(successRatePercent / 100);
+  return calculateTrialCount(successRatePercent / 100)
 }
