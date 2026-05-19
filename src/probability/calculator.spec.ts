@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { calculateTrialCount, calculateTrialCountFromPercent } from './calculator'
+import * as v from 'valibot'
+import { calculateCumulativeSuccessProbability, calculateTrialCount } from './calculator'
+import {
+  percentToRatio,
+  ratioToPercent,
+  validConfidenceSchema,
+} from './probability'
 
 describe('calculateTrialCount', () => {
   describe('正常系', () => {
@@ -98,35 +104,193 @@ describe('calculateTrialCount', () => {
       expect(result).toBeGreaterThan(0)
     })
   })
+
+  describe('信頼度引数明示', () => {
+    it('成功率0.5・信頼度0.9で4回（デフォルト値と一致）', () => {
+      expect(calculateTrialCount(0.5, 0.9)).toBe(4)
+    })
+
+    it('成功率0.5・信頼度0.99で7回（信頼度上昇）', () => {
+      expect(calculateTrialCount(0.5, 0.99)).toBe(7)
+    })
+
+    it('成功率0.5・信頼度0.5で1回（信頼度下降）', () => {
+      expect(calculateTrialCount(0.5, 0.5)).toBe(1)
+    })
+
+    it('成功率0.1・信頼度0.9で22回（既存値との一致）', () => {
+      expect(calculateTrialCount(0.1, 0.9)).toBe(22)
+    })
+
+    it('信頼度を上げると試行回数は単調非減少（成功率0.3固定）', () => {
+      const lowConf = calculateTrialCount(0.3, 0.5)
+      const midConf = calculateTrialCount(0.3, 0.9)
+      const highConf = calculateTrialCount(0.3, 0.99)
+      expect(midConf).toBeGreaterThanOrEqual(lowConf)
+      expect(highConf).toBeGreaterThanOrEqual(midConf)
+    })
+  })
+
+  describe('信頼度バリデーション', () => {
+    it('信頼度0でValiErrorをスローする', () => {
+      expect(() => calculateTrialCount(0.5, 0)).toThrow()
+    })
+
+    it('信頼度1でValiErrorをスローする', () => {
+      expect(() => calculateTrialCount(0.5, 1)).toThrow()
+    })
+
+    it('信頼度-0.1でValiErrorをスローする', () => {
+      expect(() => calculateTrialCount(0.5, -0.1)).toThrow()
+    })
+
+    it('信頼度1.5でValiErrorをスローする', () => {
+      expect(() => calculateTrialCount(0.5, 1.5)).toThrow()
+    })
+
+    it('成功率0・信頼度0.9で（成功率側の）ValiErrorをスローする', () => {
+      expect(() => calculateTrialCount(0, 0.9)).toThrow()
+    })
+  })
 })
 
-describe('calculateTrialCountFromPercent', () => {
+describe('calculateCumulativeSuccessProbability', () => {
   describe('正常系', () => {
-    it('50%の成功率の場合、4回の試行が必要', () => {
-      const result = calculateTrialCountFromPercent(50)
-      expect(result).toBe(4)
+    it('成功率0.5・試行回数4で0.9375を返す', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, 4)).toBeCloseTo(0.9375)
     })
 
-    it('10%の成功率の場合、22回の試行が必要', () => {
-      const result = calculateTrialCountFromPercent(10)
-      expect(result).toBe(22)
+    it('成功率0.5・試行回数1で0.5を返す', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, 1)).toBeCloseTo(0.5)
     })
 
-    it('1%の成功率の場合、230回の試行が必要', () => {
-      const result = calculateTrialCountFromPercent(1)
-      expect(result).toBe(230)
+    it('成功率0.1・試行回数22で0.9以上を返す', () => {
+      expect(calculateCumulativeSuccessProbability(0.1, 22)).toBeGreaterThanOrEqual(0.9)
+    })
+
+    it('戻り値は number 型かつ 0 < r < 1 を満たす', () => {
+      const result = calculateCumulativeSuccessProbability(0.3, 5)
+      expect(typeof result).toBe('number')
+      expect(result).toBeGreaterThan(0)
+      expect(result).toBeLessThan(1)
+    })
+
+    it('戻り値は有限値', () => {
+      const result = calculateCumulativeSuccessProbability(0.5, 10)
+      expect(Number.isFinite(result)).toBe(true)
     })
   })
 
-  describe('エッジケース: 0%', () => {
-    it('0%の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCountFromPercent(0)).toThrow()
+  describe('バリデーション', () => {
+    it('成功率0でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0, 4)).toThrow()
+    })
+
+    it('成功率1でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(1, 4)).toThrow()
+    })
+
+    it('成功率-0.1でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(-0.1, 4)).toThrow()
+    })
+
+    it('成功率1.5でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(1.5, 4)).toThrow()
+    })
+
+    it('試行回数0でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0.5, 0)).toThrow()
+    })
+
+    it('試行回数-1でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0.5, -1)).toThrow()
+    })
+
+    it('試行回数1.5（小数）でValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0.5, 1.5)).toThrow()
     })
   })
+})
 
-  describe('エッジケース: 100%', () => {
-    it('100%の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCountFromPercent(100)).toThrow()
-    })
+describe('calculateTrialCount と calculateCumulativeSuccessProbability の往復整合', () => {
+  it('成功率0.5・信頼度0.9で求めた試行回数で累積確率が0.9以上', () => {
+    const n = calculateTrialCount(0.5, 0.9)
+    expect(calculateCumulativeSuccessProbability(0.5, n)).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it('成功率0.3・信頼度0.99で求めた試行回数で累積確率が0.99以上', () => {
+    const n = calculateTrialCount(0.3, 0.99)
+    expect(calculateCumulativeSuccessProbability(0.3, n)).toBeGreaterThanOrEqual(0.99)
+  })
+
+  it('成功率0.01・信頼度0.9で求めた試行回数で累積確率が0.9以上', () => {
+    const n = calculateTrialCount(0.01, 0.9)
+    expect(calculateCumulativeSuccessProbability(0.01, n)).toBeGreaterThanOrEqual(0.9)
+  })
+})
+
+describe('percentToRatio', () => {
+  it('50を渡すと0.5を返す', () => {
+    expect(percentToRatio(50)).toBeCloseTo(0.5)
+  })
+
+  it('100を渡すと1、0を渡すと0を返す（バリデーションなし純関数）', () => {
+    expect(percentToRatio(100)).toBeCloseTo(1)
+    expect(percentToRatio(0)).toBeCloseTo(0)
+  })
+
+  it('0.5（小数パーセント）を渡すと0.005を返す', () => {
+    expect(percentToRatio(0.5)).toBeCloseTo(0.005)
+  })
+})
+
+describe('ratioToPercent', () => {
+  it('0.5を渡すと50を返す', () => {
+    expect(ratioToPercent(0.5)).toBeCloseTo(50)
+  })
+
+  it('1を渡すと100、0を渡すと0を返す（バリデーションなし純関数）', () => {
+    expect(ratioToPercent(1)).toBeCloseTo(100)
+    expect(ratioToPercent(0)).toBeCloseTo(0)
+  })
+})
+
+describe('変換ユーティリティの往復整合', () => {
+  it('ratioToPercent(percentToRatio(p)) === p（任意のpで成立）', () => {
+    for (const p of [1, 10, 50, 99]) {
+      expect(ratioToPercent(percentToRatio(p))).toBeCloseTo(p)
+    }
+  })
+
+  it('percentToRatio(ratioToPercent(r)) === r（任意のrで成立）', () => {
+    for (const r of [0.01, 0.5, 0.9, 0.99]) {
+      expect(percentToRatio(ratioToPercent(r))).toBeCloseTo(r)
+    }
+  })
+})
+
+describe('validConfidenceSchema', () => {
+  it('典型値0.9を渡すとそのまま0.9を返す', () => {
+    expect(v.parse(validConfidenceSchema, 0.9)).toBe(0.9)
+  })
+
+  it('0を渡すとValiError、メッセージに「信頼度」を含む', () => {
+    expect(() => v.parse(validConfidenceSchema, 0)).toThrow(/信頼度/)
+  })
+
+  it('1を渡すとValiError、メッセージに「信頼度」を含む', () => {
+    expect(() => v.parse(validConfidenceSchema, 1)).toThrow(/信頼度/)
+  })
+
+  it('-0.1を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validConfidenceSchema, -0.1)).toThrow()
+  })
+
+  it('1.5を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validConfidenceSchema, 1.5)).toThrow()
+  })
+
+  it('文字列を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validConfidenceSchema, '0.9')).toThrow()
   })
 })
