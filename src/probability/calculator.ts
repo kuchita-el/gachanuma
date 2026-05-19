@@ -1,34 +1,46 @@
 import * as v from 'valibot'
-import { validProbabilityRatioSchema } from './probability'
+import {
+  validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validTrialCountSchema,
+} from './probability'
 
 /**
- * 指定された成功率で90%の確率で成功するために必要な試行回数を計算する
+ * 指定された成功率で、累積成功確率が信頼度以上となるために必要な試行回数を計算する。
  *
  * 計算式:
- * - 少なくとも1回成功する確率が90%となる試行回数を求める
- * - P(at least one success) = 1 - P(all failures) = 1 - (1-p)^n ≥ 0.9
- * - (1-p)^n ≤ 0.1
- * - n ≥ log(0.1) / log(1-p) = -1 / log10(1-p)
+ * - P(at least one success) = 1 - (1-p)^n ≥ c
+ * - (1-p)^n ≤ 1 - c
+ * - n ≥ log(1-c) / log(1-p)
  *
- * @param successRate - 成功率 (0から1の範囲、0と1は含まない)
- * @returns 必要な試行回数
- * @throws {ValiError} 成功率が0以下または1以上の場合
+ * @param successRate - 単発成功率（0 < x < 1）
+ * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は 0.9
+ * @returns 必要な試行回数（切り上げ済みの整数）
+ * @throws {ValiError} 引数が値域外の場合
  */
-export function calculateTrialCount(successRate: number): number {
-  // Valibotでバリデーション（エラーメッセージも一元管理）
-  const validated = v.parse(validProbabilityRatioSchema, successRate)
+export function calculateTrialCount(successRate: number, confidence: number = 0.9): number {
+  const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
+  const validatedConfidence = v.parse(validConfidenceSchema, confidence)
 
-  const failureRate = 1 - validated
-  return Math.ceil(-1 / Math.log10(failureRate))
+  return Math.ceil(Math.log(1 - validatedConfidence) / Math.log(1 - validatedRate))
 }
 
 /**
- * パーセンテージ (0-100) を確率比 (0-1) に変換して試行回数を計算する
+ * 試行回数と単発成功率から、少なくとも1回成功する累積確率（ratio）を返す。
  *
- * @param successRatePercent - 成功率パーセンテージ (0から100の範囲、0と100は含まない)
- * @returns 必要な試行回数
- * @throws {Error} 成功率が0%または100%の場合
+ * 計算式: 1 - (1 - p)^n
+ *
+ * @param successRate - 単発成功率（0 < x < 1）
+ * @param trialCount - 試行回数（1以上の整数）
+ * @returns 累積成功確率（ratio、0 < r < 1）
+ * @throws {ValiError} 引数が値域外の場合
  */
-export function calculateTrialCountFromPercent(successRatePercent: number): number {
-  return calculateTrialCount(successRatePercent / 100)
+export function calculateCumulativeSuccessProbability(
+  successRate: number,
+  trialCount: number,
+): number {
+  const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
+  const validatedCount = v.parse(validTrialCountSchema, trialCount)
+
+  return 1 - Math.pow(1 - validatedRate, validatedCount)
 }

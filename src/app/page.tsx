@@ -1,7 +1,7 @@
 'use client'
 
-import { probabilityPercentageSchema } from '@/probability/probability'
-import { calculateTrialCountFromPercent } from '@/probability/calculator'
+import { percentToRatio, probabilityPercentageSchema } from '@/probability/probability'
+import { calculateTrialCount } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -30,7 +30,7 @@ export default function Home() {
 
   const onSubmit = handleSubmit((form) => {
     try {
-      const result = calculateTrialCountFromPercent(Number(form.successRate))
+      const result = calculateTrialCount(percentToRatio(Number(form.successRate)))
       setTrialCount(result)
       setCalculationError(undefined)
     }
