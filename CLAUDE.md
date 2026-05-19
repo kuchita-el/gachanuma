@@ -73,7 +73,7 @@ devcontainer には [Playwright MCP](https://github.com/microsoft/playwright-mcp
 起動コマンド（参考、通常は Claude Code が自動起動するため手動実行不要）:
 
 ```bash
-npx -y @playwright/mcp@0.0.75 --isolated --headless
+npx -y @playwright/mcp@0.0.75 --isolated --headless --browser chromium
 ```
 
 接続状態は `claude mcp list` で確認できる（`playwright` が `Connected` 表示）。
