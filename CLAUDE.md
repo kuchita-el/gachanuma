@@ -61,6 +61,23 @@ npx vitest --watch
 
 This project uses Dev Containers for development. Open the repository in VS Code with the Dev Containers extension to use the containerized environment.
 
+## UI 検証ツール
+
+devcontainer には [Playwright MCP](https://github.com/microsoft/playwright-mcp) サーバ（`@playwright/mcp@0.0.75`）が `.mcp.json` で定義済みであり、Claude Code から直接ブラウザ操作で UI を検証できる。`npm run dev` で開発サーバを起動した状態で、以下のような MCP ツールを使用可能。
+
+- `browser_navigate` で `http://localhost:3000` 等の URL を開く
+- `browser_snapshot` で現在ページのアクセシビリティスナップショットを取得
+- `browser_click` / `browser_type` で要素操作
+- `browser_take_screenshot` でスクリーンショット取得
+
+起動コマンド（参考、通常は Claude Code が自動起動するため手動実行不要）:
+
+```bash
+npx -y @playwright/mcp@0.0.75 --isolated --headless --browser chromium
+```
+
+接続状態は `claude mcp list` で確認できる（`playwright` が `Connected` 表示）。
+
 ## Language
 
 The application UI and codebase use Japanese for user-facing text and comments. Error messages in validation schemas are in Japanese.
