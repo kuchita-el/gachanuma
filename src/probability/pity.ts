@@ -58,8 +58,10 @@ export function calculateTrialCountWithPity(
     kNoPity = calculateTrialCount(validatedRate, validatedConfidence)
   }
   catch (error) {
-    // p 極小での浮動小数点境界。m=0 なら天井で確定するため N を返す。
-    if (error instanceof CalculationError && validatedSlip === 0) {
+    // p 極小での浮動小数点境界。m ≤ 1-c なら k=N で P(N) ≥ c が必ず成立するため
+    // （`(1-p)^(N-1) × m ≤ m ≤ 1-c` ⇒ `P(N) = 1 - (1-p)^(N-1) × m ≥ c`）、
+    // m=0 を含む一般化として N を返す。それ以外は通常抽選不能のため透過させる。
+    if (error instanceof CalculationError && validatedSlip <= 1 - validatedConfidence) {
       return validatedPity
     }
     throw error

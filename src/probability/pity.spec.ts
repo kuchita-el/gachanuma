@@ -160,6 +160,16 @@ describe('calculateTrialCountWithPity', () => {
     it('p=1e-17, N=100, m=0.5, c=0.9 は CalculationError（calculateTrialCount 経由）', () => {
       expect(() => calculateTrialCountWithPity(1e-17, 100, 0.5, 0.9)).toThrow(CalculationError)
     })
+
+    it('p=1e-17, N=100, m=0.05, c=0.9 では m≤1-c の short-circuit で N=100 を返す（数学的に k=N で P≥c）', () => {
+      expect(calculateTrialCountWithPity(1e-17, 100, 0.05, 0.9)).toBe(100)
+    })
+
+    it('p=1e-17, N=100, m=0.099 (<1-c=0.1), c=0.9 は m≤1-c 短絡で N=100 を返す（境界直下）', () => {
+      // 浮動小数点上 `1 - 0.9 ≒ 0.099999...` のため、m=0.1 の同値境界はテスト不能。
+      // 数学的境界 m=1-c の直下を検証する。
+      expect(calculateTrialCountWithPity(1e-17, 100, 0.099, 0.9)).toBe(100)
+    })
   })
 })
 

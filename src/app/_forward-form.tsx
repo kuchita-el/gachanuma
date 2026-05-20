@@ -36,6 +36,7 @@ export function ForwardForm() {
     handleSubmit,
     control,
     setValue,
+    clearErrors,
     formState: { errors },
   } = useForm({
     resolver: valibotResolver(schema),
@@ -250,7 +251,17 @@ export function ForwardForm() {
               <Switch
                 id={pityEnabledId}
                 checked={field.value}
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => {
+                  field.onChange(checked)
+                  // OFF に切り替える際は天井フィールドの値とエラーをデフォルトに戻す。
+                  // 隠れたエラー（schema が pityCount/slipRatePercent を常時検証するため）が
+                  // submit を阻害するのを防ぐ。
+                  if (!checked) {
+                    setValue('pityCount', '100')
+                    setValue('slipRatePercent', '0')
+                    clearErrors(['pityCount', 'slipRatePercent'])
+                  }
+                }}
               />
               <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
             </div>

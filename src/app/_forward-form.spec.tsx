@@ -515,5 +515,25 @@ describe('ForwardForm', () => {
       // Switch ON 中は targetCount エラーが disabled に反映されない
       expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
     })
+
+    it('Switch ON で天井回数に不正値→OFF→submit で計算が成立する（shouldUnregister による隠れたバリデーション解除）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      const pity = screen.getByLabelText('天井回数')
+      await user.clear(pity)
+      await user.type(pity, '0')
+      await user.tab()
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+
+      await user.click(sw)
+      expect(sw).toHaveAttribute('aria-checked', 'false')
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      // 通常計算(成功率50, 信頼度90, 目標成功回数1) → 4回
+      expect(status).toHaveTextContent('4回')
+    })
   })
 })
