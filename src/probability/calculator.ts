@@ -108,3 +108,22 @@ export function calculateCumulativeSuccessProbability(
 
   return 1 - Math.pow(1 - validatedRate, validatedCount)
 }
+
+/**
+ * calculateCumulativeSuccessProbability の Result 型ラッパ。
+ * tryCalculateTrialCount と対称の責務分離: 画面側は instanceof 分岐や try/catch を書かずに済む。
+ */
+export function tryCalculateCumulativeSuccessProbability(
+  successRate: number,
+  trialCount: number,
+): CalcResult {
+  try {
+    return { ok: true, value: calculateCumulativeSuccessProbability(successRate, trialCount) }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError || error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
+}
