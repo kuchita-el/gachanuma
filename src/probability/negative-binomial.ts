@@ -59,16 +59,22 @@ export function calculateTrialCountForMultipleSuccess(
 
   const p = validatedRate
   const q = 1 - p
+  // 期待試行回数 (targetCount/p) を基準に動的上限を設定し、UI スレッドの長時間ブロッキングを予防する。
+  // 安全係数 50 は信頼度 0.99 等の極端ケースでも収束する余裕。実用域に届かない極小 p では
+  // MAX_ITERATIONS で頭打ちし、最終的に CalculationError として収束失敗を表面化する。
+  const expectedTrials = validatedTarget / p
+  const dynamicLimit = Math.min(MAX_ITERATIONS, Math.max(1000, Math.ceil(expectedTrials * 50)))
   // pmf[j] (0 ≤ j < targetCount) は P(X = j | k) を保持。
   // pmf[targetCount] は P(X ≥ targetCount | k) のアキュムレータ。
   // fill(0) 済みのため全要素が確実に number で、indexed access の undefined 可能性は実行時には発生しない。
   const pmf = new Array<number>(validatedTarget + 1).fill(0) as number[]
   pmf[0] = 1
 
-  for (let k = 1; k <= MAX_ITERATIONS; k++) {
-    // アキュムレータ pmf[targetCount] は (1-p)·pmf[targetCount] + p·pmf[targetCount-1] + p·pmf[targetCount]
-    //   = pmf[targetCount] + p·pmf[targetCount-1]
-    // という挙動になる。降順 j で通常の漸化式を適用しつつ、最後に補正する。
+  for (let k = 1; k <= dynamicLimit; k++) {
+    // アキュムレータ pmf[targetCount] は前 k での値に新規流入 p·pmf[targetCount-1] を加算して更新する
+    //   （アキュムレータ自身が q を乗じる挙動は流入と相殺）。
+    // 続いて j = targetCount-1 から 1 まで降順で漸化式 pmf[j] = q·pmf[j] + p·pmf[j-1] を適用し、
+    // 最後に pmf[0] のみ q で減衰させる。降順処理により上書き前の pmf[j-1] を参照できる。
     pmf[validatedTarget] = pmf[validatedTarget]! + p * pmf[validatedTarget - 1]!
     for (let j = validatedTarget - 1; j >= 1; j--) {
       pmf[j] = q * pmf[j]! + p * pmf[j - 1]!
