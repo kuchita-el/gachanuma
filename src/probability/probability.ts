@@ -42,6 +42,17 @@ export const validConfidenceSchema = v.pipe(
 )
 
 /**
+ * 天井すり抜け率（ratio、0以上1以下）のValibotスキーマ
+ * 0 = 天井で目的キャラ確定、1 = 天井でも 100% すり抜け（天井無効と等価）。
+ * 両端を許容する点が validProbabilityRatioSchema との大きな差。
+ */
+export const validSlipRateRatioSchema = v.pipe(
+  v.number('数値を指定してください。'),
+  v.minValue(0, 'すり抜け率は0以上の値を指定してください。'),
+  v.maxValue(1, 'すり抜け率は1以下の値を指定してください。'),
+)
+
+/**
  * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すValibotスキーマ
  * 0と100は計算式の境界条件で除外。整数のみ受理し、文字列からの変換に対応。
  */
@@ -101,6 +112,27 @@ export const targetCountInputSchema = v.pipe(
   v.integer('目標成功回数は整数を指定してください。'),
   v.minValue(1, '目標成功回数は1以上を指定してください。'),
   v.maxValue(100, '目標成功回数は100以下を指定してください。'),
+)
+
+/**
+ * 天井すり抜け率（percent、0以上100以下）のフォーム入力用スキーマ。
+ * 0% = 天井で目的キャラ確定、100% = 天井無効。両端を許容する点が
+ * probabilityPercentageSchema との差。
+ */
+export const slipRatePercentageSchema = v.pipe(
+  v.union([
+    v.pipe(
+      v.string(),
+      v.transform((val) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? val : num
+      }),
+    ),
+    v.number(),
+  ]),
+  v.number('数値を指定してください。'),
+  v.minValue(0, '0以上100以下の数値を指定してください。'),
+  v.maxValue(100, '0以上100以下の数値を指定してください。'),
 )
 
 /**
