@@ -28,6 +28,24 @@ describe('Home', () => {
     expect(status).toHaveTextContent('22回')
   })
 
+  it('成功率 1 を入力して計算ボタンを押すと 230回 が表示される（percentToRatio 結線の検証）', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+    await user.type(screen.getByLabelText('成功率'), '1')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('230回')
+  })
+
+  it('成功率 99 を入力して計算ボタンを押すと 1回 が表示される（高成功率境界）', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+    await user.type(screen.getByLabelText('成功率'), '99')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('1回')
+  })
+
   it('成功率 0 を入力してフォーカスアウトすると境界値エラーが表示される', async () => {
     const user = userEvent.setup()
     render(<Home />)
