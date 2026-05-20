@@ -29,22 +29,20 @@ describe('calculateTrialCountForMultipleSuccess', () => {
       expect(calculateTrialCountForMultipleSuccess(0.5, 2, 0.9)).toBe(7)
     })
 
-    it('p=0.5, targetCount=10, c=0.9 → 中域の値（5 < n < 100）', () => {
-      const n = calculateTrialCountForMultipleSuccess(0.5, 10, 0.9)
-      expect(n).toBeGreaterThan(5)
-      expect(n).toBeLessThan(100)
+    it('p=0.5, targetCount=10, c=0.9 → 26（厳密値）', () => {
+      expect(calculateTrialCountForMultipleSuccess(0.5, 10, 0.9)).toBe(26)
     })
 
-    it('p=0.1, targetCount=5, c=0.9 → 中域の値（30 < n < 200）', () => {
-      const n = calculateTrialCountForMultipleSuccess(0.1, 5, 0.9)
-      expect(n).toBeGreaterThan(30)
-      expect(n).toBeLessThan(200)
+    it('p=0.1, targetCount=5, c=0.9 → 78（厳密値）', () => {
+      expect(calculateTrialCountForMultipleSuccess(0.1, 5, 0.9)).toBe(78)
     })
 
-    it('p=0.5, targetCount=100, c=0.9 → 100 ≤ n ≤ 500（境界）', () => {
-      const n = calculateTrialCountForMultipleSuccess(0.5, 100, 0.9)
-      expect(n).toBeGreaterThanOrEqual(100)
-      expect(n).toBeLessThanOrEqual(500)
+    it('p=0.5, targetCount=100, c=0.9 → 218（厳密値、正規近似 k≈218 と整合）', () => {
+      expect(calculateTrialCountForMultipleSuccess(0.5, 100, 0.9)).toBe(218)
+    })
+
+    it('confidence 省略時は DEFAULT_CONFIDENCE=0.9 が適用される', () => {
+      expect(calculateTrialCountForMultipleSuccess(0.5, 2)).toBe(7)
     })
   })
 
@@ -105,12 +103,24 @@ describe('calculateTrialCountForMultipleSuccess', () => {
       expect(() => calculateTrialCountForMultipleSuccess(NaN, 2, 0.9)).toThrow(v.ValiError)
     })
 
+    it('successRate=Infinity で ValiError', () => {
+      expect(() => calculateTrialCountForMultipleSuccess(Infinity, 2, 0.9)).toThrow(v.ValiError)
+    })
+
     it('confidence=0 で ValiError', () => {
       expect(() => calculateTrialCountForMultipleSuccess(0.5, 2, 0)).toThrow(v.ValiError)
     })
 
     it('confidence=1 で ValiError', () => {
       expect(() => calculateTrialCountForMultipleSuccess(0.5, 2, 1)).toThrow(v.ValiError)
+    })
+
+    it('confidence=NaN で ValiError', () => {
+      expect(() => calculateTrialCountForMultipleSuccess(0.5, 2, NaN)).toThrow(v.ValiError)
+    })
+
+    it('confidence=Infinity で ValiError', () => {
+      expect(() => calculateTrialCountForMultipleSuccess(0.5, 2, Infinity)).toThrow(v.ValiError)
     })
   })
 
