@@ -145,6 +145,7 @@ export default function Home() {
           }}
         />
 
+        {/* disabled は信頼度起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
         <Button type="submit" className="mt-4" disabled={!!errors.confidence}>
           計算
         </Button>
