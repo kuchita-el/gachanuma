@@ -35,4 +35,18 @@ describe('Home (タブUI)', () => {
     await user.click(screen.getByRole('tab', { name: '逆算' }))
     expect(await screen.findByLabelText('試行回数')).toBeInTheDocument()
   })
+
+  it('順算で計算した結果はタブ切替（逆算→順算）でリセットされる（Radix標準のunmount挙動を契約化）', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+    await user.type(screen.getByLabelText('成功率'), '50')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(await screen.findByRole('status', { name: '計算結果' })).toHaveTextContent('4回')
+
+    await user.click(screen.getByRole('tab', { name: '逆算' }))
+    await user.click(screen.getByRole('tab', { name: '順算' }))
+
+    expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+    expect((screen.getByLabelText('成功率') as HTMLInputElement).value).toBe('')
+  })
 })

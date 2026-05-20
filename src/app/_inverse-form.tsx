@@ -35,7 +35,9 @@ export function InverseForm() {
     trialCount: number
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  const successRateId = useId()
   const successRateHelperId = useId()
+  const trialCountId = useId()
   const trialCountHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
@@ -66,10 +68,10 @@ export function InverseForm() {
             const errorMessage = errors.successRate?.message
             return (
               <div className="space-y-2">
-                <Label htmlFor="inverse-successRate">成功率</Label>
+                <Label htmlFor={successRateId}>成功率</Label>
                 <div className="relative">
                   <Input
-                    id="inverse-successRate"
+                    id={successRateId}
                     inputMode="decimal"
                     type="number"
                     step="any"
@@ -100,10 +102,10 @@ export function InverseForm() {
             const errorMessage = errors.trialCount?.message
             return (
               <div className="mt-4 space-y-2">
-                <Label htmlFor="inverse-trialCount">試行回数</Label>
+                <Label htmlFor={trialCountId}>試行回数</Label>
                 <div className="relative">
                   <Input
-                    id="inverse-trialCount"
+                    id={trialCountId}
                     inputMode="numeric"
                     type="number"
                     aria-describedby={trialCountHelperId}

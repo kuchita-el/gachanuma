@@ -286,6 +286,12 @@ describe('calculateCumulativeSuccessProbability', () => {
       expect(() => calculateCumulativeSuccessProbability(0.5, 1.5)).toThrow()
     })
   })
+
+  describe('浮動小数点境界', () => {
+    it('成功率1e-17（極小）・試行回数1で ratio が 0 に飽和し CalculationError', () => {
+      expect(() => calculateCumulativeSuccessProbability(1e-17, 1)).toThrow(CalculationError)
+    })
+  })
 })
 
 describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
@@ -397,6 +403,14 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
   it('試行回数 Infinity は ok:false を返す', () => {
     const result = tryCalculateCumulativeSuccessProbability(0.5, Infinity)
     expect(result.ok).toBe(false)
+  })
+
+  it('成功率1e-17は CalculationError 経由で ok:false を返し、メッセージに「極端に小さい」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(1e-17, 1)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/極端に小さい/)
+    }
   })
 })
 

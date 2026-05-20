@@ -39,7 +39,9 @@ export function ForwardForm() {
 
   const [result, setResult] = useState<{ trialCount: number, confidencePercent: number }>()
   const [calculationError, setCalculationError] = useState<string>()
+  const successRateId = useId()
   const successRateHelperId = useId()
+  const confidenceId = useId()
   const confidenceHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
@@ -67,10 +69,10 @@ export function ForwardForm() {
             const errorMessage = errors.successRate?.message
             return (
               <div className="space-y-2">
-                <Label htmlFor="successRate">成功率</Label>
+                <Label htmlFor={successRateId}>成功率</Label>
                 <div className="relative">
                   <Input
-                    id="successRate"
+                    id={successRateId}
                     inputMode="decimal"
                     type="number"
                     step="any"
@@ -101,7 +103,7 @@ export function ForwardForm() {
             const errorMessage = errors.confidence?.message
             return (
               <div className="mt-4 space-y-2">
-                <Label htmlFor="confidence">信頼度</Label>
+                <Label htmlFor={confidenceId}>信頼度</Label>
                 <div className="flex flex-wrap gap-2">
                   {CONFIDENCE_PRESETS.map((preset) => {
                     const selected = field.value === String(preset)
@@ -122,7 +124,7 @@ export function ForwardForm() {
                 </div>
                 <div className="relative">
                   <Input
-                    id="confidence"
+                    id={confidenceId}
                     inputMode="numeric"
                     type="number"
                     aria-describedby={confidenceHelperId}

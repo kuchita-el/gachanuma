@@ -174,4 +174,26 @@ describe('InverseForm', () => {
     const helper = document.getElementById(describedBy!)
     expect(helper).toHaveTextContent('1以上の整数を入力してください')
   })
+
+  it('成功率 0 + 試行回数 0 で submit すると両フィールドに aria-invalid + 結果非表示（組合せ異常）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    const successRate = screen.getByLabelText('成功率')
+    const trialCount = screen.getByLabelText('試行回数')
+    await user.type(successRate, '0')
+    await user.type(trialCount, '0')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(successRate).toHaveAttribute('aria-invalid', 'true')
+    expect(trialCount).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+  })
+
+  it('試行回数エラー時も計算ボタンは disabled にならない（順算と統一の submit→aria-invalid フロー）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('試行回数'), '0')
+    await user.tab()
+    const submit = screen.getByRole('button', { name: '計算' })
+    expect(submit).not.toBeDisabled()
+  })
 })
