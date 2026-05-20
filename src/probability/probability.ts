@@ -73,6 +73,37 @@ export const validTrialCountSchema = v.pipe(
 )
 
 /**
+ * 目標成功回数（k 回成功までに必要な試行回数を計算する際の k）のスキーマ。
+ * 1〜100 の整数を許容。100 は UI 表示・計算精度の双方を考慮した上限値。
+ */
+export const validTargetCountSchema = v.pipe(
+  v.number('数値を指定してください。'),
+  v.integer('目標成功回数は整数を指定してください。'),
+  v.minValue(1, '目標成功回数は1以上を指定してください。'),
+  v.maxValue(100, '目標成功回数は100以下を指定してください。'),
+)
+
+/**
+ * 目標成功回数のフォーム入力用スキーマ。文字列入力を整数に変換し、1〜100 の整数を許容。
+ */
+export const targetCountInputSchema = v.pipe(
+  v.union([
+    v.pipe(
+      v.string(),
+      v.transform((val) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? val : num
+      }),
+    ),
+    v.number(),
+  ]),
+  v.number('数値を指定してください。'),
+  v.integer('目標成功回数は整数を指定してください。'),
+  v.minValue(1, '目標成功回数は1以上を指定してください。'),
+  v.maxValue(100, '目標成功回数は100以下を指定してください。'),
+)
+
+/**
  * 試行回数のフォーム入力用スキーマ。文字列入力を整数に変換し、1以上の整数を許容。
  * UI フォーム（react-hook-form + valibotResolver）から呼ばれる前提。
  */
