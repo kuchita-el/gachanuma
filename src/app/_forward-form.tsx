@@ -89,10 +89,12 @@ export function ForwardForm() {
       )
 
     if (calcResult.ok) {
+      // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
+      // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
       setResult({
         trialCount: calcResult.value,
         confidencePercent: Number(form.confidence),
-        targetCount: Number(form.targetCount),
+        targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
         pity: form.pityEnabled
           ? {
             pityCount: Number(form.pityCount),
@@ -108,10 +110,13 @@ export function ForwardForm() {
     }
   })
 
+  // pityEnabled=true のときは天井計算が targetCount を無視するため、targetCount のエラーは
+  // disabled に反映しない（pity 用フィールドのエラーのみで disabled 制御）。
   const submitDisabled
     = !!errors.confidence
-      || !!errors.targetCount
-      || (pityEnabled && (!!errors.pityCount || !!errors.slipRatePercent))
+      || (pityEnabled
+        ? !!errors.pityCount || !!errors.slipRatePercent
+        : !!errors.targetCount)
 
   return (
     <div>

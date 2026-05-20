@@ -489,5 +489,31 @@ describe('ForwardForm', () => {
       expect(sw).toHaveAttribute('aria-checked', 'false')
       expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
     })
+
+    it('Switch ON + 目標成功回数 3 で計算しても結果領域に「3個獲得」補助文言は表示されない（天井計算は1個前提）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const target = screen.getByLabelText('目標成功回数')
+      await user.clear(target)
+      await user.type(target, '3')
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('100回')
+      expect(status).not.toHaveTextContent('個獲得')
+    })
+
+    it('Switch ON 時に目標成功回数エラーがあっても計算ボタンは disabled にならない（targetCount は無視されるため）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      const target = screen.getByLabelText('目標成功回数')
+      await user.clear(target)
+      await user.type(target, '0')
+      await user.tab()
+      // Switch ON 中は targetCount エラーが disabled に反映されない
+      expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
+    })
   })
 })
