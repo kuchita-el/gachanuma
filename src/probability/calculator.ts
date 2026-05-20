@@ -1,34 +1,110 @@
 import * as v from 'valibot'
-import { validProbabilityRatioSchema } from './probability'
+import {
+  DEFAULT_CONFIDENCE,
+  validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validTrialCountSchema,
+} from './probability'
 
 /**
- * 指定された成功率で90%の確率で成功するために必要な試行回数を計算する
- *
- * 計算式:
- * - 少なくとも1回成功する確率が90%となる試行回数を求める
- * - P(at least one success) = 1 - P(all failures) = 1 - (1-p)^n ≥ 0.9
- * - (1-p)^n ≤ 0.1
- * - n ≥ log(0.1) / log(1-p) = -1 / log10(1-p)
- *
- * @param successRate - 成功率 (0から1の範囲、0と1は含まない)
- * @returns 必要な試行回数
- * @throws {ValiError} 成功率が0以下または1以上の場合
+ * 計算層がユーザー入力起因の失敗（数学的境界・浮動小数点境界）を表現するためのドメイン例外。
+ * ValiError と並んで「ユーザー向けメッセージとして提示可能なエラー」を示す。
+ * 想定外のバグ（TypeError 等）はこの型ではなく素の Error として透過する。
  */
-export function calculateTrialCount(successRate: number): number {
-  // Valibotでバリデーション（エラーメッセージも一元管理）
-  const validated = v.parse(validProbabilityRatioSchema, successRate)
-
-  const failureRate = 1 - validated
-  return Math.ceil(-1 / Math.log10(failureRate))
+export class CalculationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CalculationError'
+  }
 }
 
 /**
- * パーセンテージ (0-100) を確率比 (0-1) に変換して試行回数を計算する
- *
- * @param successRatePercent - 成功率パーセンテージ (0から100の範囲、0と100は含まない)
- * @returns 必要な試行回数
- * @throws {Error} 成功率が0%または100%の場合
+ * 計算結果を表す Result 型。
+ * ok=true なら value、ok=false なら message（ユーザー向け）を保持。
  */
-export function calculateTrialCountFromPercent(successRatePercent: number): number {
-  return calculateTrialCount(successRatePercent / 100)
+export type CalcResult
+  = | { ok: true, value: number }
+    | { ok: false, message: string }
+
+/**
+ * 指定された成功率で、累積成功確率が信頼度以上となるために必要な試行回数を計算する。
+ *
+ * 計算式の導出:
+ * - 単発失敗率 (1-p) の n 回連続失敗確率: (1-p)^n
+ * - 少なくとも1回成功する確率: 1 - (1-p)^n ≥ c
+ * - 変形: (1-p)^n ≤ 1 - c
+ * - 両辺の自然対数（c, p ∈ (0,1) より log(1-c) と log(1-p) は共に負、比は正で確定）:
+ *   n ≥ log(1-c) / log(1-p)
+ *
+ * 経緯:
+ * - 旧式は信頼度 0.9 固定の `-1/log10(1-p)` だったが、信頼度を引数化するため
+ *   `log(1-c)/log(1-p)` に一般化した（log10(0.1)=-1 で旧式と等価）。
+ *
+ * 浮動小数点境界:
+ * - p が極小（例: 1e-17）の場合、IEEE754 では `1 - p` が 1 に丸まり log(1-p)=0 となるため
+ *   結果が -Infinity に発散する。validProbabilityRatioSchema は `> 0` までしか保証しないため、
+ *   戻り値の有限性を別途検証する。
+ *
+ * @param successRate - 単発成功率（0 < x < 1）
+ * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
+ * @returns 必要な試行回数（切り上げ済みの整数）
+ * @throws {ValiError} 引数が値域外の場合
+ * @throws {CalculationError} 浮動小数点境界で計算結果が非有限値になった場合
+ */
+export function calculateTrialCount(
+  successRate: number,
+  confidence: number = DEFAULT_CONFIDENCE,
+): number {
+  const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
+  const validatedConfidence = v.parse(validConfidenceSchema, confidence)
+
+  const result = Math.ceil(Math.log(1 - validatedConfidence) / Math.log(1 - validatedRate))
+  if (!Number.isFinite(result)) {
+    throw new CalculationError(
+      '成功率が極端に小さいため試行回数を計算できません。値を見直してください。',
+    )
+  }
+  return result
+}
+
+/**
+ * calculateTrialCount の Result 型ラッパ。
+ * ユーザー入力起因の失敗（ValiError / CalculationError）は Result.ok=false に変換。
+ * 想定外のエラー（TypeError 等のバグ）は再 throw し、React Error Boundary に委ねる。
+ *
+ * 画面側はこの関数を使うことで instanceof 分岐や try/catch を書かずに済む。
+ */
+export function tryCalculateTrialCount(
+  successRate: number,
+  confidence?: number,
+): CalcResult {
+  try {
+    return { ok: true, value: calculateTrialCount(successRate, confidence) }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError || error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
+}
+
+/**
+ * 試行回数と単発成功率から、少なくとも1回成功する累積確率（ratio）を返す。
+ *
+ * 計算式: 1 - (1 - p)^n
+ *
+ * @param successRate - 単発成功率（0 < x < 1）
+ * @param trialCount - 試行回数（1以上の整数）
+ * @returns 累積成功確率（ratio、0 < r ≤ 1）。極大 n では 1 に飽和する可能性あり。
+ * @throws {ValiError} 引数が値域外の場合
+ */
+export function calculateCumulativeSuccessProbability(
+  successRate: number,
+  trialCount: number,
+): number {
+  const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
+  const validatedCount = v.parse(validTrialCountSchema, trialCount)
+
+  return 1 - Math.pow(1 - validatedRate, validatedCount)
 }

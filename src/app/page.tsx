@@ -1,7 +1,12 @@
 'use client'
 
-import { probabilityPercentageSchema } from '@/probability/probability'
-import { calculateTrialCountFromPercent } from '@/probability/calculator'
+import {
+  DEFAULT_CONFIDENCE,
+  percentToRatio,
+  probabilityPercentageSchema,
+  ratioToPercent,
+} from '@/probability/probability'
+import { tryCalculateTrialCount } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -29,14 +34,14 @@ export default function Home() {
   const helperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    try {
-      const result = calculateTrialCountFromPercent(Number(form.successRate))
-      setTrialCount(result)
+    const result = tryCalculateTrialCount(percentToRatio(Number(form.successRate)))
+    if (result.ok) {
+      setTrialCount(result.value)
       setCalculationError(undefined)
     }
-    catch (error) {
+    else {
       setTrialCount(undefined)
-      setCalculationError(error instanceof Error ? error.message : '計算エラーが発生しました。')
+      setCalculationError(result.message)
     }
   })
 
@@ -92,7 +97,8 @@ export default function Home() {
             回
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            90%の確率で成功するために必要な試行回数
+            {ratioToPercent(DEFAULT_CONFIDENCE)}
+            %の確率で成功するために必要な試行回数
           </p>
         </div>
       )}
