@@ -10,6 +10,7 @@ import {
 } from '@/probability/probability'
 import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+import { ProbabilityChart } from './_probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
@@ -57,6 +58,7 @@ export function ForwardForm() {
     trialCount: number
     confidencePercent: number
     targetCount: number
+    successRatePercent: number
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
   const [calculationError, setCalculationError] = useState<string>()
@@ -96,6 +98,7 @@ export function ForwardForm() {
         trialCount: calcResult.value,
         confidencePercent: Number(form.confidence),
         targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
+        successRatePercent: Number(form.successRate),
         pity: form.pityEnabled
           ? {
             pityCount: Number(form.pityCount),
@@ -387,6 +390,13 @@ export function ForwardForm() {
             </p>
           )}
         </div>
+      )}
+
+      {result !== undefined && (
+        <ProbabilityChart
+          successRatePercent={result.successRatePercent}
+          confidencePercent={result.confidencePercent}
+        />
       )}
 
       {calculationError && (
