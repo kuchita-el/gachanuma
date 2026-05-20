@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
-import { calculateCumulativeSuccessProbability, calculateTrialCount } from './calculator'
+import {
+  CalculationError,
+  calculateCumulativeSuccessProbability,
+  calculateTrialCount,
+  tryCalculateTrialCount,
+} from './calculator'
 import {
   DEFAULT_CONFIDENCE,
   percentToRatio,
@@ -107,16 +112,17 @@ describe('calculateTrialCount', () => {
   })
 
   describe('浮動小数点境界（C-1: 非有限値ガード）', () => {
-    it('成功率 1e-17（IEEE754 で 1-p=1 に丸まる）の場合、明示エラーをスローする', () => {
+    it('成功率 1e-17（IEEE754 で 1-p=1 に丸まる）の場合、CalculationError をスローする', () => {
+      expect(() => calculateTrialCount(1e-17)).toThrow(CalculationError)
       expect(() => calculateTrialCount(1e-17)).toThrow(/極端に小さい/)
     })
 
-    it('成功率 Number.MIN_VALUE の場合、明示エラーをスローする', () => {
-      expect(() => calculateTrialCount(Number.MIN_VALUE)).toThrow(/極端に小さい/)
+    it('成功率 Number.MIN_VALUE の場合、CalculationError をスローする', () => {
+      expect(() => calculateTrialCount(Number.MIN_VALUE)).toThrow(CalculationError)
     })
 
-    it('成功率 5e-17 の場合、明示エラーをスローする（ValiError ではない）', () => {
-      expect(() => calculateTrialCount(5e-17)).toThrow(Error)
+    it('CalculationError は ValiError とは区別される', () => {
+      expect(() => calculateTrialCount(5e-17)).toThrow(CalculationError)
       expect(() => calculateTrialCount(5e-17)).not.toThrow(v.ValiError)
     })
 
@@ -278,6 +284,53 @@ describe('calculateCumulativeSuccessProbability', () => {
     it('試行回数1.5（小数）でValiErrorをスローする', () => {
       expect(() => calculateCumulativeSuccessProbability(0.5, 1.5)).toThrow()
     })
+  })
+})
+
+describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
+  it('成功時は ok:true と value を返す', () => {
+    const result = tryCalculateTrialCount(0.5)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toBe(4)
+    }
+  })
+
+  it('信頼度引数も透過する', () => {
+    const result = tryCalculateTrialCount(0.5, 0.99)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toBe(7)
+    }
+  })
+
+  it('値域外の成功率は ok:false と ValiError メッセージを返す', () => {
+    const result = tryCalculateTrialCount(0)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/成功率/)
+    }
+  })
+
+  it('値域外の信頼度は ok:false と ValiError メッセージを返す', () => {
+    const result = tryCalculateTrialCount(0.5, 1)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/信頼度/)
+    }
+  })
+
+  it('浮動小数点境界（1e-17）は ok:false と CalculationError メッセージを返す', () => {
+    const result = tryCalculateTrialCount(1e-17)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/極端に小さい/)
+    }
+  })
+
+  it('成功率 NaN は ok:false（ValiError 経由）を返す', () => {
+    const result = tryCalculateTrialCount(NaN)
+    expect(result.ok).toBe(false)
   })
 })
 
