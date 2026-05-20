@@ -94,10 +94,18 @@ export function tryCalculateTrialCount(
  *
  * 計算式: 1 - (1 - p)^n
  *
+ * 浮動小数点境界:
+ * - p が極小（例: 1e-17）の場合、IEEE754 では `1 - p` が 1 に丸まり `(1-p)^n = 1`、
+ *   結果として ratio が 0 になる（実数学的には 0 ではない）。これは「成功率が極端に小さく
+ *   累積確率を有効桁数で表現できない」状態のため CalculationError として明示する。
+ * - p が高く n が大きい場合 ratio は 1 に飽和するが、これは「100% に十分近い」として
+ *   `100.00%` 表示で許容する（CalculationError は投げない）。
+ *
  * @param successRate - 単発成功率（0 < x < 1）
  * @param trialCount - 試行回数（1以上の整数）
- * @returns 累積成功確率（ratio、0 < r ≤ 1）。極大 n では 1 に飽和する可能性あり。
+ * @returns 累積成功確率（ratio、0 < r ≤ 1）
  * @throws {ValiError} 引数が値域外の場合
+ * @throws {CalculationError} 浮動小数点境界で ratio が 0 に丸まった場合
  */
 export function calculateCumulativeSuccessProbability(
   successRate: number,
@@ -106,5 +114,30 @@ export function calculateCumulativeSuccessProbability(
   const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
   const validatedCount = v.parse(validTrialCountSchema, trialCount)
 
-  return 1 - Math.pow(1 - validatedRate, validatedCount)
+  const result = 1 - Math.pow(1 - validatedRate, validatedCount)
+  if (!Number.isFinite(result) || result === 0) {
+    throw new CalculationError(
+      '成功率が極端に小さいため累積成功確率を計算できません。値を見直してください。',
+    )
+  }
+  return result
+}
+
+/**
+ * calculateCumulativeSuccessProbability の Result 型ラッパ。
+ * tryCalculateTrialCount と対称の責務分離: 画面側は instanceof 分岐や try/catch を書かずに済む。
+ */
+export function tryCalculateCumulativeSuccessProbability(
+  successRate: number,
+  trialCount: number,
+): CalcResult {
+  try {
+    return { ok: true, value: calculateCumulativeSuccessProbability(successRate, trialCount) }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError || error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
 }

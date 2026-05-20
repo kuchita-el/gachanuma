@@ -73,6 +73,26 @@ export const validTrialCountSchema = v.pipe(
 )
 
 /**
+ * 試行回数のフォーム入力用スキーマ。文字列入力を整数に変換し、1以上の整数を許容。
+ * UI フォーム（react-hook-form + valibotResolver）から呼ばれる前提。
+ */
+export const trialCountInputSchema = v.pipe(
+  v.union([
+    v.pipe(
+      v.string(),
+      v.transform((val) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? val : num
+      }),
+    ),
+    v.number(),
+  ]),
+  v.number('数値を指定してください。'),
+  v.integer('試行回数は整数を指定してください。'),
+  v.minValue(1, '試行回数は1以上を指定してください。'),
+)
+
+/**
  * 信頼度のデフォルト値。
  * 旧 calculateTrialCount 仕様の90%固定を後方互換として維持。
  * UI 表示文言「{X}%の確率で成功するために必要な試行回数」と連動する。
