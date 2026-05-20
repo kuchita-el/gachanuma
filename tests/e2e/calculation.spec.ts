@@ -137,3 +137,29 @@ test.describe('天井UI E2E', () => {
     await expect(page.getByRole('button', { name: '計算' })).toBeDisabled()
   })
 })
+
+test.describe('累積確率グラフ E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+  })
+
+  test('計算前はグラフが描画されない', async ({ page }) => {
+    await expect(page.locator('[data-testid="probability-chart"]')).toHaveCount(0)
+  })
+
+  test('計算実行後にグラフが描画される（成功率50で svg + 90%補助線ラベル）', async ({ page }) => {
+    await page.getByLabel('成功率').fill('50')
+    await page.getByRole('button', { name: '計算' }).click()
+    await expect(page.locator('[data-testid="probability-chart"] svg')).toBeVisible()
+    // 信頼度 90 の破線ラベル「90%」が SVG 内に存在
+    await expect(
+      page.locator('[data-testid="probability-chart"] text').filter({ hasText: '90%' }).first(),
+    ).toBeVisible()
+  })
+
+  test('成功率 0 でエラー時はグラフが描画されない', async ({ page }) => {
+    await page.getByLabel('成功率').fill('0')
+    await page.getByRole('button', { name: '計算' }).click()
+    await expect(page.locator('[data-testid="probability-chart"]')).toHaveCount(0)
+  })
+})
