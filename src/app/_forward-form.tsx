@@ -4,8 +4,9 @@ import {
   confidencePercentageSchema,
   percentToRatio,
   probabilityPercentageSchema,
+  targetCountInputSchema,
 } from '@/probability/probability'
-import { tryCalculateTrialCount } from '@/probability/calculator'
+import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
+  targetCount: targetCountInputSchema,
   confidence: confidencePercentageSchema,
 })
 
@@ -33,24 +35,36 @@ export function ForwardForm() {
     mode: 'onBlur',
     defaultValues: {
       successRate: '',
+      targetCount: '1',
       confidence: '90',
     },
   })
 
-  const [result, setResult] = useState<{ trialCount: number, confidencePercent: number }>()
+  const [result, setResult] = useState<{
+    trialCount: number
+    confidencePercent: number
+    targetCount: number
+  }>()
   const [calculationError, setCalculationError] = useState<string>()
   const successRateId = useId()
   const successRateHelperId = useId()
+  const targetCountId = useId()
+  const targetCountHelperId = useId()
   const confidenceId = useId()
   const confidenceHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    const calcResult = tryCalculateTrialCount(
+    const calcResult = tryCalculateTrialCountForMultipleSuccess(
       percentToRatio(Number(form.successRate)),
+      Number(form.targetCount),
       percentToRatio(Number(form.confidence)),
     )
     if (calcResult.ok) {
-      setResult({ trialCount: calcResult.value, confidencePercent: Number(form.confidence) })
+      setResult({
+        trialCount: calcResult.value,
+        confidencePercent: Number(form.confidence),
+        targetCount: Number(form.targetCount),
+      })
       setCalculationError(undefined)
     }
     else {
@@ -90,6 +104,42 @@ export function ForwardForm() {
                   className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
                 >
                   {errorMessage || '0より大きく100未満の数値を入力してください'}
+                </p>
+              </div>
+            )
+          }}
+        />
+
+        <Controller
+          name="targetCount"
+          control={control}
+          render={({ field, formState: { errors } }) => {
+            const errorMessage = errors.targetCount?.message
+            return (
+              <div className="mt-4 space-y-2">
+                <Label htmlFor={targetCountId}>目標成功回数</Label>
+                <div className="relative">
+                  <Input
+                    id={targetCountId}
+                    inputMode="numeric"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="100"
+                    aria-describedby={targetCountHelperId}
+                    aria-invalid={!!errorMessage}
+                    className="pr-8"
+                    {...field}
+                  />
+                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                    回
+                  </span>
+                </div>
+                <p
+                  id={targetCountHelperId}
+                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {errorMessage || '1〜100 の整数を入力してください'}
                 </p>
               </div>
             )
@@ -147,8 +197,12 @@ export function ForwardForm() {
           }}
         />
 
-        {/* disabled は信頼度起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
-        <Button type="submit" className="mt-4" disabled={!!errors.confidence}>
+        {/* disabled は信頼度・目標成功回数起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
+        <Button
+          type="submit"
+          className="mt-4"
+          disabled={!!errors.confidence || !!errors.targetCount}
+        >
           計算
         </Button>
       </form>
@@ -164,6 +218,13 @@ export function ForwardForm() {
           <p className="text-3xl font-bold">
             {result.trialCount}
             回
+            {result.targetCount >= 2 && (
+              <span className="text-muted-foreground ml-2 text-base font-normal">
+                （
+                {result.targetCount}
+                個獲得）
+              </span>
+            )}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
             {result.confidencePercent}

@@ -34,6 +34,33 @@ test.describe('確率計算 E2E', () => {
     await expect(page.getByText('0より大きく100未満の数値を指定してください。')).toBeVisible()
     await expect(page.getByRole('status')).toHaveCount(0)
   })
+
+  test('目標成功回数 2 + 成功率 50 で 7回 と「（2個獲得）」が表示される', async ({ page }) => {
+    await page.getByLabel('成功率').fill('50')
+    const target = page.getByLabel('目標成功回数')
+    await target.fill('2')
+    await page.getByRole('button', { name: '計算' }).click()
+    await expect(page.getByRole('status')).toContainText('7回')
+    await expect(page.getByRole('status')).toContainText('（2個獲得）')
+  })
+
+  test('目標成功回数 0 を入力するとフィールドエラーが表示され結果は出ない', async ({ page }) => {
+    const target = page.getByLabel('目標成功回数')
+    await target.fill('0')
+    await page.getByLabel('成功率').fill('50')
+    await target.blur()
+    await expect(target).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByText('目標成功回数は1以上を指定してください。')).toBeVisible()
+    await expect(page.getByRole('button', { name: '計算' })).toBeDisabled()
+  })
+
+  test('目標成功回数 101 を入力するとエラー「100以下」が表示される', async ({ page }) => {
+    const target = page.getByLabel('目標成功回数')
+    await target.fill('101')
+    await target.blur()
+    await expect(target).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByText('目標成功回数は100以下を指定してください。')).toBeVisible()
+  })
 })
 
 test.describe('逆算 E2E', () => {
