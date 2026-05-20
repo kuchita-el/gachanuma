@@ -4,6 +4,7 @@ import {
   CalculationError,
   calculateCumulativeSuccessProbability,
   calculateTrialCount,
+  tryCalculateCumulativeSuccessProbability,
   tryCalculateTrialCount,
 } from './calculator'
 import {
@@ -285,6 +286,12 @@ describe('calculateCumulativeSuccessProbability', () => {
       expect(() => calculateCumulativeSuccessProbability(0.5, 1.5)).toThrow()
     })
   })
+
+  describe('浮動小数点境界', () => {
+    it('成功率1e-17（極小）・試行回数1で ratio が 0 に飽和し CalculationError', () => {
+      expect(() => calculateCumulativeSuccessProbability(1e-17, 1)).toThrow(CalculationError)
+    })
+  })
 })
 
 describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
@@ -331,6 +338,79 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
   it('成功率 NaN は ok:false（ValiError 経由）を返す', () => {
     const result = tryCalculateTrialCount(NaN)
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', () => {
+  it('成功時は ok:true と累積確率 ratio を返す（0.5・4 → 0.9375）', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toBeCloseTo(0.9375)
+    }
+  })
+
+  it('信頼度90%以上を満たす境界（0.1・22）で 0.9 以上の ratio を返す', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.1, 22)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toBeGreaterThanOrEqual(0.9)
+    }
+  })
+
+  it('成功率 0 は ok:false でメッセージに「成功率」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0, 4)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/成功率/)
+    }
+  })
+
+  it('成功率 1 は ok:false でメッセージに「成功率」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(1, 4)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/成功率/)
+    }
+  })
+
+  it('試行回数 0 は ok:false でメッセージに「試行回数」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.5, 0)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/試行回数/)
+    }
+  })
+
+  it('試行回数 1.5（非整数）は ok:false でメッセージに「試行回数」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.5, 1.5)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/試行回数/)
+    }
+  })
+
+  it('試行回数 -1 は ok:false を返す', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.5, -1)
+    expect(result.ok).toBe(false)
+  })
+
+  it('成功率 NaN は ok:false（ValiError 経由）を返す', () => {
+    const result = tryCalculateCumulativeSuccessProbability(NaN, 4)
+    expect(result.ok).toBe(false)
+  })
+
+  it('試行回数 Infinity は ok:false を返す', () => {
+    const result = tryCalculateCumulativeSuccessProbability(0.5, Infinity)
+    expect(result.ok).toBe(false)
+  })
+
+  it('成功率1e-17は CalculationError 経由で ok:false を返し、メッセージに「極端に小さい」を含む', () => {
+    const result = tryCalculateCumulativeSuccessProbability(1e-17, 1)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/極端に小さい/)
+    }
   })
 })
 
