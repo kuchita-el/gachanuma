@@ -359,4 +359,135 @@ describe('ForwardForm', () => {
       expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
     })
   })
+
+  describe('天井UI', () => {
+    it('「天井を考慮する」Switch が描画され初期 OFF（aria-checked=false）', () => {
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      expect(sw).toBeInTheDocument()
+      expect(sw).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('初期表示では天井入力欄が非表示', () => {
+      render(<ForwardForm />)
+      expect(screen.queryByLabelText('天井回数')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('天井すり抜け率')).not.toBeInTheDocument()
+    })
+
+    it('Switch をクリックすると aria-checked=true になり天井入力欄が表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      expect(sw).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByLabelText('天井回数')).toBeInTheDocument()
+      expect(screen.getByLabelText('天井すり抜け率')).toBeInTheDocument()
+    })
+
+    it('Switch ON → OFF で天井入力欄が再び非表示になる', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      expect(screen.getByLabelText('天井回数')).toBeInTheDocument()
+      await user.click(sw)
+      expect(sw).toHaveAttribute('aria-checked', 'false')
+      expect(screen.queryByLabelText('天井回数')).not.toBeInTheDocument()
+    })
+
+    it('Switch ON + 成功率 1 + 天井 100 + すり抜け率 0 で「100回」と補助文言が表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('100回')
+      expect(status).toHaveTextContent('天井 100 回・すり抜け率 0% 込み')
+    })
+
+    it('Switch OFF で計算しても補助文言「天井 N 回・すり抜け率 M% 込み」は表示されない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).not.toHaveTextContent('天井')
+    })
+
+    it('Switch ON で天井回数 0 を入力するとエラー文言 + aria-invalid + disabled', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      const input = screen.getByLabelText('天井回数')
+      await user.clear(input)
+      await user.type(input, '0')
+      await user.tab()
+      expect(await screen.findByText('試行回数は1以上を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('Switch ON ですり抜け率 -1 を入力するとエラー文言「0以上100以下」+ disabled', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      const input = screen.getByLabelText('天井すり抜け率')
+      await user.clear(input)
+      await user.type(input, '-1')
+      await user.tab()
+      expect(await screen.findByText('0以上100以下の数値を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('Switch ON ですり抜け率 0 と 100 は境界値として受理される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      const input = screen.getByLabelText('天井すり抜け率')
+
+      await user.clear(input)
+      await user.type(input, '0')
+      await user.tab()
+      expect(input).toHaveAttribute('aria-invalid', 'false')
+
+      await user.clear(input)
+      await user.type(input, '100')
+      await user.tab()
+      expect(input).toHaveAttribute('aria-invalid', 'false')
+    })
+
+    it('Switch ON + 成功率 50 + 天井 4 + すり抜け率 100 で 5 回（kNoPity==N 境界、m=1 で k=N+1）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const pity = screen.getByLabelText('天井回数')
+      await user.clear(pity)
+      await user.type(pity, '4')
+      const slip = screen.getByLabelText('天井すり抜け率')
+      await user.clear(slip)
+      await user.type(slip, '100')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('5回')
+    })
+
+    it('Switch OFF にすると pityCount のエラーがあっても disabled にならない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      const pity = screen.getByLabelText('天井回数')
+      await user.clear(pity)
+      await user.type(pity, '0')
+      await user.tab()
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+
+      await user.click(sw)
+      expect(sw).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
+    })
+  })
 })
