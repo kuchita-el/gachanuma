@@ -6,7 +6,7 @@ import {
   probabilityPercentageSchema,
   ratioToPercent,
 } from '@/probability/probability'
-import { calculateTrialCount } from '@/probability/calculator'
+import { tryCalculateTrialCount } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -34,26 +34,14 @@ export default function Home() {
   const helperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    try {
-      const result = calculateTrialCount(percentToRatio(Number(form.successRate)))
-      setTrialCount(result)
+    const result = tryCalculateTrialCount(percentToRatio(Number(form.successRate)))
+    if (result.ok) {
+      setTrialCount(result.value)
       setCalculationError(undefined)
     }
-    catch (error) {
+    else {
       setTrialCount(undefined)
-      if (error instanceof v.ValiError || error instanceof Error) {
-        const isExpected = error instanceof v.ValiError
-        if (!isExpected) {
-          console.error('[calculateTrialCount] unexpected error', error)
-        }
-        setCalculationError(
-          isExpected ? error.message : '計算中に予期しないエラーが発生しました。',
-        )
-      }
-      else {
-        console.error('[calculateTrialCount] unknown error', error)
-        setCalculationError('計算中に予期しないエラーが発生しました。')
-      }
+      setCalculationError(result.message)
     }
   })
 

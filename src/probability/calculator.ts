@@ -7,6 +7,26 @@ import {
 } from './probability'
 
 /**
+ * 計算層がユーザー入力起因の失敗（数学的境界・浮動小数点境界）を表現するためのドメイン例外。
+ * ValiError と並んで「ユーザー向けメッセージとして提示可能なエラー」を示す。
+ * 想定外のバグ（TypeError 等）はこの型ではなく素の Error として透過する。
+ */
+export class CalculationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CalculationError'
+  }
+}
+
+/**
+ * 計算結果を表す Result 型。
+ * ok=true なら value、ok=false なら message（ユーザー向け）を保持。
+ */
+export type CalcResult
+  = | { ok: true, value: number }
+    | { ok: false, message: string }
+
+/**
  * 指定された成功率で、累積成功確率が信頼度以上となるために必要な試行回数を計算する。
  *
  * 計算式の導出:
@@ -29,7 +49,7 @@ import {
  * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
  * @returns 必要な試行回数（切り上げ済みの整数）
  * @throws {ValiError} 引数が値域外の場合
- * @throws {Error} 浮動小数点境界で計算結果が非有限値になった場合
+ * @throws {CalculationError} 浮動小数点境界で計算結果が非有限値になった場合
  */
 export function calculateTrialCount(
   successRate: number,
@@ -40,9 +60,33 @@ export function calculateTrialCount(
 
   const result = Math.ceil(Math.log(1 - validatedConfidence) / Math.log(1 - validatedRate))
   if (!Number.isFinite(result)) {
-    throw new Error('成功率が極端に小さいため試行回数を計算できません。値を見直してください。')
+    throw new CalculationError(
+      '成功率が極端に小さいため試行回数を計算できません。値を見直してください。',
+    )
   }
   return result
+}
+
+/**
+ * calculateTrialCount の Result 型ラッパ。
+ * ユーザー入力起因の失敗（ValiError / CalculationError）は Result.ok=false に変換。
+ * 想定外のエラー（TypeError 等のバグ）は再 throw し、React Error Boundary に委ねる。
+ *
+ * 画面側はこの関数を使うことで instanceof 分岐や try/catch を書かずに済む。
+ */
+export function tryCalculateTrialCount(
+  successRate: number,
+  confidence?: number,
+): CalcResult {
+  try {
+    return { ok: true, value: calculateTrialCount(successRate, confidence) }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError || error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
 }
 
 /**
