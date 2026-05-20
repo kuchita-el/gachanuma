@@ -42,6 +42,27 @@ export const validConfidenceSchema = v.pipe(
 )
 
 /**
+ * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すValibotスキーマ
+ * 0と100は計算式の境界条件で除外。整数のみ受理し、文字列からの変換に対応。
+ */
+export const confidencePercentageSchema = v.pipe(
+  v.union([
+    v.pipe(
+      v.string(),
+      v.transform((val) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? val : num
+      }),
+    ),
+    v.number(),
+  ]),
+  v.number('数値を指定してください。'),
+  v.integer('整数を指定してください。'),
+  v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
+  v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
+)
+
+/**
  * 試行回数（1以上の整数）のValibotスキーマ
  * 0は累積確率0への退化、小数・負値は離散試行として非物理のため排除
  */

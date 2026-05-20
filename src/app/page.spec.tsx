@@ -93,4 +93,155 @@ describe('Home', () => {
     expect(helper).not.toBeNull()
     expect(helper).toHaveTextContent('0より大きく100未満の数値を入力してください')
   })
+
+  describe('信頼度UI', () => {
+    it('信頼度ラベルと入力欄が表示され、初期値は 90 である', () => {
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度') as HTMLInputElement
+      expect(input).toBeInTheDocument()
+      expect(input.value).toBe('90')
+    })
+
+    it('プリセット 5 個（50/75/90/95/99）が描画される', () => {
+      render(<Home />)
+      for (const preset of [50, 75, 90, 95, 99]) {
+        expect(screen.getByRole('button', { name: `${preset}%` })).toBeInTheDocument()
+      }
+    })
+
+    it('初期表示時、プリセット 90 が aria-pressed=true で選択状態', () => {
+      render(<Home />)
+      expect(screen.getByRole('button', { name: '90%' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: '50%' })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('プリセット 75 をクリックすると信頼度フィールドが 75 に更新される（片方向同期）', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      await user.click(screen.getByRole('button', { name: '75%' }))
+      const input = screen.getByLabelText('信頼度') as HTMLInputElement
+      expect(input.value).toBe('75')
+      expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: '90%' })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('成功率 10 + 信頼度 50 で計算すると 7回 と 50%文言が表示される', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      await user.type(screen.getByLabelText('成功率'), '10')
+      await user.click(screen.getByRole('button', { name: '50%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('7回')
+      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+    })
+
+    it('成功率 10 + 信頼度 99 で計算すると 44回 と 99%文言が表示される', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      await user.type(screen.getByLabelText('成功率'), '10')
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('44回')
+      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+    })
+
+    it('信頼度 0 でフォーカスアウトするとエラー文言と aria-invalid と計算ボタン disabled', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.type(input, '0')
+      await user.tab()
+      expect(await screen.findByText('0より大きく100未満の数値を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('信頼度 100 でフォーカスアウトするとエラー文言と計算ボタン disabled', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.type(input, '100')
+      await user.tab()
+      expect(await screen.findByText('0より大きく100未満の数値を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('信頼度 90.5（非整数）でエラー文言と計算ボタン disabled', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.type(input, '90.5')
+      await user.tab()
+      expect(await screen.findByText('整数を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('信頼度を空欄にすると数値エラー文言と計算ボタン disabled', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.tab()
+      expect(await screen.findByText('数値を指定してください。')).toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+    })
+
+    it('成功率 0/100 では計算ボタン disabled にはならず（信頼度起因のみ）、submit→aria-invalid の既存フローが維持される', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '0')
+      await user.tab()
+      const submit = screen.getByRole('button', { name: '計算' })
+      expect(submit).not.toBeDisabled()
+      await user.click(submit)
+      expect(successRate).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+    })
+
+    it('成功率 10 + 信頼度デフォルト 90 で計算すると 22回 と 90%文言が表示される（AC3 中央値）', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      await user.type(screen.getByLabelText('成功率'), '10')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('22回')
+      expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
+    })
+
+    it('信頼度 50 で計算後、信頼度 99 に変更して再計算すると結果文言が 99% に更新される（状態遷移）', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      await user.type(screen.getByLabelText('成功率'), '10')
+      await user.click(screen.getByRole('button', { name: '50%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      let status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('7回')
+      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('44回')
+      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+    })
+
+    it('信頼度フィールドを直接 75 に編集するとプリセット 75 の aria-pressed が true になる（表示双方向）', async () => {
+      const user = userEvent.setup()
+      render(<Home />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.type(input, '75')
+      expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: '90%' })).toHaveAttribute('aria-pressed', 'false')
+    })
+  })
 })
