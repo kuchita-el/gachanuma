@@ -2,9 +2,12 @@ import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
 import { calculateCumulativeSuccessProbability, calculateTrialCount } from './calculator'
 import {
+  DEFAULT_CONFIDENCE,
   percentToRatio,
   ratioToPercent,
   validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validTrialCountSchema,
 } from './probability'
 
 describe('calculateTrialCount', () => {
@@ -81,6 +84,47 @@ describe('calculateTrialCount', () => {
     it('範囲外の値 (-1.0) の場合エラーをスローする', () => {
       expect(() => calculateTrialCount(-1.0)).toThrow()
     })
+
+    it('成功率 NaN の場合 ValiError をスローする', () => {
+      expect(() => calculateTrialCount(NaN)).toThrow(v.ValiError)
+    })
+
+    it('成功率 Infinity の場合 ValiError をスローする', () => {
+      expect(() => calculateTrialCount(Infinity)).toThrow(v.ValiError)
+    })
+
+    it('成功率 -Infinity の場合 ValiError をスローする', () => {
+      expect(() => calculateTrialCount(-Infinity)).toThrow(v.ValiError)
+    })
+
+    it('信頼度 NaN の場合 ValiError をスローする', () => {
+      expect(() => calculateTrialCount(0.5, NaN)).toThrow(v.ValiError)
+    })
+
+    it('信頼度 Infinity の場合 ValiError をスローする', () => {
+      expect(() => calculateTrialCount(0.5, Infinity)).toThrow(v.ValiError)
+    })
+  })
+
+  describe('浮動小数点境界（C-1: 非有限値ガード）', () => {
+    it('成功率 1e-17（IEEE754 で 1-p=1 に丸まる）の場合、明示エラーをスローする', () => {
+      expect(() => calculateTrialCount(1e-17)).toThrow(/極端に小さい/)
+    })
+
+    it('成功率 Number.MIN_VALUE の場合、明示エラーをスローする', () => {
+      expect(() => calculateTrialCount(Number.MIN_VALUE)).toThrow(/極端に小さい/)
+    })
+
+    it('成功率 5e-17 の場合、明示エラーをスローする（ValiError ではない）', () => {
+      expect(() => calculateTrialCount(5e-17)).toThrow(Error)
+      expect(() => calculateTrialCount(5e-17)).not.toThrow(v.ValiError)
+    })
+
+    it('実用域の極小値 1e-10 は計算可能で有限', () => {
+      const result = calculateTrialCount(1e-10)
+      expect(Number.isFinite(result)).toBe(true)
+      expect(result).toBeGreaterThan(0)
+    })
   })
 
   describe('戻り値の型チェック', () => {
@@ -106,6 +150,15 @@ describe('calculateTrialCount', () => {
   })
 
   describe('信頼度引数明示', () => {
+    it('信頼度省略は DEFAULT_CONFIDENCE 明示と等価', () => {
+      expect(calculateTrialCount(0.5)).toBe(calculateTrialCount(0.5, DEFAULT_CONFIDENCE))
+      expect(calculateTrialCount(0.1)).toBe(calculateTrialCount(0.1, DEFAULT_CONFIDENCE))
+    })
+
+    it('DEFAULT_CONFIDENCE は 0.9', () => {
+      expect(DEFAULT_CONFIDENCE).toBe(0.9)
+    })
+
     it('成功率0.5・信頼度0.9で4回（デフォルト値と一致）', () => {
       expect(calculateTrialCount(0.5, 0.9)).toBe(4)
     })
@@ -182,6 +235,22 @@ describe('calculateCumulativeSuccessProbability', () => {
   })
 
   describe('バリデーション', () => {
+    it('成功率NaNでValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(NaN, 4)).toThrow(v.ValiError)
+    })
+
+    it('成功率InfinityでValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(Infinity, 4)).toThrow(v.ValiError)
+    })
+
+    it('試行回数NaNでValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0.5, NaN)).toThrow(v.ValiError)
+    })
+
+    it('試行回数InfinityでValiErrorをスローする', () => {
+      expect(() => calculateCumulativeSuccessProbability(0.5, Infinity)).toThrow(v.ValiError)
+    })
+
     it('成功率0でValiErrorをスローする', () => {
       expect(() => calculateCumulativeSuccessProbability(0, 4)).toThrow()
     })
@@ -266,6 +335,47 @@ describe('変換ユーティリティの往復整合', () => {
     for (const r of [0.01, 0.5, 0.9, 0.99]) {
       expect(percentToRatio(ratioToPercent(r))).toBeCloseTo(r)
     }
+  })
+})
+
+describe('validTrialCountSchema', () => {
+  it('典型値1を渡すとそのまま1を返す', () => {
+    expect(v.parse(validTrialCountSchema, 1)).toBe(1)
+  })
+
+  it('正の整数（10000）を渡すとそのまま返す', () => {
+    expect(v.parse(validTrialCountSchema, 10000)).toBe(10000)
+  })
+
+  it('0を渡すとValiError、メッセージに「試行回数」を含む', () => {
+    expect(() => v.parse(validTrialCountSchema, 0)).toThrow(/試行回数/)
+  })
+
+  it('小数1.5を渡すとValiError、メッセージに「試行回数」を含む', () => {
+    expect(() => v.parse(validTrialCountSchema, 1.5)).toThrow(/試行回数/)
+  })
+
+  it('負値-1を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validTrialCountSchema, -1)).toThrow()
+  })
+
+  it('文字列を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validTrialCountSchema, '5')).toThrow()
+  })
+
+  it('NaNを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validTrialCountSchema, NaN)).toThrow()
+  })
+
+  it('InfinityはinValiErrorをスローする（整数チェックで弾かれる）', () => {
+    expect(() => v.parse(validTrialCountSchema, Infinity)).toThrow()
+  })
+})
+
+describe('validProbabilityRatioSchema', () => {
+  it('エラーメッセージに「成功率」を含む', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, 0)).toThrow(/成功率/)
+    expect(() => v.parse(validProbabilityRatioSchema, 1)).toThrow(/成功率/)
   })
 })
 

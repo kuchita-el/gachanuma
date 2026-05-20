@@ -1,6 +1,11 @@
 'use client'
 
-import { percentToRatio, probabilityPercentageSchema } from '@/probability/probability'
+import {
+  DEFAULT_CONFIDENCE,
+  percentToRatio,
+  probabilityPercentageSchema,
+  ratioToPercent,
+} from '@/probability/probability'
 import { calculateTrialCount } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
@@ -36,7 +41,19 @@ export default function Home() {
     }
     catch (error) {
       setTrialCount(undefined)
-      setCalculationError(error instanceof Error ? error.message : '計算エラーが発生しました。')
+      if (error instanceof v.ValiError || error instanceof Error) {
+        const isExpected = error instanceof v.ValiError
+        if (!isExpected) {
+          console.error('[calculateTrialCount] unexpected error', error)
+        }
+        setCalculationError(
+          isExpected ? error.message : '計算中に予期しないエラーが発生しました。',
+        )
+      }
+      else {
+        console.error('[calculateTrialCount] unknown error', error)
+        setCalculationError('計算中に予期しないエラーが発生しました。')
+      }
     }
   })
 
@@ -92,7 +109,8 @@ export default function Home() {
             回
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            90%の確率で成功するために必要な試行回数
+            {ratioToPercent(DEFAULT_CONFIDENCE)}
+            %の確率で成功するために必要な試行回数
           </p>
         </div>
       )}
