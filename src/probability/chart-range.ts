@@ -5,7 +5,9 @@
  *   p=0.5 で N99=7 → 上限 11 のように、信頼度 99% に届くポイントから少し余裕を持って描画範囲を決める。
  * - プロット点列: X 軸範囲の整数点を 200 点上限で等間隔サンプリング。先頭は必ず 1、末尾は upperBound。
  */
-import { calculateTrialCount } from './calculator'
+import * as v from 'valibot'
+import { CalculationError, calculateTrialCount } from './calculator'
+import type { CalcResult } from './calculator'
 
 const DEFAULT_MAX_POINTS = 200
 const N99_CONFIDENCE = 0.99
@@ -25,6 +27,22 @@ export function computeXAxisUpperBound(successRateRatio: number): number {
 }
 
 /**
+ * computeXAxisUpperBound の Result 型ラッパ。
+ * tryCalculateTrialCount と対称の責務分離: 画面側は try/catch + instanceof を書かずに済む。
+ */
+export function tryComputeXAxisUpperBound(successRateRatio: number): CalcResult {
+  try {
+    return { ok: true, value: computeXAxisUpperBound(successRateRatio) }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError || error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
+}
+
+/**
  * X 軸上限までの試行回数列を最大 maxPoints 個サンプリングする。
  *
  * - upperBound <= maxPoints のときは [1, 2, ..., upperBound] の全整数を返す
@@ -38,6 +56,12 @@ export function sampleTrialCounts(
   upperBound: number,
   maxPoints: number = DEFAULT_MAX_POINTS,
 ): number[] {
+  if (!Number.isInteger(upperBound) || upperBound < 1) {
+    throw new RangeError(`upperBound は1以上の整数を指定してください: ${upperBound}`)
+  }
+  if (!Number.isInteger(maxPoints) || maxPoints < 2) {
+    throw new RangeError(`maxPoints は2以上の整数を指定してください: ${maxPoints}`)
+  }
   if (upperBound <= maxPoints) {
     return Array.from({ length: upperBound }, (_, i) => i + 1)
   }

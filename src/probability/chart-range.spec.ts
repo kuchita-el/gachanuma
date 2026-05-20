@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
-import { computeXAxisUpperBound, sampleTrialCounts } from './chart-range'
+import {
+  computeXAxisUpperBound,
+  sampleTrialCounts,
+  tryComputeXAxisUpperBound,
+} from './chart-range'
 import { CalculationError } from './calculator'
 
 describe('computeXAxisUpperBound', () => {
@@ -87,5 +91,53 @@ describe('sampleTrialCounts', () => {
     expect(arr.length).toBeLessThanOrEqual(10)
     expect(arr[0]).toBe(1)
     expect(arr[arr.length - 1]).toBe(1000)
+  })
+
+  it('upperBound=0 で RangeError をスロー（1以上の整数前提）', () => {
+    expect(() => sampleTrialCounts(0)).toThrow(RangeError)
+  })
+
+  it('upperBound=-1 で RangeError', () => {
+    expect(() => sampleTrialCounts(-1)).toThrow(RangeError)
+  })
+
+  it('upperBound=1.5（非整数）で RangeError', () => {
+    expect(() => sampleTrialCounts(1.5)).toThrow(RangeError)
+  })
+
+  it('maxPoints=1 で RangeError（2以上必須、0除算を防ぐ）', () => {
+    expect(() => sampleTrialCounts(100, 1)).toThrow(RangeError)
+  })
+
+  it('maxPoints=0 で RangeError', () => {
+    expect(() => sampleTrialCounts(100, 0)).toThrow(RangeError)
+  })
+})
+
+describe('tryComputeXAxisUpperBound（Result 型ラッパ）', () => {
+  it('成功時は ok:true と値', () => {
+    const r = tryComputeXAxisUpperBound(0.5)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value).toBe(11)
+    }
+  })
+
+  it('p=0 は ok:false、メッセージに「成功率」を含む', () => {
+    const r = tryComputeXAxisUpperBound(0)
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.message).toMatch(/成功率/)
+    }
+  })
+
+  it('p=NaN は ok:false', () => {
+    const r = tryComputeXAxisUpperBound(NaN)
+    expect(r.ok).toBe(false)
+  })
+
+  it('p 極小（1e-17）は ok:false（CalculationError 経由）', () => {
+    const r = tryComputeXAxisUpperBound(1e-17)
+    expect(r.ok).toBe(false)
   })
 })

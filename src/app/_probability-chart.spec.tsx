@@ -74,4 +74,48 @@ describe('ProbabilityChart', () => {
     render(<ProbabilityChart successRatePercent={50} confidencePercent={90} />)
     expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
   })
+
+  it('ラッパに role="img" と aria-label が付与される', () => {
+    render(<ProbabilityChart successRatePercent={50} confidencePercent={90} />)
+    const wrapper = screen.getByTestId('probability-chart')
+    expect(wrapper).toHaveAttribute('role', 'img')
+    expect(wrapper.getAttribute('aria-label')).toMatch(/累積成功確率/)
+  })
+
+  it('信頼度補助線の属性が stroke="var(--chart-2)" / strokeWidth=1 / strokeDasharray="4 4"（AC3 機械的検証）', () => {
+    const { container } = render(
+      <ProbabilityChart successRatePercent={50} confidencePercent={90} />,
+    )
+    // c=90 で重複回避のため補助線は 1 本だけ。属性は --chart-2
+    const refLines = Array.from(
+      container.querySelectorAll<SVGLineElement>('line[stroke-dasharray="4 4"]'),
+    )
+    expect(refLines.length).toBeGreaterThanOrEqual(1)
+    const mainRef = refLines[0]!
+    expect(mainRef.getAttribute('stroke')).toBe('var(--chart-2)')
+    expect(mainRef.getAttribute('stroke-width')).toBe('1')
+  })
+
+  it('信頼度 50 のときデフォルト 90% 線の stroke は var(--chart-1)', () => {
+    const { container } = render(
+      <ProbabilityChart successRatePercent={50} confidencePercent={50} />,
+    )
+    const refLines = Array.from(
+      container.querySelectorAll<SVGLineElement>('line[stroke-dasharray="4 4"]'),
+    )
+    expect(refLines.length).toBeGreaterThanOrEqual(2)
+    // c=50 の主補助線は --chart-2、90% デフォルト線は --chart-1 を含む
+    const strokes = refLines.map(el => el.getAttribute('stroke'))
+    expect(strokes).toContain('var(--chart-2)')
+    expect(strokes).toContain('var(--chart-1)')
+  })
+
+  it('successRatePercent が極小（schema 不通過の理論値 1e-15）でも throw せず null フォールバック', () => {
+    // Result 型ラッパ経路により CalculationError は ok:false に変換され null が返される
+    const { container } = render(
+      <ProbabilityChart successRatePercent={1e-15} confidencePercent={90} />,
+    )
+    expect(container.querySelector('svg')).toBeNull()
+    expect(container.querySelector('[data-testid="probability-chart"]')).toBeNull()
+  })
 })

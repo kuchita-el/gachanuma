@@ -9,8 +9,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
+import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { sampleTrialCounts, tryComputeXAxisUpperBound } from '@/probability/chart-range'
 import { percentToRatio } from '@/probability/probability'
 
 const CHART_WIDTH = 600
@@ -28,23 +28,41 @@ interface ProbabilityChartProps {
  * 信頼度 c の水平破線（右端ラベル）と、c≠90 の場合は 90% デフォルト線を併記。
  *
  * jsdom 互換のため `ResponsiveContainer` は使わず固定サイズで描画する（recharts issue #1423）。
+ * 計算層エラー（ValiError / CalculationError）は Result 型ラッパで受け、null 返却でフォールバック。
  */
 export function ProbabilityChart({
   successRatePercent,
   confidencePercent,
 }: ProbabilityChartProps) {
   const rate = percentToRatio(successRatePercent)
-  const upperBound = computeXAxisUpperBound(rate)
-  const data = sampleTrialCounts(upperBound).map(n => ({
-    trialCount: n,
-    cumulativeProbabilityPercent: calculateCumulativeSuccessProbability(rate, n) * 100,
-  }))
+  const upperBoundResult = tryComputeXAxisUpperBound(rate)
+  if (!upperBoundResult.ok) {
+    return null
+  }
+  const upperBound = upperBoundResult.value
+
+  const data: { trialCount: number, cumulativeProbabilityPercent: number }[] = []
+  for (const n of sampleTrialCounts(upperBound)) {
+    const probResult = tryCalculateCumulativeSuccessProbability(rate, n)
+    if (!probResult.ok) {
+      return null
+    }
+    data.push({
+      trialCount: n,
+      cumulativeProbabilityPercent: probResult.value * 100,
+    })
+  }
 
   // 信頼度=90 のときはデフォルト90破線と重複するので主補助線のみ描画
   const showDefaultGuide = confidencePercent !== DEFAULT_CONFIDENCE_PERCENT
 
   return (
-    <div data-testid="probability-chart" className="mt-4">
+    <div
+      data-testid="probability-chart"
+      role="img"
+      aria-label="試行回数に対する累積成功確率の折れ線グラフ"
+      className="mt-4"
+    >
       <LineChart
         width={CHART_WIDTH}
         height={CHART_HEIGHT}
