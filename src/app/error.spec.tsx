@@ -42,4 +42,25 @@ describe('app/error.tsx', () => {
     render(<ErrorPage error={error} reset={vi.fn()} />)
     expect(consoleErrorSpy).toHaveBeenCalledWith(error)
   })
+
+  it('rerender で error が別インスタンスに差し替わると console.error が再度呼ばれる', () => {
+    const error1 = new Error('boom1')
+    const error2 = new Error('boom2')
+    const { rerender } = render(<ErrorPage error={error1} reset={vi.fn()} />)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(error1)
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+
+    rerender(<ErrorPage error={error2} reset={vi.fn()} />)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(error2)
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('rerender で error が同一参照のままなら console.error は再度呼ばれない', () => {
+    const error = new Error('boom')
+    const { rerender } = render(<ErrorPage error={error} reset={vi.fn()} />)
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+
+    rerender(<ErrorPage error={error} reset={vi.fn()} />)
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+  })
 })
