@@ -246,19 +246,34 @@ describe('InverseForm', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(TypeError))
     })
 
-    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 Alert が表示される（回帰）', async () => {
-      // モック差し替えなし。実関数で成功率 0 → ValiError 経路。
+    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 calculationError Alert が表示される', async () => {
+      // フォーム schema は通過するが計算層がドメインエラーを返す経路。
+      // tryCalculate* が { ok: false, message } を返すと、画面層は既存の Alert を出し
+      // Error Boundary には遷移しない。
+      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValue({
+        ok: false,
+        message: 'ドメインエラー（テスト用）',
+      })
       const user = userEvent.setup()
       render(
         <ErrorBoundary>
           <InverseForm />
         </ErrorBoundary>,
       )
-      await user.type(screen.getByLabelText('成功率'), '0')
+      await user.type(screen.getByLabelText('成功率'), '50')
       await user.type(screen.getByLabelText('試行回数'), '4')
       await user.click(screen.getByRole('button', { name: '計算' }))
+      // 既存の calculationError Alert が表示される
+      expect(
+        await screen.findByText('ドメインエラー（テスト用）'),
+      ).toBeInTheDocument()
+      // Boundary フォールバックには遷移しない
       expect(
         screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
+      // 計算結果領域も表示されない
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
       ).not.toBeInTheDocument()
     })
   })
