@@ -62,6 +62,7 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  const [, setErrorBoundaryTrigger] = useState<Error | undefined>(undefined)
   const successRateId = useId()
   const successRateHelperId = useId()
   const targetCountId = useId()
@@ -75,42 +76,52 @@ export function ForwardForm() {
   const slipRateHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    const successRateRatio = percentToRatio(Number(form.successRate))
-    const confidenceRatio = percentToRatio(Number(form.confidence))
+    try {
+      const successRateRatio = percentToRatio(Number(form.successRate))
+      const confidenceRatio = percentToRatio(Number(form.confidence))
 
-    const calcResult = form.pityEnabled
-      ? tryCalculateTrialCountWithPity(
-        successRateRatio,
-        Number(form.pityCount),
-        percentToRatio(Number(form.slipRatePercent)),
-        confidenceRatio,
-      )
-      : tryCalculateTrialCountForMultipleSuccess(
-        successRateRatio,
-        Number(form.targetCount),
-        confidenceRatio,
-      )
+      const calcResult = form.pityEnabled
+        ? tryCalculateTrialCountWithPity(
+          successRateRatio,
+          Number(form.pityCount),
+          percentToRatio(Number(form.slipRatePercent)),
+          confidenceRatio,
+        )
+        : tryCalculateTrialCountForMultipleSuccess(
+          successRateRatio,
+          Number(form.targetCount),
+          confidenceRatio,
+        )
 
-    if (calcResult.ok) {
-      // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
-      // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
-      setResult({
-        trialCount: calcResult.value,
-        confidencePercent: Number(form.confidence),
-        targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
-        successRatePercent: Number(form.successRate),
-        pity: form.pityEnabled
-          ? {
-            pityCount: Number(form.pityCount),
-            slipRatePercent: Number(form.slipRatePercent),
-          }
-          : undefined,
-      })
-      setCalculationError(undefined)
+      if (calcResult.ok) {
+        // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
+        // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+        setResult({
+          trialCount: calcResult.value,
+          confidencePercent: Number(form.confidence),
+          targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
+          successRatePercent: Number(form.successRate),
+          pity: form.pityEnabled
+            ? {
+              pityCount: Number(form.pityCount),
+              slipRatePercent: Number(form.slipRatePercent),
+            }
+            : undefined,
+        })
+        setCalculationError(undefined)
+      }
+      else {
+        setResult(undefined)
+        setCalculationError(calcResult.message)
+      }
     }
-    else {
-      setResult(undefined)
-      setCalculationError(calcResult.message)
+    catch (e) {
+      // イベントハンドラ内 throw は React Error Boundary に届かないため、
+      // useState の関数形セッタで commit フェーズに throw を移送する。
+      const error = e instanceof Error ? e : new Error(String(e))
+      setErrorBoundaryTrigger(() => {
+        throw error
+      })
     }
   })
 

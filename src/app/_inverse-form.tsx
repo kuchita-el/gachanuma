@@ -35,26 +35,37 @@ export function InverseForm() {
     trialCount: number
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  const [, setErrorBoundaryTrigger] = useState<Error | undefined>(undefined)
   const successRateId = useId()
   const successRateHelperId = useId()
   const trialCountId = useId()
   const trialCountHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    const calcResult = tryCalculateCumulativeSuccessProbability(
-      percentToRatio(Number(form.successRate)),
-      Number(form.trialCount),
-    )
-    if (calcResult.ok) {
-      setResult({
-        cumulativeProbabilityRatio: calcResult.value,
-        trialCount: Number(form.trialCount),
-      })
-      setCalculationError(undefined)
+    try {
+      const calcResult = tryCalculateCumulativeSuccessProbability(
+        percentToRatio(Number(form.successRate)),
+        Number(form.trialCount),
+      )
+      if (calcResult.ok) {
+        setResult({
+          cumulativeProbabilityRatio: calcResult.value,
+          trialCount: Number(form.trialCount),
+        })
+        setCalculationError(undefined)
+      }
+      else {
+        setResult(undefined)
+        setCalculationError(calcResult.message)
+      }
     }
-    else {
-      setResult(undefined)
-      setCalculationError(calcResult.message)
+    catch (e) {
+      // イベントハンドラ内 throw は React Error Boundary に届かないため、
+      // useState の関数形セッタで commit フェーズに throw を移送する。
+      const error = e instanceof Error ? e : new Error(String(e))
+      setErrorBoundaryTrigger(() => {
+        throw error
+      })
     }
   })
 

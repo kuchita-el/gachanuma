@@ -1,7 +1,20 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { InverseForm } from './_inverse-form'
+import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
+import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
+
+vi.mock('@/probability/calculator', async (importOriginal) => {
+  const actual
+    = await importOriginal<typeof import('@/probability/calculator')>()
+  return {
+    ...actual,
+    tryCalculateCumulativeSuccessProbability: vi.fn(
+      actual.tryCalculateCumulativeSuccessProbability,
+    ),
+  }
+})
 
 describe('InverseForm', () => {
   it('成功率ラベルと試行回数ラベルが描画される', () => {
@@ -195,5 +208,58 @@ describe('InverseForm', () => {
     await user.tab()
     const submit = screen.getByRole('button', { name: '計算' })
     expect(submit).not.toBeDisabled()
+  })
+
+  describe('Error Boundary 橋渡し (Issue #54)', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore()
+      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReset()
+    })
+
+    it('逆算経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+      vi.mocked(tryCalculateCumulativeSuccessProbability).mockImplementation(
+        () => {
+          throw new TypeError('boom')
+        },
+      )
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <InverseForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.type(screen.getByLabelText('試行回数'), '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(TypeError))
+    })
+
+    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 Alert が表示される（回帰）', async () => {
+      // モック差し替えなし。実関数で成功率 0 → ValiError 経路。
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <InverseForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '0')
+      await user.type(screen.getByLabelText('試行回数'), '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
+    })
   })
 })

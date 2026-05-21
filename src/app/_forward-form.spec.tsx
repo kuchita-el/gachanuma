@@ -1,7 +1,29 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './_forward-form'
+import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
+import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
+import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+
+vi.mock('@/probability/negative-binomial', async (importOriginal) => {
+  const actual
+    = await importOriginal<typeof import('@/probability/negative-binomial')>()
+  return {
+    ...actual,
+    tryCalculateTrialCountForMultipleSuccess: vi.fn(
+      actual.tryCalculateTrialCountForMultipleSuccess,
+    ),
+  }
+})
+
+vi.mock('@/probability/pity', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/probability/pity')>()
+  return {
+    ...actual,
+    tryCalculateTrialCountWithPity: vi.fn(actual.tryCalculateTrialCountWithPity),
+  }
+})
 
 describe('ForwardForm', () => {
   it('成功率ラベルと入力欄が表示される', () => {
@@ -534,6 +556,82 @@ describe('ForwardForm', () => {
       const status = await screen.findByRole('status', { name: '計算結果' })
       // 通常計算(成功率50, 信頼度90, 目標成功回数1) → 4回
       expect(status).toHaveTextContent('4回')
+    })
+  })
+
+  describe('Error Boundary 橋渡し (Issue #54)', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore()
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReset()
+      vi.mocked(tryCalculateTrialCountWithPity).mockReset()
+    })
+
+    it('複数回成功経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementation(
+        () => {
+          throw new TypeError('boom')
+        },
+      )
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(TypeError))
+    })
+
+    it('天井 ON 経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockImplementation(() => {
+        throw new TypeError('boom')
+      })
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(TypeError))
+    })
+
+    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 Alert が表示される（回帰）', async () => {
+      // モック差し替えなし。実関数で成功率 0 → ValiError 経路。
+      // 既存挙動を維持していることを確認する。
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '0')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      // フォールバック UI には遷移しない
+      expect(
+        screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
     })
   })
 
