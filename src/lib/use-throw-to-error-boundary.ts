@@ -12,6 +12,12 @@ import { useState } from 'react'
  * 非 Error 値は Error にラップし、元値を `cause` に保持してデバッグ情報を残す。
  * message は `string` の場合は元値を転記、それ以外は `String(e)` で文字列化する
  * （例: `null` → `"null"`、`{ code: 42 }` → `"[object Object]"`）。
+ *
+ * 制約:
+ * - 同一 render サイクル内で返り値を複数回呼ばないこと。React の state バッチにより
+ *   最後の呼び出しの値が勝ち、それ以前の error は失われる。
+ * - 返り値は render 毎に新規生成される関数のため、`useEffect` 等の依存配列に
+ *   入れないこと（無限ループになる）。
  */
 export function useThrowToErrorBoundary(): (error: unknown) => void {
   const [error, setError] = useState<Error | undefined>(undefined)
