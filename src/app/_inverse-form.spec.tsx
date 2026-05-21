@@ -210,7 +210,7 @@ describe('InverseForm', () => {
     expect(submit).not.toBeDisabled()
   })
 
-  describe('Error Boundary 橋渡し', () => {
+  describe('想定外エラー時のフォールバック表示', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
@@ -221,7 +221,7 @@ describe('InverseForm', () => {
       consoleErrorSpy.mockRestore()
     })
 
-    it('逆算経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+    it('想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
       vi.mocked(tryCalculateCumulativeSuccessProbability).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
@@ -249,7 +249,7 @@ describe('InverseForm', () => {
       ).toBe(true)
     })
 
-    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 calculationError Alert が表示される', async () => {
+    it('ドメインエラーはフォールバックではなくフォーム内 Alert で表示される', async () => {
       vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
         ok: false,
         message: 'ドメインエラー（テスト用）',

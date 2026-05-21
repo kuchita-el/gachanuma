@@ -14,7 +14,7 @@ describe('app/error.tsx', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('role="alert" 要素にユーザー向け文言「予期しないエラーが発生しました」が含まれる', () => {
+  it('エラータイトルとして「予期しないエラーが発生しました」が表示される', () => {
     render(<ErrorPage error={new Error('boom')} reset={vi.fn()} />)
     const alert = screen.getByRole('alert')
     expect(alert).toBeInTheDocument()

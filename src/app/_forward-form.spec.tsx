@@ -559,7 +559,7 @@ describe('ForwardForm', () => {
     })
   })
 
-  describe('Error Boundary 橋渡し', () => {
+  describe('想定外エラー時のフォールバック表示', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
@@ -570,7 +570,7 @@ describe('ForwardForm', () => {
       consoleErrorSpy.mockRestore()
     })
 
-    it('複数回成功経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+    it('目標成功回数を指定した計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
       vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
@@ -597,7 +597,7 @@ describe('ForwardForm', () => {
       ).toBe(true)
     })
 
-    it('天井 ON 経路で想定外 throw → ErrorBoundary フォールバック UI に切り替わる', async () => {
+    it('天井ありの計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
       vi.mocked(tryCalculateTrialCountWithPity).mockImplementationOnce(() => {
         throw new TypeError('boom')
       })
@@ -623,7 +623,7 @@ describe('ForwardForm', () => {
       ).toBe(true)
     })
 
-    it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 calculationError Alert が表示される', async () => {
+    it('ドメインエラーはフォールバックではなくフォーム内 Alert で表示される', async () => {
       vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
         ok: false,
         message: 'ドメインエラー（テスト用）',
@@ -647,7 +647,7 @@ describe('ForwardForm', () => {
       ).not.toBeInTheDocument()
     })
 
-    it('天井 ON 経路で Result.ok=false（ドメインエラー）→ Boundary に到達せず Alert 表示', async () => {
+    it('天井ありの計算でドメインエラーが発生したときフォーム内 Alert で表示される', async () => {
       vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
         ok: false,
         message: '天井ドメインエラー（テスト用）',
