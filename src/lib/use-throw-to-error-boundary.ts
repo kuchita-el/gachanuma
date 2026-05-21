@@ -9,7 +9,9 @@ import { useState } from 'react'
  * イベントハンドラ内の throw は捕捉対象外のため、useState にエラーを保持し、
  * 次回 render 時に同期 throw する。Error Boundary が getDerivedStateFromError で捕捉する。
  *
- * 非 Error 値は Error にラップし、元値を cause に保持してデバッグ情報を残す。
+ * 非 Error 値は Error にラップし、元値を `cause` に保持してデバッグ情報を残す。
+ * message は `string` の場合は元値を転記、それ以外は `String(e)` で文字列化する
+ * （例: `null` → `"null"`、`{ code: 42 }` → `"[object Object]"`）。
  */
 export function useThrowToErrorBoundary(): (error: unknown) => void {
   const [error, setError] = useState<Error | undefined>(undefined)

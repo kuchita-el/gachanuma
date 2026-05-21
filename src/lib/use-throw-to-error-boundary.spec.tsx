@@ -73,7 +73,7 @@ describe('useThrowToErrorBoundary', () => {
     expect(captured[0]?.cause).toBe('文字列エラー')
   })
 
-  it('null は Error にラップされ cause に元値を保持する', async () => {
+  it('null は Error にラップされ message は "null"、cause に元値を保持する', async () => {
     const user = userEvent.setup()
     const captured: Error[] = []
     render(
@@ -84,10 +84,11 @@ describe('useThrowToErrorBoundary', () => {
     await user.click(screen.getByRole('button', { name: 'throw' }))
     expect(await screen.findByTestId('caught')).toBeInTheDocument()
     expect(captured[0]).toBeInstanceOf(Error)
+    expect(captured[0]?.message).toBe('null')
     expect(captured[0]?.cause).toBeNull()
   })
 
-  it('plain object は Error にラップされ cause に元値を保持する', async () => {
+  it('plain object は Error にラップされ message は "[object Object]"、cause に元値を保持する', async () => {
     const user = userEvent.setup()
     const original = { code: 42, detail: 'wat' }
     const captured: Error[] = []
@@ -99,6 +100,7 @@ describe('useThrowToErrorBoundary', () => {
     await user.click(screen.getByRole('button', { name: 'throw' }))
     expect(await screen.findByTestId('caught')).toBeInTheDocument()
     expect(captured[0]).toBeInstanceOf(Error)
+    expect(captured[0]?.message).toBe('[object Object]')
     expect(captured[0]?.cause).toBe(original)
   })
 })
