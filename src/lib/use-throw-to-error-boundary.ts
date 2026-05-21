@@ -6,15 +6,20 @@ import { useState } from 'react'
  * イベントハンドラ内で発生した想定外 throw を React Error Boundary に橋渡しするフック。
  *
  * React の Error Boundary は render / lifecycle / constructor 内の throw しか捕捉しない。
- * イベントハンドラ内の throw は捕捉対象外のため、useState の関数形セッタを使い
- * commit フェーズに throw を移送する。
+ * イベントハンドラ内の throw は捕捉対象外のため、useState にエラーを保持し、
+ * 次回 render 時に同期 throw する。Error Boundary が getDerivedStateFromError で捕捉する。
+ *
+ * 非 Error 値は Error にラップし、元値を cause に保持してデバッグ情報を残す。
  */
 export function useThrowToErrorBoundary(): (error: unknown) => void {
-  const [, setErrorBoundaryTrigger] = useState<Error | undefined>(undefined)
-  return (error: unknown) => {
-    const wrapped = error instanceof Error ? error : new Error(String(error))
-    setErrorBoundaryTrigger(() => {
-      throw wrapped
-    })
+  const [error, setError] = useState<Error | undefined>(undefined)
+  if (error) throw error
+  return (e: unknown): void => {
+    if (e instanceof Error) {
+      setError(e)
+      return
+    }
+    const message = typeof e === 'string' ? e : String(e)
+    setError(new Error(message, { cause: e }))
   }
 }
