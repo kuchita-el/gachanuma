@@ -242,7 +242,11 @@ describe('InverseForm', () => {
       expect(
         screen.queryByRole('status', { name: '計算結果' }),
       ).not.toBeInTheDocument()
-      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(TypeError))
+      expect(
+        consoleErrorSpy.mock.calls.some(
+          (call: unknown[]) => call[0] instanceof TypeError,
+        ),
+      ).toBe(true)
     })
 
     it('Result.ok=false（ドメインエラー）では Boundary に到達せず既存 calculationError Alert が表示される', async () => {
