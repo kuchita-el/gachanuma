@@ -685,7 +685,8 @@ describe('ForwardForm', () => {
       expect(
         screen.queryByText(/予期しないエラーが発生しました/),
       ).not.toBeInTheDocument()
-      await user.type(await screen.findByLabelText('成功率'), '50')
+      expect(await screen.findByLabelText('成功率')).toHaveValue(null)
+      await user.type(screen.getByLabelText('成功率'), '50')
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('4回')
