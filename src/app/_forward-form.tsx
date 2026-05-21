@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -62,7 +63,7 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
   const [calculationError, setCalculationError] = useState<string>()
-  const [, setErrorBoundaryTrigger] = useState<Error | undefined>(undefined)
+  const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
   const targetCountId = useId()
@@ -116,12 +117,7 @@ export function ForwardForm() {
       }
     }
     catch (e) {
-      // イベントハンドラ内 throw は React Error Boundary に届かないため、
-      // useState の関数形セッタで commit フェーズに throw を移送する。
-      const error = e instanceof Error ? e : new Error(String(e))
-      setErrorBoundaryTrigger(() => {
-        throw error
-      })
+      throwToErrorBoundary(e)
     }
   })
 
