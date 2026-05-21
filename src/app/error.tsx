@@ -20,7 +20,7 @@ export default function Error({
       <Alert variant="destructive">
         <AlertTitle>予期しないエラーが発生しました</AlertTitle>
         <AlertDescription>
-          入力を見直して再試行してください。
+          再試行ボタンで再実行できます。問題が続く場合はページを再読み込みしてください。
         </AlertDescription>
       </Alert>
       <Button type="button" onClick={() => reset()} className="mt-4">

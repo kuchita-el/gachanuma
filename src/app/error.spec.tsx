@@ -21,9 +21,10 @@ describe('app/error.tsx', () => {
     expect(alert).toHaveTextContent('予期しないエラーが発生しました')
   })
 
-  it('フォールバック UI に「入力を見直して再試行してください」が含まれる', () => {
+  it('フォールバック UI に再試行案内とリロード案内が含まれる', () => {
     render(<ErrorPage error={new Error('boom')} reset={vi.fn()} />)
-    expect(screen.getByText(/入力を見直して再試行してください/)).toBeInTheDocument()
+    expect(screen.getByText(/再試行ボタンで再実行できます/)).toBeInTheDocument()
+    expect(screen.getByText(/ページを再読み込みしてください/)).toBeInTheDocument()
   })
 
   it('再試行ボタンが描画され、押下で reset が 1 回呼ばれる', async () => {
