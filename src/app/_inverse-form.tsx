@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -35,26 +36,32 @@ export function InverseForm() {
     trialCount: number
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
   const trialCountId = useId()
   const trialCountHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    const calcResult = tryCalculateCumulativeSuccessProbability(
-      percentToRatio(Number(form.successRate)),
-      Number(form.trialCount),
-    )
-    if (calcResult.ok) {
-      setResult({
-        cumulativeProbabilityRatio: calcResult.value,
-        trialCount: Number(form.trialCount),
-      })
-      setCalculationError(undefined)
+    try {
+      const calcResult = tryCalculateCumulativeSuccessProbability(
+        percentToRatio(Number(form.successRate)),
+        Number(form.trialCount),
+      )
+      if (calcResult.ok) {
+        setResult({
+          cumulativeProbabilityRatio: calcResult.value,
+          trialCount: Number(form.trialCount),
+        })
+        setCalculationError(undefined)
+      }
+      else {
+        setResult(undefined)
+        setCalculationError(calcResult.message)
+      }
     }
-    else {
-      setResult(undefined)
-      setCalculationError(calcResult.message)
+    catch (e) {
+      throwToErrorBoundary(e)
     }
   })
 

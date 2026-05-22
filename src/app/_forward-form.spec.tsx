@@ -1,7 +1,29 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './_forward-form'
+import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
+import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
+import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+
+vi.mock('@/probability/negative-binomial', async (importOriginal) => {
+  const actual
+    = await importOriginal<typeof import('@/probability/negative-binomial')>()
+  return {
+    ...actual,
+    tryCalculateTrialCountForMultipleSuccess: vi.fn(
+      actual.tryCalculateTrialCountForMultipleSuccess,
+    ),
+  }
+})
+
+vi.mock('@/probability/pity', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/probability/pity')>()
+  return {
+    ...actual,
+    tryCalculateTrialCountWithPity: vi.fn(actual.tryCalculateTrialCountWithPity),
+  }
+})
 
 describe('ForwardForm', () => {
   it('成功率ラベルと入力欄が表示される', () => {
@@ -533,6 +555,148 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       // 通常計算(成功率50, 信頼度90, 目標成功回数1) → 4回
+      expect(status).toHaveTextContent('4回')
+    })
+  })
+
+  describe('想定外エラー時のフォールバック表示', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('目標成功回数を指定した計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementationOnce(
+        () => {
+          throw new TypeError('boom')
+        },
+      )
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+      expect(
+        consoleErrorSpy.mock.calls.some(
+          (call: unknown[]) => call[0] instanceof TypeError,
+        ),
+      ).toBe(true)
+    })
+
+    it('天井ありの計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockImplementationOnce(() => {
+        throw new TypeError('boom')
+      })
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+      expect(
+        consoleErrorSpy.mock.calls.some(
+          (call: unknown[]) => call[0] instanceof TypeError,
+        ),
+      ).toBe(true)
+    })
+
+    it('ドメインエラーはフォールバックではなくフォーム内 Alert で表示される', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
+        ok: false,
+        message: 'ドメインエラー（テスト用）',
+      })
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText('ドメインエラー（テスト用）'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('天井ありの計算でドメインエラーが発生したときフォーム内 Alert で表示される', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
+        ok: false,
+        message: '天井ドメインエラー（テスト用）',
+      })
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText('天井ドメインエラー（テスト用）'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('fallback 表示後に再試行で復帰し、再 submit で正常結果が表示される', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementationOnce(
+        () => {
+          throw new TypeError('boom')
+        },
+      )
+      const user = userEvent.setup()
+      render(
+        <ErrorBoundary>
+          <ForwardForm />
+        </ErrorBoundary>,
+      )
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByText(/予期しないエラーが発生しました/),
+      ).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '再試行' }))
+      expect(
+        screen.queryByText(/予期しないエラーが発生しました/),
+      ).not.toBeInTheDocument()
+      expect(await screen.findByLabelText('成功率')).toHaveValue(null)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('4回')
     })
   })
