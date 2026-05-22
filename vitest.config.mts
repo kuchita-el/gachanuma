@@ -13,6 +13,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
       include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.spec.{ts,tsx}', 'src/lib/test/**'],
     },
   },
 })
