@@ -19,7 +19,7 @@
  * - 戻り値の有限性も別途検証する。
  */
 import * as v from 'valibot'
-import { CalculationError, calculateTrialCount } from './calculator'
+import { CalculationError, calculateTrialCount, toCalcResult } from './calculator'
 import type { CalcResult } from './calculator'
 import {
   DEFAULT_CONFIDENCE,
@@ -106,19 +106,7 @@ export function tryCalculateTrialCountForMultipleSuccess(
   targetCount: number,
   confidence?: number,
 ): CalcResult {
-  try {
-    return {
-      ok: true,
-      value: calculateTrialCountForMultipleSuccess(successRate, targetCount, confidence),
-    }
-  }
-  catch (error) {
-    if (error instanceof v.ValiError) {
-      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
-    }
-    if (error instanceof CalculationError) {
-      return { ok: false, message: error.message }
-    }
-    throw error
-  }
+  return toCalcResult(() =>
+    calculateTrialCountForMultipleSuccess(successRate, targetCount, confidence),
+  )
 }
