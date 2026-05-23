@@ -108,7 +108,10 @@ export function tryCalculateTrialCountWithPity(
     }
   }
   catch (error) {
-    if (error instanceof v.ValiError || error instanceof CalculationError) {
+    if (error instanceof v.ValiError) {
+      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
+    }
+    if (error instanceof CalculationError) {
       return { ok: false, message: error.message }
     }
     throw error
