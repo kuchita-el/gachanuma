@@ -210,6 +210,63 @@ describe('InverseForm', () => {
     expect(submit).not.toBeDisabled()
   })
 
+  describe('入力変更時の calculationError クリア', () => {
+    it('成功率を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.type(screen.getByLabelText('試行回数'), '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.clear(successRate)
+      await user.type(successRate, '60')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('試行回数を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const trialCount = screen.getByLabelText('試行回数')
+      await user.type(trialCount, '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.clear(trialCount)
+      await user.type(trialCount, '8')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('成功 submit 後に入力を変更しても結果カードは残り、Alert も出ない', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const trialCount = screen.getByLabelText('試行回数')
+      await user.type(trialCount, '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByRole('status', { name: '計算結果' }),
+      ).toBeInTheDocument()
+
+      await user.clear(trialCount)
+      await user.type(trialCount, '8')
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  })
+
   describe('想定外エラー時のフォールバック表示', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
