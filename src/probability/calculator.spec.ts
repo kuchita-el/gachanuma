@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
 import {
   CalculationError,
@@ -15,6 +15,11 @@ import {
   validProbabilityRatioSchema,
   validTrialCountSchema,
 } from './probability'
+
+vi.mock('valibot', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('valibot')>()
+  return { ...actual, parse: vi.fn(actual.parse) }
+})
 
 describe('calculateTrialCount', () => {
   describe('正常系', () => {
@@ -339,6 +344,35 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
     const result = tryCalculateTrialCount(NaN)
     expect(result.ok).toBe(false)
   })
+
+  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+    const issue1 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 0.5,
+      expected: null,
+      received: '0.5',
+      message: 'M1',
+    }
+    const issue2 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 0.5,
+      expected: null,
+      received: '0.5',
+      message: 'M2',
+    }
+    vi.mocked(v.parse).mockImplementationOnce(() => {
+      throw new v.ValiError([issue1, issue2] as never)
+    })
+    const result = tryCalculateTrialCount(0.5)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toContain('M1')
+      expect(result.message).toContain('M2')
+      expect(result.message.split('\n').length).toBeGreaterThanOrEqual(2)
+    }
+  })
 })
 
 describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', () => {
@@ -410,6 +444,35 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.message).toMatch(/極端に小さい/)
+    }
+  })
+
+  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+    const issue1 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 0.5,
+      expected: null,
+      received: '0.5',
+      message: 'M1',
+    }
+    const issue2 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 4,
+      expected: null,
+      received: '4',
+      message: 'M2',
+    }
+    vi.mocked(v.parse).mockImplementationOnce(() => {
+      throw new v.ValiError([issue1, issue2] as never)
+    })
+    const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toContain('M1')
+      expect(result.message).toContain('M2')
+      expect(result.message.split('\n').length).toBeGreaterThanOrEqual(2)
     }
   })
 })

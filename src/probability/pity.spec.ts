@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
 import {
   calculateTrialCountWithPity,
@@ -6,6 +6,11 @@ import {
 } from './pity'
 import { CalculationError, calculateTrialCount } from './calculator'
 import { validSlipRateRatioSchema, slipRatePercentageSchema } from './probability'
+
+vi.mock('valibot', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('valibot')>()
+  return { ...actual, parse: vi.fn(actual.parse) }
+})
 
 describe('calculateTrialCountWithPity', () => {
   describe('正常系（計画書手計算の検証）', () => {
@@ -216,6 +221,35 @@ describe('tryCalculateTrialCountWithPity（Result 型ラッパ）', () => {
     expect(r.ok).toBe(true)
     if (r.ok) {
       expect(r.value).toBe(100)
+    }
+  })
+
+  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+    const issue1 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 0.05,
+      expected: null,
+      received: '0.05',
+      message: 'M1',
+    }
+    const issue2 = {
+      kind: 'validation',
+      type: 'custom',
+      input: 100,
+      expected: null,
+      received: '100',
+      message: 'M2',
+    }
+    vi.mocked(v.parse).mockImplementationOnce(() => {
+      throw new v.ValiError([issue1, issue2] as never)
+    })
+    const r = tryCalculateTrialCountWithPity(0.05, 100, 0.5)
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.message).toContain('M1')
+      expect(r.message).toContain('M2')
+      expect(r.message.split('\n').length).toBeGreaterThanOrEqual(2)
     }
   })
 })
