@@ -734,6 +734,23 @@ describe('ForwardForm', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
+    // OFF→ON 切替は onCheckedChange の `if (!checked)` 分岐に入らず setValue 連鎖が発生しない。
+    // pityEnabled の値変化単独で購読が発火することを保証する。
+    it('天井 Switch OFF→ON 単独切替で Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
     it('天井 ON 時に天井回数を変更すると Alert が消える', async () => {
       vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
         ok: false,
