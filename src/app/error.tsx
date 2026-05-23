@@ -20,6 +20,8 @@ export default function Error({
       name: error.name,
       message: error.message,
       stack: error.stack,
+      digest: error.digest,
+      cause: error.cause,
     })
   }, [error, pathname])
 
