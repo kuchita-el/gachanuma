@@ -592,7 +592,11 @@ describe('ForwardForm', () => {
       ).not.toBeInTheDocument()
       expect(
         consoleErrorSpy.mock.calls.some(
-          (call: unknown[]) => call[0] instanceof TypeError,
+          (call: unknown[]) =>
+            call[0] === '[error-boundary]'
+            && typeof call[1] === 'object'
+            && call[1] !== null
+            && (call[1] as { name?: unknown }).name === 'TypeError',
         ),
       ).toBe(true)
     })
@@ -618,7 +622,11 @@ describe('ForwardForm', () => {
       ).not.toBeInTheDocument()
       expect(
         consoleErrorSpy.mock.calls.some(
-          (call: unknown[]) => call[0] instanceof TypeError,
+          (call: unknown[]) =>
+            call[0] === '[error-boundary]'
+            && typeof call[1] === 'object'
+            && call[1] !== null
+            && (call[1] as { name?: unknown }).name === 'TypeError',
         ),
       ).toBe(true)
     })
