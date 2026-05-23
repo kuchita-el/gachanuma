@@ -16,6 +16,10 @@ vi.mock('@/probability/calculator', async (importOriginal) => {
   }
 })
 
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(() => '/test-path'),
+}))
+
 describe('InverseForm', () => {
   it('成功率ラベルと試行回数ラベルが描画される', () => {
     render(<InverseForm />)
@@ -305,6 +309,7 @@ describe('InverseForm', () => {
             call[0] === '[error-boundary]'
             && typeof call[1] === 'object'
             && call[1] !== null
+            && (call[1] as { pathname?: unknown }).pathname === '/test-path'
             && (call[1] as { name?: unknown }).name === 'TypeError',
         ),
       ).toBe(true)
