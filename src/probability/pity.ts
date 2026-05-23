@@ -21,7 +21,7 @@
  *   m > 0 の場合は通常抽選が無効化されるほどの極小 p なので CalculationError を透過させる。
  */
 import * as v from 'valibot'
-import { CalculationError, calculateTrialCount } from './calculator'
+import { CalculationError, calculateTrialCount, toCalcResult } from './calculator'
 import type { CalcResult } from './calculator'
 import {
   DEFAULT_CONFIDENCE,
@@ -101,19 +101,7 @@ export function tryCalculateTrialCountWithPity(
   slipRate: number,
   confidence?: number,
 ): CalcResult {
-  try {
-    return {
-      ok: true,
-      value: calculateTrialCountWithPity(successRate, pityCount, slipRate, confidence),
-    }
-  }
-  catch (error) {
-    if (error instanceof v.ValiError) {
-      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
-    }
-    if (error instanceof CalculationError) {
-      return { ok: false, message: error.message }
-    }
-    throw error
-  }
+  return toCalcResult(() =>
+    calculateTrialCountWithPity(successRate, pityCount, slipRate, confidence),
+  )
 }

@@ -27,6 +27,28 @@ export type CalcResult
     | { ok: false, message: string }
 
 /**
+ * 計算関数を実行し、ドメインエラー（ValiError / CalculationError）を CalcResult に変換する共通ラッパ。
+ * 想定外のエラー（TypeError 等のバグ）は再 throw し、React Error Boundary に委ねる。
+ *
+ * 4 つの try* 関数で重複していた catch ロジックの集約点。
+ * ValiError は `issues[].message` を改行結合して全件提示する（単一 message では先頭以外が欠落するため）。
+ */
+export function toCalcResult(compute: () => number): CalcResult {
+  try {
+    return { ok: true, value: compute() }
+  }
+  catch (error) {
+    if (error instanceof v.ValiError) {
+      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
+    }
+    if (error instanceof CalculationError) {
+      return { ok: false, message: error.message }
+    }
+    throw error
+  }
+}
+
+/**
  * 指定された成功率で、累積成功確率が信頼度以上となるために必要な試行回数を計算する。
  *
  * 計算式の導出:
@@ -78,18 +100,7 @@ export function tryCalculateTrialCount(
   successRate: number,
   confidence?: number,
 ): CalcResult {
-  try {
-    return { ok: true, value: calculateTrialCount(successRate, confidence) }
-  }
-  catch (error) {
-    if (error instanceof v.ValiError) {
-      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
-    }
-    if (error instanceof CalculationError) {
-      return { ok: false, message: error.message }
-    }
-    throw error
-  }
+  return toCalcResult(() => calculateTrialCount(successRate, confidence))
 }
 
 /**
@@ -134,16 +145,5 @@ export function tryCalculateCumulativeSuccessProbability(
   successRate: number,
   trialCount: number,
 ): CalcResult {
-  try {
-    return { ok: true, value: calculateCumulativeSuccessProbability(successRate, trialCount) }
-  }
-  catch (error) {
-    if (error instanceof v.ValiError) {
-      return { ok: false, message: error.issues.map(i => i.message).join('\n') }
-    }
-    if (error instanceof CalculationError) {
-      return { ok: false, message: error.message }
-    }
-    throw error
-  }
+  return toCalcResult(() => calculateCumulativeSuccessProbability(successRate, trialCount))
 }
