@@ -7,7 +7,7 @@ import {
 } from '@/probability/probability'
 import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -22,7 +22,7 @@ const schema = v.object({
 })
 
 export function InverseForm() {
-  const { handleSubmit, control } = useForm({
+  const { handleSubmit, control, subscribe } = useForm({
     resolver: valibotResolver(schema),
     mode: 'onBlur',
     defaultValues: {
@@ -36,6 +36,12 @@ export function InverseForm() {
     trialCount: number
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  useEffect(() => {
+    return subscribe({
+      formState: { values: true },
+      callback: () => setCalculationError(undefined),
+    })
+  }, [subscribe])
   const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()

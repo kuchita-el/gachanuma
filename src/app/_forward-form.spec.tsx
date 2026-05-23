@@ -701,6 +701,93 @@ describe('ForwardForm', () => {
     })
   })
 
+  describe('入力変更時の calculationError クリア', () => {
+    it('信頼度プリセット変更で Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '75%' }))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('天井 Switch 切替で Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.click(sw)
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('天井 ON 時に天井回数を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      const pity = screen.getByLabelText('天井回数')
+      await user.clear(pity)
+      await user.type(pity, '50')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('天井 ON 時にすり抜け率を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      const slip = screen.getByLabelText('天井すり抜け率')
+      await user.clear(slip)
+      await user.type(slip, '10')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('成功 submit 後に入力を変更しても結果カードは残る', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(
+        await screen.findByRole('status', { name: '計算結果' }),
+      ).toBeInTheDocument()
+
+      await user.clear(successRate)
+      await user.type(successRate, '60')
+      expect(
+        screen.queryByRole('status', { name: '計算結果' }),
+      ).toBeInTheDocument()
+    })
+  })
+
   describe('累積確率グラフ統合', () => {
     it('計算未実施時はグラフが描画されない', () => {
       render(<ForwardForm />)

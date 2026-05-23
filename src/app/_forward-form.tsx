@@ -12,7 +12,7 @@ import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative
 import { tryCalculateTrialCountWithPity } from '@/probability/pity'
 import { ProbabilityChart } from './_probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -39,6 +39,7 @@ export function ForwardForm() {
     control,
     setValue,
     clearErrors,
+    subscribe,
     formState: { errors },
   } = useForm({
     resolver: valibotResolver(schema),
@@ -63,6 +64,12 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  useEffect(() => {
+    return subscribe({
+      formState: { values: true },
+      callback: () => setCalculationError(undefined),
+    })
+  }, [subscribe])
   const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
