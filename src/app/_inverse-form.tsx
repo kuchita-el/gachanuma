@@ -7,7 +7,7 @@ import {
 } from '@/probability/probability'
 import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -22,7 +22,7 @@ const schema = v.object({
 })
 
 export function InverseForm() {
-  const { handleSubmit, control } = useForm({
+  const { handleSubmit, control, subscribe } = useForm({
     resolver: valibotResolver(schema),
     mode: 'onBlur',
     defaultValues: {
@@ -36,6 +36,14 @@ export function InverseForm() {
     trialCount: number
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  // 値変化時のみ callback を発火させたいため `useWatch + useEffect` ではなく subscribe API を使用。
+  // 前者は依存配列に calculationError を含める必要があり、setCalculationError(msg) 直後の再 effect でガード通過 → 即 undefined 化で Alert が一瞬で消える不具合がある。
+  useEffect(() => {
+    return subscribe({
+      formState: { values: true },
+      callback: () => setCalculationError(undefined),
+    })
+  }, [subscribe])
   const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
