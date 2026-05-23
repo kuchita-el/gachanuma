@@ -25,6 +25,15 @@ vi.mock('@/probability/pity', async (importOriginal) => {
   }
 })
 
+const isErrorBoundaryLogForErrorName = (
+  call: unknown[],
+  errorName: string,
+): boolean =>
+  call[0] === '[error-boundary]'
+  && typeof call[1] === 'object'
+  && call[1] !== null
+  && (call[1] as { name?: unknown }).name === errorName
+
 describe('ForwardForm', () => {
   it('成功率ラベルと入力欄が表示される', () => {
     render(<ForwardForm />)
@@ -592,11 +601,7 @@ describe('ForwardForm', () => {
       ).not.toBeInTheDocument()
       expect(
         consoleErrorSpy.mock.calls.some(
-          (call: unknown[]) =>
-            call[0] === '[error-boundary]'
-            && typeof call[1] === 'object'
-            && call[1] !== null
-            && (call[1] as { name?: unknown }).name === 'TypeError',
+          (call: unknown[]) => isErrorBoundaryLogForErrorName(call, 'TypeError'),
         ),
       ).toBe(true)
     })
@@ -622,11 +627,7 @@ describe('ForwardForm', () => {
       ).not.toBeInTheDocument()
       expect(
         consoleErrorSpy.mock.calls.some(
-          (call: unknown[]) =>
-            call[0] === '[error-boundary]'
-            && typeof call[1] === 'object'
-            && call[1] !== null
-            && (call[1] as { name?: unknown }).name === 'TypeError',
+          (call: unknown[]) => isErrorBoundaryLogForErrorName(call, 'TypeError'),
         ),
       ).toBe(true)
     })
