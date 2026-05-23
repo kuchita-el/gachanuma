@@ -3,19 +3,63 @@ import * as v from 'valibot'
 import { numericInputSchema } from './probability'
 
 describe('numericInputSchema', () => {
-  it('文字列 "50" を渡すと数値 50 に変換される', () => {
-    expect(v.parse(numericInputSchema, '50')).toBe(50)
+  describe('正常系', () => {
+    it('文字列 "50" を渡すと数値 50 に変換される', () => {
+      expect(v.parse(numericInputSchema, '50')).toBe(50)
+    })
+
+    it('数値 50 を渡すとそのまま 50 を返す', () => {
+      expect(v.parse(numericInputSchema, 50)).toBe(50)
+    })
+
+    it('小数文字列 "3.14" を渡すと数値 3.14 に変換される', () => {
+      expect(v.parse(numericInputSchema, '3.14')).toBe(3.14)
+    })
+
+    it('負の小数文字列 "-12.5" を渡すと -12.5 に変換される', () => {
+      expect(v.parse(numericInputSchema, '-12.5')).toBe(-12.5)
+    })
+
+    it('先頭ピリオド文字列 ".5" を渡すと 0.5 に変換される', () => {
+      expect(v.parse(numericInputSchema, '.5')).toBe(0.5)
+    })
   })
 
-  it('数値 50 を渡すとそのまま 50 を返す', () => {
-    expect(v.parse(numericInputSchema, 50)).toBe(50)
-  })
+  describe('異常系（parseFloat 貪欲解釈の厳格化）', () => {
+    it('NaN になる文字列 "abc" は「数値を指定してください。」エラーになる', () => {
+      expect(() => v.parse(numericInputSchema, 'abc')).toThrow(/数値を指定してください。/)
+    })
 
-  it('NaN になる文字列 "abc" を渡すと「数値を指定してください。」のエラーになる', () => {
-    expect(() => v.parse(numericInputSchema, 'abc')).toThrow(/数値を指定してください。/)
-  })
+    it('数値混じり文字列 "12abc" は 12 として通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, '12abc')).toThrow(/数値を指定してください。/)
+    })
 
-  it('小数文字列 "3.14" を渡すと数値 3.14 に変換される', () => {
-    expect(v.parse(numericInputSchema, '3.14')).toBe(3.14)
+    it('千区切り "5,000" は 5 として通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, '5,000')).toThrow(/数値を指定してください。/)
+    })
+
+    it('指数表記 "1e2" は 100 として通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, '1e2')).toThrow(/数値を指定してください。/)
+    })
+
+    it('16進表記 "0x10" は 0 として通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, '0x10')).toThrow(/数値を指定してください。/)
+    })
+
+    it('"Infinity" 文字列は通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, 'Infinity')).toThrow(/数値を指定してください。/)
+    })
+
+    it('空文字列 "" はエラー', () => {
+      expect(() => v.parse(numericInputSchema, '')).toThrow(/数値を指定してください。/)
+    })
+
+    it('前後空白付き " 50" は 50 として通過せずエラー', () => {
+      expect(() => v.parse(numericInputSchema, ' 50')).toThrow(/数値を指定してください。/)
+    })
+
+    it('後空白付き "50 " はエラー', () => {
+      expect(() => v.parse(numericInputSchema, '50 ')).toThrow(/数値を指定してください。/)
+    })
   })
 })
