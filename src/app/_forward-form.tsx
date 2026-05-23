@@ -64,6 +64,8 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
   const [calculationError, setCalculationError] = useState<string>()
+  // 値変化時のみ callback を発火させたいため `useWatch + useEffect` ではなく subscribe API を使用。
+  // 前者は依存配列に calculationError を含める必要があり、setCalculationError(msg) 直後の再 effect でガード通過 → 即 undefined 化で Alert が一瞬で消える不具合がある。
   useEffect(() => {
     return subscribe({
       formState: { values: true },

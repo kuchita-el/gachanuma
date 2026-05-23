@@ -247,7 +247,7 @@ describe('InverseForm', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
-    it('成功 submit 後に入力を変更しても結果カードは残る', async () => {
+    it('成功 submit 後に入力を変更しても結果カードは残り、Alert も出ない', async () => {
       const user = userEvent.setup()
       render(<InverseForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -263,6 +263,7 @@ describe('InverseForm', () => {
       expect(
         screen.queryByRole('status', { name: '計算結果' }),
       ).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
 

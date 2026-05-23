@@ -702,6 +702,40 @@ describe('ForwardForm', () => {
   })
 
   describe('入力変更時の calculationError クリア', () => {
+    it('成功率を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      await user.clear(successRate)
+      await user.type(successRate, '60')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('目標成功回数を変更すると Alert が消える', async () => {
+      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
+        ok: false,
+        message: 'テストエラー',
+      })
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+      const targetCount = screen.getByLabelText('目標成功回数')
+      await user.clear(targetCount)
+      await user.type(targetCount, '3')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
     it('信頼度プリセット変更で Alert が消える', async () => {
       vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
         ok: false,
@@ -734,8 +768,8 @@ describe('ForwardForm', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
-    // OFF→ON 切替は onCheckedChange の `if (!checked)` 分岐に入らず setValue 連鎖が発生しない。
-    // pityEnabled の値変化単独で購読が発火することを保証する。
+    // OFF→ON 切替は他フィールドへの副作用 (setValue 連鎖) が無いため、pityEnabled 値変化単独で購読発火することを検証する独立ケース。
+    // 切替時の副作用ロジックが変わった場合、本テストの前提も再確認すること。
     it('天井 Switch OFF→ON 単独切替で Alert が消える', async () => {
       vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
         ok: false,
@@ -787,7 +821,7 @@ describe('ForwardForm', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
-    it('成功 submit 後に入力を変更しても結果カードは残る', async () => {
+    it('成功 submit 後に入力を変更しても結果カードは残り、Alert も出ない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       const successRate = screen.getByLabelText('成功率')
@@ -802,6 +836,7 @@ describe('ForwardForm', () => {
       expect(
         screen.queryByRole('status', { name: '計算結果' }),
       ).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
   })
 
