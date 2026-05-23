@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
 import {
   calculateTrialCountForMultipleSuccess,
@@ -6,6 +6,11 @@ import {
 } from './negative-binomial'
 import { CalculationError, calculateTrialCount } from './calculator'
 import { validTargetCountSchema } from './probability'
+
+vi.mock('valibot', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('valibot')>()
+  return { ...actual, parse: vi.fn(actual.parse) }
+})
 
 describe('calculateTrialCountForMultipleSuccess', () => {
   describe('targetCount=1 で calculateTrialCount と同一値（回帰）', () => {
@@ -171,6 +176,35 @@ describe('tryCalculateTrialCountForMultipleSuccess（Result 型ラッパ）', ()
   it('浮動小数点境界 p=1e-17, targetCount=1 は ok:false（CalculationError 経由）', () => {
     const r = tryCalculateTrialCountForMultipleSuccess(1e-17, 1, 0.9)
     expect(r.ok).toBe(false)
+  })
+
+  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+    const issue1: v.BaseIssue<unknown> = {
+      kind: 'validation',
+      type: 'custom',
+      input: 0.1,
+      expected: null,
+      received: '0.1',
+      message: 'M1',
+    }
+    const issue2: v.BaseIssue<unknown> = {
+      kind: 'validation',
+      type: 'custom',
+      input: 5,
+      expected: null,
+      received: '5',
+      message: 'M2',
+    }
+    vi.mocked(v.parse).mockImplementationOnce(() => {
+      throw new v.ValiError([issue1, issue2])
+    })
+    const r = tryCalculateTrialCountForMultipleSuccess(0.1, 5)
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.message).toContain('M1')
+      expect(r.message).toContain('M2')
+      expect(r.message.split('\n').length).toBeGreaterThanOrEqual(2)
+    }
   })
 })
 

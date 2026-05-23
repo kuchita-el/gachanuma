@@ -5,8 +5,7 @@
  *   p=0.5 で N99=7 → 上限 11 のように、信頼度 99% に届くポイントから少し余裕を持って描画範囲を決める。
  * - プロット点列: X 軸範囲の整数点を 200 点上限で等間隔サンプリング。先頭は必ず 1、末尾は upperBound。
  */
-import * as v from 'valibot'
-import { CalculationError, calculateTrialCount } from './calculator'
+import { calculateTrialCount, toCalcResult } from './calculator'
 import type { CalcResult } from './calculator'
 
 const DEFAULT_MAX_POINTS = 200
@@ -31,15 +30,7 @@ export function computeXAxisUpperBound(successRateRatio: number): number {
  * tryCalculateTrialCount と対称の責務分離: 画面側は try/catch + instanceof を書かずに済む。
  */
 export function tryComputeXAxisUpperBound(successRateRatio: number): CalcResult {
-  try {
-    return { ok: true, value: computeXAxisUpperBound(successRateRatio) }
-  }
-  catch (error) {
-    if (error instanceof v.ValiError || error instanceof CalculationError) {
-      return { ok: false, message: error.message }
-    }
-    throw error
-  }
+  return toCalcResult(() => computeXAxisUpperBound(successRateRatio))
 }
 
 /**
