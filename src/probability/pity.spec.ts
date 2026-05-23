@@ -225,7 +225,7 @@ describe('tryCalculateTrialCountWithPity（Result 型ラッパ）', () => {
   })
 
   it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
-    const issue1 = {
+    const issue1: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 0.05,
@@ -233,7 +233,7 @@ describe('tryCalculateTrialCountWithPity（Result 型ラッパ）', () => {
       received: '0.05',
       message: 'M1',
     }
-    const issue2 = {
+    const issue2: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 100,
@@ -242,7 +242,7 @@ describe('tryCalculateTrialCountWithPity（Result 型ラッパ）', () => {
       message: 'M2',
     }
     vi.mocked(v.parse).mockImplementationOnce(() => {
-      throw new v.ValiError([issue1, issue2] as never)
+      throw new v.ValiError([issue1, issue2])
     })
     const r = tryCalculateTrialCountWithPity(0.05, 100, 0.5)
     expect(r.ok).toBe(false)

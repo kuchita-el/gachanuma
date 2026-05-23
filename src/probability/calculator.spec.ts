@@ -346,7 +346,7 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
   })
 
   it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
-    const issue1 = {
+    const issue1: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 0.5,
@@ -354,7 +354,7 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
       received: '0.5',
       message: 'M1',
     }
-    const issue2 = {
+    const issue2: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 0.5,
@@ -363,7 +363,7 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
       message: 'M2',
     }
     vi.mocked(v.parse).mockImplementationOnce(() => {
-      throw new v.ValiError([issue1, issue2] as never)
+      throw new v.ValiError([issue1, issue2])
     })
     const result = tryCalculateTrialCount(0.5)
     expect(result.ok).toBe(false)
@@ -448,7 +448,7 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
   })
 
   it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
-    const issue1 = {
+    const issue1: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 0.5,
@@ -456,7 +456,7 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
       received: '0.5',
       message: 'M1',
     }
-    const issue2 = {
+    const issue2: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
       input: 4,
@@ -465,7 +465,7 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
       message: 'M2',
     }
     vi.mocked(v.parse).mockImplementationOnce(() => {
-      throw new v.ValiError([issue1, issue2] as never)
+      throw new v.ValiError([issue1, issue2])
     })
     const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
     expect(result.ok).toBe(false)
