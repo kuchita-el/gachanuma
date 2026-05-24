@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { validTargetCountSchema, validTrialCountSchema } from '@/probability/probability'
 
 /**
  * 信頼度のフォーム既定値（percent）。
@@ -27,57 +28,92 @@ export const numericInputSchema = v.union(
 )
 
 /**
- * 確率をパーセンテージ（0-100）で表すValibotスキーマ
- * 0より大きく100未満の範囲を許可。0/100 を含めると比率変換後に
- * validProbabilityRatioSchema の両端排除条件と整合しないため除外。
+ * 確率パーセンテージ（数値、0より大きく100未満）の値域検証スキーマ。
+ * probabilityPercentageSchema から値域検証の責務を移送したもの。
+ * ratio 系 validProbabilityRatioSchema の percent 版（両端排除条件は同一思想）。
+ * percent⇔ratio の値域定義統合はスコープ外のため ratio 系から独立に定義する。
  */
-export const probabilityPercentageSchema = v.pipe(
-  numericInputSchema,
+export const validProbabilityPercentageSchema = v.pipe(
+  v.number('数値を指定してください。'),
   v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
   v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
 )
 
 /**
- * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すValibotスキーマ
- * 0と100は計算式の境界条件で除外。整数のみ受理（小数の信頼度は UI 仕様外）。
+ * 確率をパーセンテージ（0-100）で表すフォーム入力用スキーマ。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validProbabilityPercentageSchema）の
+ * 2 段合成。値域検証は valid 側に集約。
  */
-export const confidencePercentageSchema = v.pipe(
+export const probabilityPercentageSchema = v.pipe(
   numericInputSchema,
+  validProbabilityPercentageSchema,
+)
+
+/**
+ * 信頼度パーセンテージ（整数、0より大きく100未満）の値域検証スキーマ。
+ * confidencePercentageSchema から値域・整数検証の責務を移送したもの。
+ * 整数縛りは Percentage 側のみに持たせる（ratio 系 validConfidenceSchema には追加しない）。
+ * アクション順序は移送元と完全一致（integer を gtValue/ltValue の前に置く）。
+ * 順序を変えると範囲外かつ非整数の入力（例 150.5）でエラーメッセージが変わる。
+ */
+export const validConfidencePercentageSchema = v.pipe(
+  v.number('数値を指定してください。'),
   v.integer('整数を指定してください。'),
   v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
   v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
 )
 
 /**
- * 目標成功回数のフォーム入力用スキーマ。1〜100 の整数を許容。
- * 100 上限は UI 表示・計算精度の双方を考慮した validTargetCountSchema の制約と一致。
+ * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すフォーム入力用スキーマ。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validConfidencePercentageSchema）の
+ * 2 段合成。整数・値域検証は valid 側に集約。
  */
-export const targetCountInputSchema = v.pipe(
+export const confidencePercentageSchema = v.pipe(
   numericInputSchema,
-  v.integer('目標成功回数は整数を指定してください。'),
-  v.minValue(1, '目標成功回数は1以上を指定してください。'),
-  v.maxValue(100, '目標成功回数は100以下を指定してください。'),
+  validConfidencePercentageSchema,
 )
 
 /**
- * 天井すり抜け率（percent、0以上100以下）のフォーム入力用スキーマ。
- * 0% = 天井で目的キャラ確定、100% = 天井無効。両端を許容する点が
- * probabilityPercentageSchema との差。
+ * 目標成功回数のフォーム入力用スキーマ。1〜100 の整数を許容。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validTargetCountSchema）の
+ * 2 段合成。整数・値域検証はドメイン層の valid を再利用。
  */
-export const slipRatePercentageSchema = v.pipe(
+export const targetCountInputSchema = v.pipe(
   numericInputSchema,
+  validTargetCountSchema,
+)
+
+/**
+ * 天井すり抜け率パーセンテージ（数値、0以上100以下）の値域検証スキーマ。
+ * slipRatePercentageSchema から値域検証の責務を移送したもの。
+ * 0% = 天井で目的キャラ確定、100% = 天井無効。両端を許容する点が
+ * validProbabilityPercentageSchema との差（ratio 系 validSlipRateRatioSchema の percent 版）。
+ */
+export const validSlipRatePercentageSchema = v.pipe(
+  v.number('数値を指定してください。'),
   v.minValue(0, '0以上100以下の数値を指定してください。'),
   v.maxValue(100, '0以上100以下の数値を指定してください。'),
 )
 
 /**
+ * 天井すり抜け率（percent、0以上100以下）のフォーム入力用スキーマ。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validSlipRatePercentageSchema）の
+ * 2 段合成。値域検証は valid 側に集約。
+ */
+export const slipRatePercentageSchema = v.pipe(
+  numericInputSchema,
+  validSlipRatePercentageSchema,
+)
+
+/**
  * 試行回数のフォーム入力用スキーマ。1 以上の整数を許容。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validTrialCountSchema）の
+ * 2 段合成。整数・値域検証はドメイン層の valid を再利用。
  * UI フォーム（react-hook-form + valibotResolver）から呼ばれる前提。
  */
 export const trialCountInputSchema = v.pipe(
   numericInputSchema,
-  v.integer('試行回数は整数を指定してください。'),
-  v.minValue(1, '試行回数は1以上を指定してください。'),
+  validTrialCountSchema,
 )
 
 /**
