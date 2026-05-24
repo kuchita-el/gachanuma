@@ -5,8 +5,10 @@
  *   p=0.5 で N99=7 → 上限 11 のように、信頼度 99% に届くポイントから少し余裕を持って描画範囲を決める。
  * - プロット点列: X 軸範囲の整数点を 200 点上限で等間隔サンプリング。先頭は必ず 1、末尾は upperBound。
  */
-import { calculateTrialCount, toCalcResult } from './calculator'
-import type { CalcResult } from './calculator'
+import * as v from 'valibot'
+import { type Result, ok } from 'neverthrow'
+import { calculateTrialCount, type CalcResult } from './calculator'
+import { type DomainError, parseInputOrErr } from './domain-error'
 
 const DEFAULT_MAX_POINTS = 200
 const N99_CONFIDENCE = 0.99
@@ -16,22 +18,33 @@ const X_AXIS_EXTRA_RATIO = 1.5
  * 成功率 ratio に対する X 軸上限を返す。N99 = calculateTrialCount(p, 0.99) の 1.5 倍を切り上げ。
  *
  * @param successRateRatio - 単発成功率（ratio、0 < x < 1）
- * @returns X 軸上限（整数、1 以上）
- * @throws {ValiError} calculateTrialCount のバリデーション経由
- * @throws {CalculationError} p 極小の浮動小数点境界（calculateTrialCount 経由）
+ * @returns ok(X 軸上限の整数、1 以上) または err(InvalidInput / NonFiniteResult、calculateTrialCount 経由)
  */
-export function computeXAxisUpperBound(successRateRatio: number): number {
-  const n99 = calculateTrialCount(successRateRatio, N99_CONFIDENCE)
-  return Math.ceil(n99 * X_AXIS_EXTRA_RATIO)
+export function computeXAxisUpperBound(successRateRatio: number): CalcResult {
+  return calculateTrialCount(successRateRatio, N99_CONFIDENCE).map(n99 =>
+    Math.ceil(n99 * X_AXIS_EXTRA_RATIO),
+  )
 }
 
 /**
- * computeXAxisUpperBound の Result 型ラッパ。
- * tryCalculateTrialCount と対称の責務分離: 画面側は try/catch + instanceof を書かずに済む。
+ * computeXAxisUpperBound のエイリアス（責務統合後の単純委譲）。
  */
 export function tryComputeXAxisUpperBound(successRateRatio: number): CalcResult {
-  return toCalcResult(() => computeXAxisUpperBound(successRateRatio))
+  return computeXAxisUpperBound(successRateRatio)
 }
+
+const sampleTrialCountsInputSchema = v.object({
+  upperBound: v.pipe(
+    v.number('upperBound は1以上の整数を指定してください'),
+    v.integer('upperBound は1以上の整数を指定してください'),
+    v.minValue(1, 'upperBound は1以上の整数を指定してください'),
+  ),
+  maxPoints: v.pipe(
+    v.number('maxPoints は2以上の整数を指定してください'),
+    v.integer('maxPoints は2以上の整数を指定してください'),
+    v.minValue(2, 'maxPoints は2以上の整数を指定してください'),
+  ),
+})
 
 /**
  * X 軸上限までの試行回数列を最大 maxPoints 個サンプリングする。
@@ -41,25 +54,25 @@ export function tryComputeXAxisUpperBound(successRateRatio: number): CalcResult 
  *
  * @param upperBound - X 軸上限（整数、1 以上）
  * @param maxPoints - サンプル点数上限（デフォルト 200）
- * @returns 試行回数の整数配列（昇順、重複なし、長さ ≤ maxPoints）
+ * @returns ok(試行回数の整数配列、昇順・重複なし・長さ ≤ maxPoints) または err(InvalidInput)
  */
 export function sampleTrialCounts(
   upperBound: number,
   maxPoints: number = DEFAULT_MAX_POINTS,
-): number[] {
-  if (!Number.isInteger(upperBound) || upperBound < 1) {
-    throw new RangeError(`upperBound は1以上の整数を指定してください: ${upperBound}`)
-  }
-  if (!Number.isInteger(maxPoints) || maxPoints < 2) {
-    throw new RangeError(`maxPoints は2以上の整数を指定してください: ${maxPoints}`)
-  }
-  if (upperBound <= maxPoints) {
-    return Array.from({ length: upperBound }, (_, i) => i + 1)
-  }
-  const set = new Set<number>([1, upperBound])
-  // i=1..maxPoints-1 の等間隔点を追加
-  for (let i = 1; i < maxPoints; i++) {
-    set.add(Math.round((i * (upperBound - 1)) / (maxPoints - 1)) + 1)
-  }
-  return [...set].sort((a, b) => a - b)
+): Result<number[], DomainError> {
+  return parseInputOrErr(sampleTrialCountsInputSchema, { upperBound, maxPoints }).andThen(
+    (validated) => {
+      const ub = validated.upperBound
+      const mp = validated.maxPoints
+      if (ub <= mp) {
+        return ok<number[], DomainError>(Array.from({ length: ub }, (_, i) => i + 1))
+      }
+      const set = new Set<number>([1, ub])
+      // i=1..maxPoints-1 の等間隔点を追加
+      for (let i = 1; i < mp; i++) {
+        set.add(Math.round((i * (ub - 1)) / (mp - 1)) + 1)
+      }
+      return ok<number[], DomainError>([...set].sort((a, b) => a - b))
+    },
+  )
 }

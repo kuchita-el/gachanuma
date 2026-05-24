@@ -111,7 +111,7 @@ describe('ProbabilityChart', () => {
   })
 
   it('successRatePercent が極小（schema 不通過の理論値 1e-15）でも throw せず null フォールバック', () => {
-    // Result 型ラッパ経路により CalculationError は ok:false に変換され null が返される
+    // Result チェーン経路により NonFiniteResult が err 透過し、match の err 分岐で null が返される
     const { container } = render(
       <ProbabilityChart successRatePercent={1e-15} confidencePercent={90} />,
     )
