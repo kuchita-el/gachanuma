@@ -1,5 +1,5 @@
-import { err, ok, type Result } from 'neverthrow'
-import { type DomainError, parseInputOrErr } from './domain-error'
+import { ok, type Result } from 'neverthrow'
+import { type DomainError, domainErr, parseInputOrErr } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   validConfidenceSchema,
@@ -43,23 +43,11 @@ export function calculateTrialCount(
     parseInputOrErr(validConfidenceSchema, confidence).andThen((validatedConfidence) => {
       const result = Math.ceil(Math.log(1 - validatedConfidence) / Math.log(1 - validatedRate))
       if (!Number.isFinite(result)) {
-        return err<number, DomainError>({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })
+        return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })
       }
-      return ok<number, DomainError>(result)
+      return ok(result)
     }),
   )
-}
-
-/**
- * calculateTrialCount のエイリアス。
- * 旧 try* / 生関数の責務分離を「Result 直接返却」に統合した後も、画面・他モジュール側の
- * 既存呼び出しを変更せずに済むよう同名を維持する。
- */
-export function tryCalculateTrialCount(
-  successRate: number,
-  confidence?: number,
-): CalcResult {
-  return calculateTrialCount(successRate, confidence)
 }
 
 /**
@@ -86,22 +74,12 @@ export function calculateCumulativeSuccessProbability(
     parseInputOrErr(validTrialCountSchema, trialCount).andThen((validatedCount) => {
       const result = 1 - Math.pow(1 - validatedRate, validatedCount)
       if (!Number.isFinite(result) || result === 0) {
-        return err<number, DomainError>({
+        return domainErr({
           kind: 'NonFiniteResult',
           source: 'calculateCumulativeSuccessProbability',
         })
       }
-      return ok<number, DomainError>(result)
+      return ok(result)
     }),
   )
-}
-
-/**
- * calculateCumulativeSuccessProbability のエイリアス（tryCalculateTrialCount と同様の責務）。
- */
-export function tryCalculateCumulativeSuccessProbability(
-  successRate: number,
-  trialCount: number,
-): CalcResult {
-  return calculateCumulativeSuccessProbability(successRate, trialCount)
 }

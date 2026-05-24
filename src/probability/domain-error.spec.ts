@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import * as v from 'valibot'
 import {
   type DomainError,
   formatDomainError,
@@ -12,8 +11,8 @@ describe('formatDomainError', () => {
     const error: DomainError = {
       kind: 'InvalidInput',
       issues: [
-        { message: '成功率は0より大きい値を指定してください。' } as v.BaseIssue<unknown>,
-        { message: '成功率は1未満の値を指定してください。' } as v.BaseIssue<unknown>,
+        { message: '成功率は0より大きい値を指定してください。' },
+        { message: '成功率は1未満の値を指定してください。' },
       ],
     }
     expect(formatDomainError(error)).toBe(

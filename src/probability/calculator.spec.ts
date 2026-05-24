@@ -1,12 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
+import { err } from 'neverthrow'
 import {
   calculateCumulativeSuccessProbability,
   calculateTrialCount,
-  tryCalculateCumulativeSuccessProbability,
-  tryCalculateTrialCount,
 } from './calculator'
-import { formatDomainError } from './domain-error'
+import { formatDomainError, parseInputOrErr } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   percentToRatio,
@@ -16,9 +15,11 @@ import {
   validTrialCountSchema,
 } from './probability'
 
-vi.mock('valibot', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('valibot')>()
-  return { ...actual, safeParse: vi.fn(actual.safeParse) }
+// 境界ヘルパ `parseInputOrErr` のみ spy 化することで、valibot 全体への影響を回避し
+// テスト順序による発火タイミングのブレを排除する。schema 単体 spec は actual の v.parse を直接使う。
+vi.mock('./domain-error', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./domain-error')>()
+  return { ...actual, parseInputOrErr: vi.fn(actual.parseInputOrErr) }
 })
 
 describe('calculateTrialCount', () => {
@@ -296,63 +297,44 @@ describe('calculateCumulativeSuccessProbability', () => {
   })
 })
 
-describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
+describe('calculateTrialCount (mock 経路)', () => {
   it('成功時は ok の Result を返す', () => {
-    const result = tryCalculateTrialCount(0.5)
+    const result = calculateTrialCount(0.5)
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBe(4)
   })
 
   it('信頼度引数も透過する', () => {
-    expect(tryCalculateTrialCount(0.5, 0.99)._unsafeUnwrap()).toBe(7)
+    expect(calculateTrialCount(0.5, 0.99)._unsafeUnwrap()).toBe(7)
   })
 
   it('値域外の成功率は err、formatDomainError が「成功率」を含む文言を返す', () => {
-    const result = tryCalculateTrialCount(0)
+    const result = calculateTrialCount(0)
     expect(result.isErr()).toBe(true)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('値域外の信頼度は err、formatDomainError が「信頼度」を含む文言を返す', () => {
-    const result = tryCalculateTrialCount(0.5, 1)
+    const result = calculateTrialCount(0.5, 1)
     expect(result.isErr()).toBe(true)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/信頼度/)
   })
 
   it('浮動小数点境界（1e-17）は NonFiniteResult を err、文言に「極端に小さい」を含む', () => {
-    const result = tryCalculateTrialCount(1e-17)
+    const result = calculateTrialCount(1e-17)
     expect(result._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/極端に小さい/)
   })
 
   it('成功率 NaN は InvalidInput を err 返却', () => {
-    expect(tryCalculateTrialCount(NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
+    expect(calculateTrialCount(NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
   })
 
   it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
-    const issue1: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.5,
-      expected: null,
-      received: '0.5',
-      message: 'M1',
-    }
-    const issue2: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.5,
-      expected: null,
-      received: '0.5',
-      message: 'M2',
-    }
-    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-      typed: false,
-      success: false,
-      output: undefined,
-      issues: [issue1, issue2],
-    }) as unknown as ReturnType<typeof v.safeParse>)
-    const result = tryCalculateTrialCount(0.5)
+    vi.mocked(parseInputOrErr).mockReturnValueOnce(
+      err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
+    )
+    const result = calculateTrialCount(0.5)
     expect(result.isErr()).toBe(true)
     const message = formatDomainError(result._unsafeUnwrapErr())
     expect(message).toContain('M1')
@@ -361,78 +343,59 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
   })
 })
 
-describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', () => {
+describe('calculateCumulativeSuccessProbability (mock 経路)', () => {
   it('成功時は ok の Result を返し、累積確率 ratio（0.5・4 → 0.9375）', () => {
-    expect(tryCalculateCumulativeSuccessProbability(0.5, 4)._unsafeUnwrap()).toBeCloseTo(0.9375)
+    expect(calculateCumulativeSuccessProbability(0.5, 4)._unsafeUnwrap()).toBeCloseTo(0.9375)
   })
 
   it('信頼度90%以上を満たす境界（0.1・22）で 0.9 以上の ratio を返す', () => {
-    expect(tryCalculateCumulativeSuccessProbability(0.1, 22)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
+    expect(calculateCumulativeSuccessProbability(0.1, 22)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
   })
 
   it('成功率 0 は err、文言に「成功率」を含む', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0, 4)
+    const result = calculateCumulativeSuccessProbability(0, 4)
     expect(result.isErr()).toBe(true)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('成功率 1 は err、文言に「成功率」を含む', () => {
-    const result = tryCalculateCumulativeSuccessProbability(1, 4)
+    const result = calculateCumulativeSuccessProbability(1, 4)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('試行回数 0 は err、文言に「試行回数」を含む', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.5, 0)
+    const result = calculateCumulativeSuccessProbability(0.5, 0)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/試行回数/)
   })
 
   it('試行回数 1.5（非整数）は err、文言に「試行回数」を含む', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.5, 1.5)
+    const result = calculateCumulativeSuccessProbability(0.5, 1.5)
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/試行回数/)
   })
 
   it('試行回数 -1 は err 返却', () => {
-    expect(tryCalculateCumulativeSuccessProbability(0.5, -1).isErr()).toBe(true)
+    expect(calculateCumulativeSuccessProbability(0.5, -1).isErr()).toBe(true)
   })
 
   it('成功率 NaN は InvalidInput を err 返却', () => {
-    expect(tryCalculateCumulativeSuccessProbability(NaN, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
+    expect(calculateCumulativeSuccessProbability(NaN, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
   })
 
   it('試行回数 Infinity は err 返却', () => {
-    expect(tryCalculateCumulativeSuccessProbability(0.5, Infinity).isErr()).toBe(true)
+    expect(calculateCumulativeSuccessProbability(0.5, Infinity).isErr()).toBe(true)
   })
 
   it('成功率1e-17は NonFiniteResult を err、文言に「極端に小さい」を含む', () => {
-    const result = tryCalculateCumulativeSuccessProbability(1e-17, 1)
+    const result = calculateCumulativeSuccessProbability(1e-17, 1)
     expect(result._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
     expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/極端に小さい/)
   })
 
   it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
-    const issue1: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.5,
-      expected: null,
-      received: '0.5',
-      message: 'M1',
-    }
-    const issue2: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 4,
-      expected: null,
-      received: '4',
-      message: 'M2',
-    }
-    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-      typed: false,
-      success: false,
-      output: undefined,
-      issues: [issue1, issue2],
-    }) as unknown as ReturnType<typeof v.safeParse>)
-    const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
+    vi.mocked(parseInputOrErr).mockReturnValueOnce(
+      err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
+    )
+    const result = calculateCumulativeSuccessProbability(0.5, 4)
     expect(result.isErr()).toBe(true)
     const message = formatDomainError(result._unsafeUnwrapErr())
     expect(message).toContain('M1')

@@ -10,8 +10,9 @@ import {
   YAxis,
 } from 'recharts'
 import { Result } from 'neverthrow'
-import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { sampleTrialCounts, tryComputeXAxisUpperBound } from '@/probability/chart-range'
+import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
+import { formatDomainError } from '@/probability/domain-error'
 import { percentToRatio } from '@/probability/probability'
 
 const CHART_WIDTH = 600
@@ -29,7 +30,8 @@ interface ProbabilityChartProps {
  * 信頼度 c の水平破線（右端ラベル）と、c≠90 の場合は 90% デフォルト線を併記。
  *
  * jsdom 互換のため `ResponsiveContainer` は使わず固定サイズで描画する（recharts issue #1423）。
- * 計算層エラー（InvalidInput / NonFiniteResult）は Result チェーンで受け、err なら null フォールバック。
+ * 計算層エラー（InvalidInput / NonFiniteResult）は Result チェーンで受け、err なら inline で
+ * `formatDomainError` 経由のエラー文言を表示する（silent failure 回避）。
  */
 export function ProbabilityChart({
   successRatePercent,
@@ -39,11 +41,11 @@ export function ProbabilityChart({
 
   // upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
   // どこかで err が出れば全体を err として match の err 分岐で null フォールバックする。
-  const chartResult = tryComputeXAxisUpperBound(rate).andThen(upperBound =>
+  const chartResult = computeXAxisUpperBound(rate).andThen(upperBound =>
     sampleTrialCounts(upperBound).andThen(samples =>
       Result.combine(
         samples.map(n =>
-          tryCalculateCumulativeSuccessProbability(rate, n).map(value => ({
+          calculateCumulativeSuccessProbability(rate, n).map(value => ({
             trialCount: n,
             cumulativeProbabilityPercent: value * 100,
           })),
@@ -128,6 +130,16 @@ export function ProbabilityChart({
         </LineChart>
       </div>
     ),
-    () => null,
+    error => (
+      <div
+        role="img"
+        aria-label="グラフエラー"
+        className="text-muted-foreground mt-4 text-sm"
+      >
+        グラフを描画できません:
+        {' '}
+        {formatDomainError(error)}
+      </div>
+    ),
   )
 }

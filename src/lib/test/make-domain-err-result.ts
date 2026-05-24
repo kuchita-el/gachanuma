@@ -1,5 +1,4 @@
 import { err } from 'neverthrow'
-import type * as v from 'valibot'
 import type { CalcResult } from '@/probability/calculator'
 
 /**
@@ -7,17 +6,11 @@ import type { CalcResult } from '@/probability/calculator'
  *
  * 旧 `mockReturnValueOnce({ ok: false, message: 'テストエラー' })` 形式の代替。
  * `formatDomainError` 経由で `issues[0].message` がそのまま文言として復元される性質を利用する。
+ * `DomainErrorIssue` は `{ message: string }` 縮退済みのため、valibot 型キャストは不要。
  */
 export function makeDomainErrResult(message: string): CalcResult {
   return err({
     kind: 'InvalidInput',
-    issues: [{
-      kind: 'validation',
-      type: 'custom',
-      input: null,
-      expected: null,
-      received: 'null',
-      message,
-    } as v.BaseIssue<unknown>],
+    issues: [{ message }],
   })
 }
