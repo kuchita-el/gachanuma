@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { ProbabilityChart } from './_probability-chart'
+import { ProbabilityChart } from './probability-chart'
 
 describe('ProbabilityChart', () => {
   it('SVG 要素が DOM に存在する（jsdom 互換、固定サイズ描画）', () => {

@@ -1,8 +1,8 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ForwardForm } from './_forward-form'
-import { InverseForm } from './_inverse-form'
+import { ForwardForm } from './_components/forward-form'
+import { InverseForm } from './_components/inverse-form'
 
 export default function Home() {
   return (
