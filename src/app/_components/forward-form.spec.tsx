@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { ForwardForm } from './_forward-form'
+import { ForwardForm } from './forward-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'

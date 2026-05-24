@@ -11,7 +11,7 @@ import {
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
 import { formatDomainError } from '@/probability/domain-error'
-import { ProbabilityChart } from './_probability-chart'
+import { ProbabilityChart } from './probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'

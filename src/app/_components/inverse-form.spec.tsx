@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { InverseForm } from './_inverse-form'
+import { InverseForm } from './inverse-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'

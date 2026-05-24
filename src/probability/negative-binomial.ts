@@ -22,7 +22,6 @@ import { Result, ok } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
 import { domainErr, parseInputOrErr } from './domain-error'
 import {
-  DEFAULT_CONFIDENCE,
   validConfidenceSchema,
   validProbabilityRatioSchema,
   validTargetCountSchema,
@@ -39,13 +38,13 @@ const MAX_ITERATIONS = 1_000_000
  *
  * @param successRate - 単発成功率（0 < x < 1）
  * @param targetCount - 目標成功回数（1〜100 の整数）
- * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
+ * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）
  * @returns ok(必要な試行回数) または err(InvalidInput / NonFiniteResult / IterationLimitExceeded)
  */
 export function calculateTrialCountForMultipleSuccess(
   successRate: number,
   targetCount: number,
-  confidence: number = DEFAULT_CONFIDENCE,
+  confidence: number,
 ): CalcResult {
   return Result.combine([
     parseInputOrErr(validProbabilityRatioSchema, successRate),
