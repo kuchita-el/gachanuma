@@ -280,6 +280,24 @@ describe('ForwardForm', () => {
       expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'true')
       expect(screen.getByRole('button', { name: '90%' })).toHaveAttribute('aria-pressed', 'false')
     })
+
+    it('aria-describedby は初期描画で 1 id、エラー時は description + message の 2 id 連結', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const input = screen.getByLabelText('信頼度')
+      const initialIds = input.getAttribute('aria-describedby')!.split(' ')
+      expect(initialIds).toHaveLength(1)
+      expect(document.getElementById(initialIds[0]!)).toHaveTextContent('0より大きく100未満の整数を入力してください')
+
+      await user.clear(input)
+      await user.type(input, '0')
+      await user.tab()
+      const erroredIds = input.getAttribute('aria-describedby')!.split(' ')
+      expect(erroredIds).toHaveLength(2)
+      const texts = erroredIds.map(id => document.getElementById(id)?.textContent ?? '')
+      expect(texts.some(t => t.includes('0より大きく100未満の整数を入力してください'))).toBe(true)
+      expect(texts.some(t => t.includes('0より大きく100未満の数値を指定してください'))).toBe(true)
+    })
   })
 
   describe('目標成功回数 UI', () => {
