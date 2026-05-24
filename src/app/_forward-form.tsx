@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { InputAffix } from '@/components/input-affix'
+import { NumberInputField } from '@/components/number-input-field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -78,15 +79,7 @@ export function ForwardForm() {
   }>()
   const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
   const throwToErrorBoundary = useThrowToErrorBoundary()
-  const successRateId = useId()
-  const successRateHelperId = useId()
-  const targetCountId = useId()
-  const targetCountHelperId = useId()
   const pityEnabledId = useId()
-  const pityCountId = useId()
-  const pityCountHelperId = useId()
-  const slipRateId = useId()
-  const slipRateHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
     try {
@@ -147,74 +140,29 @@ export function ForwardForm() {
     <div>
       <Form {...form}>
         <form onSubmit={onSubmit}>
-          <Controller
-            name="successRate"
+          <NumberInputField
             control={control}
-            render={({ field, formState: { errors } }) => {
-              const errorMessage = errors.successRate?.message
-              return (
-                <div className="space-y-2">
-                  <Label htmlFor={successRateId}>成功率</Label>
-                  <div className="relative">
-                    <Input
-                      id={successRateId}
-                      inputMode="decimal"
-                      type="number"
-                      step="any"
-                      aria-describedby={successRateHelperId}
-                      aria-invalid={!!errorMessage}
-                      className="pr-8"
-                      {...field}
-                    />
-                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                      %
-                    </span>
-                  </div>
-                  <p
-                    id={successRateHelperId}
-                    className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                  >
-                    {errorMessage || '0より大きく100未満の数値を入力してください'}
-                  </p>
-                </div>
-              )
-            }}
+            name="successRate"
+            label="成功率"
+            suffix="%"
+            helperText="0より大きく100未満の数値を入力してください"
+            inputMode="decimal"
+            type="number"
+            step="any"
           />
 
-          <Controller
-            name="targetCount"
+          <NumberInputField
             control={control}
-            render={({ field, formState: { errors } }) => {
-              const errorMessage = errors.targetCount?.message
-              return (
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor={targetCountId}>目標成功回数</Label>
-                  <div className="relative">
-                    <Input
-                      id={targetCountId}
-                      inputMode="numeric"
-                      type="number"
-                      step="1"
-                      min="1"
-                      max="100"
-                      aria-describedby={targetCountHelperId}
-                      aria-invalid={!!errorMessage}
-                      className="pr-8"
-                      {...field}
-                    />
-                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                      回
-                    </span>
-                  </div>
-                  <p
-                    id={targetCountHelperId}
-                    className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                  >
-                    {errorMessage || '1〜100 の整数を入力してください'}
-                  </p>
-                </div>
-              )
-            }}
+            name="targetCount"
+            label="目標成功回数"
+            suffix="回"
+            helperText="1〜100 の整数を入力してください"
+            inputMode="numeric"
+            type="number"
+            step="1"
+            min="1"
+            max="100"
+            className="mt-4"
           />
 
           <FormField
@@ -284,73 +232,29 @@ export function ForwardForm() {
 
           {pityEnabled && (
             <>
-              <Controller
-                name="pityCount"
+              <NumberInputField
                 control={control}
-                render={({ field, formState: { errors } }) => {
-                  const errorMessage = errors.pityCount?.message
-                  return (
-                    <div className="mt-4 space-y-2">
-                      <Label htmlFor={pityCountId}>天井回数</Label>
-                      <div className="relative">
-                        <Input
-                          id={pityCountId}
-                          inputMode="numeric"
-                          type="number"
-                          step="1"
-                          min="1"
-                          aria-describedby={pityCountHelperId}
-                          aria-invalid={!!errorMessage}
-                          className="pr-8"
-                          {...field}
-                        />
-                        <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                          回
-                        </span>
-                      </div>
-                      <p
-                        id={pityCountHelperId}
-                        className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                      >
-                        {errorMessage || '1以上の整数を入力してください'}
-                      </p>
-                    </div>
-                  )
-                }}
+                name="pityCount"
+                label="天井回数"
+                suffix="回"
+                helperText="1以上の整数を入力してください"
+                inputMode="numeric"
+                type="number"
+                step="1"
+                min="1"
+                className="mt-4"
               />
 
-              <Controller
-                name="slipRatePercent"
+              <NumberInputField
                 control={control}
-                render={({ field, formState: { errors } }) => {
-                  const errorMessage = errors.slipRatePercent?.message
-                  return (
-                    <div className="mt-4 space-y-2">
-                      <Label htmlFor={slipRateId}>天井すり抜け率</Label>
-                      <div className="relative">
-                        <Input
-                          id={slipRateId}
-                          inputMode="decimal"
-                          type="number"
-                          step="any"
-                          aria-describedby={slipRateHelperId}
-                          aria-invalid={!!errorMessage}
-                          className="pr-8"
-                          {...field}
-                        />
-                        <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                          %
-                        </span>
-                      </div>
-                      <p
-                        id={slipRateHelperId}
-                        className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                      >
-                        {errorMessage || '0以上100以下の数値を入力してください'}
-                      </p>
-                    </div>
-                  )
-                }}
+                name="slipRatePercent"
+                label="天井すり抜け率"
+                suffix="%"
+                helperText="0以上100以下の数値を入力してください"
+                inputMode="decimal"
+                type="number"
+                step="any"
+                className="mt-4"
               />
             </>
           )}
