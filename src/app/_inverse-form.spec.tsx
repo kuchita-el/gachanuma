@@ -3,15 +3,16 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { InverseForm } from './_inverse-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
-import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
 
 vi.mock('@/probability/calculator', async (importOriginal) => {
   const actual
     = await importOriginal<typeof import('@/probability/calculator')>()
   return {
     ...actual,
-    tryCalculateCumulativeSuccessProbability: vi.fn(
-      actual.tryCalculateCumulativeSuccessProbability,
+    calculateCumulativeSuccessProbability: vi.fn(
+      actual.calculateCumulativeSuccessProbability,
     ),
   }
 })
@@ -216,10 +217,9 @@ describe('InverseForm', () => {
 
   describe('入力変更時の calculationError クリア', () => {
     it('成功率を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateCumulativeSuccessProbability).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<InverseForm />)
       const successRate = screen.getByLabelText('成功率')
@@ -234,10 +234,9 @@ describe('InverseForm', () => {
     })
 
     it('試行回数を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateCumulativeSuccessProbability).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<InverseForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -283,7 +282,7 @@ describe('InverseForm', () => {
     })
 
     it('想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
-      vi.mocked(tryCalculateCumulativeSuccessProbability).mockImplementationOnce(
+      vi.mocked(calculateCumulativeSuccessProbability).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
         },
@@ -316,10 +315,9 @@ describe('InverseForm', () => {
     })
 
     it('ドメインエラーはフォールバックではなくフォーム内 Alert で表示される', async () => {
-      vi.mocked(tryCalculateCumulativeSuccessProbability).mockReturnValueOnce({
-        ok: false,
-        message: 'ドメインエラー（テスト用）',
-      })
+      vi.mocked(calculateCumulativeSuccessProbability).mockReturnValueOnce(
+        makeDomainErrResult('ドメインエラー（テスト用）'),
+      )
       const user = userEvent.setup()
       render(
         <ErrorBoundary>
@@ -341,7 +339,7 @@ describe('InverseForm', () => {
     })
 
     it('fallback 表示後に再試行で復帰し、再 submit で正常結果が表示される', async () => {
-      vi.mocked(tryCalculateCumulativeSuccessProbability).mockImplementationOnce(
+      vi.mocked(calculateCumulativeSuccessProbability).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
         },

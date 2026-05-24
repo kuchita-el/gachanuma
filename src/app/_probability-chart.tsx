@@ -9,8 +9,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { sampleTrialCounts, tryComputeXAxisUpperBound } from '@/probability/chart-range'
+import { Result } from 'neverthrow'
+import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
+import { formatDomainError } from '@/probability/domain-error'
 import { percentToRatio } from '@/probability/probability'
 
 const CHART_WIDTH = 600
@@ -28,104 +30,116 @@ interface ProbabilityChartProps {
  * 信頼度 c の水平破線（右端ラベル）と、c≠90 の場合は 90% デフォルト線を併記。
  *
  * jsdom 互換のため `ResponsiveContainer` は使わず固定サイズで描画する（recharts issue #1423）。
- * 計算層エラー（ValiError / CalculationError）は Result 型ラッパで受け、null 返却でフォールバック。
+ * 計算層エラー（InvalidInput / NonFiniteResult）は Result チェーンで受け、err なら inline で
+ * `formatDomainError` 経由のエラー文言を表示する（silent failure 回避）。
  */
 export function ProbabilityChart({
   successRatePercent,
   confidencePercent,
 }: ProbabilityChartProps) {
   const rate = percentToRatio(successRatePercent)
-  const upperBoundResult = tryComputeXAxisUpperBound(rate)
-  if (!upperBoundResult.ok) {
-    return null
-  }
-  const upperBound = upperBoundResult.value
 
-  const data: { trialCount: number, cumulativeProbabilityPercent: number }[] = []
-  for (const n of sampleTrialCounts(upperBound)) {
-    const probResult = tryCalculateCumulativeSuccessProbability(rate, n)
-    if (!probResult.ok) {
-      return null
-    }
-    data.push({
-      trialCount: n,
-      cumulativeProbabilityPercent: probResult.value * 100,
-    })
-  }
+  // upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
+  // どこかで err が出れば全体を err として match の err 分岐で null フォールバックする。
+  const chartResult = computeXAxisUpperBound(rate).andThen(upperBound =>
+    sampleTrialCounts(upperBound).andThen(samples =>
+      Result.combine(
+        samples.map(n =>
+          calculateCumulativeSuccessProbability(rate, n).map(value => ({
+            trialCount: n,
+            cumulativeProbabilityPercent: value * 100,
+          })),
+        ),
+      ).map(data => ({ upperBound, data })),
+    ),
+  )
 
   // 信頼度=90 のときはデフォルト90破線と重複するので主補助線のみ描画
   const showDefaultGuide = confidencePercent !== DEFAULT_CONFIDENCE_PERCENT
 
-  return (
-    <div
-      data-testid="probability-chart"
-      role="img"
-      aria-label="試行回数に対する累積成功確率の折れ線グラフ"
-      className="mt-4"
-    >
-      <LineChart
-        width={CHART_WIDTH}
-        height={CHART_HEIGHT}
-        data={data}
-        margin={{ top: 16, right: 48, bottom: 32, left: 16 }}
+  return chartResult.match(
+    ({ upperBound, data }) => (
+      <div
+        data-testid="probability-chart"
+        role="img"
+        aria-label="試行回数に対する累積成功確率の折れ線グラフ"
+        className="mt-4"
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-        <XAxis
-          dataKey="trialCount"
-          type="number"
-          domain={[1, upperBound]}
-          stroke="var(--foreground)"
+        <LineChart
+          width={CHART_WIDTH}
+          height={CHART_HEIGHT}
+          data={data}
+          margin={{ top: 16, right: 48, bottom: 32, left: 16 }}
         >
-          <Label value="試行回数" position="insideBottom" offset={-12} fill="var(--foreground)" />
-        </XAxis>
-        <YAxis
-          type="number"
-          domain={[0, 100]}
-          ticks={Y_TICKS}
-          stroke="var(--foreground)"
-        >
-          <Label
-            value="累積成功確率 (%)"
-            angle={-90}
-            position="insideLeft"
-            offset={16}
-            fill="var(--foreground)"
-            style={{ textAnchor: 'middle' }}
-          />
-        </YAxis>
-        <Line
-          type="monotone"
-          dataKey="cumulativeProbabilityPercent"
-          stroke="var(--chart-1)"
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={false}
-        />
-        <ReferenceLine
-          y={confidencePercent}
-          stroke="var(--chart-2)"
-          strokeWidth={1}
-          strokeDasharray="4 4"
-          label={{
-            value: `${confidencePercent}%`,
-            position: 'right',
-            fill: 'var(--chart-2)',
-          }}
-        />
-        {showDefaultGuide && (
-          <ReferenceLine
-            y={DEFAULT_CONFIDENCE_PERCENT}
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis
+            dataKey="trialCount"
+            type="number"
+            domain={[1, upperBound]}
+            stroke="var(--foreground)"
+          >
+            <Label value="試行回数" position="insideBottom" offset={-12} fill="var(--foreground)" />
+          </XAxis>
+          <YAxis
+            type="number"
+            domain={[0, 100]}
+            ticks={Y_TICKS}
+            stroke="var(--foreground)"
+          >
+            <Label
+              value="累積成功確率 (%)"
+              angle={-90}
+              position="insideLeft"
+              offset={16}
+              fill="var(--foreground)"
+              style={{ textAnchor: 'middle' }}
+            />
+          </YAxis>
+          <Line
+            type="monotone"
+            dataKey="cumulativeProbabilityPercent"
             stroke="var(--chart-1)"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+          <ReferenceLine
+            y={confidencePercent}
+            stroke="var(--chart-2)"
             strokeWidth={1}
             strokeDasharray="4 4"
             label={{
-              value: `${DEFAULT_CONFIDENCE_PERCENT}%`,
+              value: `${confidencePercent}%`,
               position: 'right',
-              fill: 'var(--chart-1)',
+              fill: 'var(--chart-2)',
             }}
           />
-        )}
-      </LineChart>
-    </div>
+          {showDefaultGuide && (
+            <ReferenceLine
+              y={DEFAULT_CONFIDENCE_PERCENT}
+              stroke="var(--chart-1)"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              label={{
+                value: `${DEFAULT_CONFIDENCE_PERCENT}%`,
+                position: 'right',
+                fill: 'var(--chart-1)',
+              }}
+            />
+          )}
+        </LineChart>
+      </div>
+    ),
+    error => (
+      <div
+        role="img"
+        aria-label="グラフエラー"
+        className="text-muted-foreground mt-4 text-sm"
+      >
+        グラフを描画できません:
+        {' '}
+        {formatDomainError(error)}
+      </div>
+    ),
   )
 }

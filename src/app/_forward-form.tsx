@@ -8,8 +8,9 @@ import {
   targetCountInputSchema,
   trialCountInputSchema,
 } from '@/probability/probability'
-import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
+import { calculateTrialCountWithPity } from '@/probability/pity'
+import { formatDomainError } from '@/probability/domain-error'
 import { ProbabilityChart } from './_probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
@@ -84,39 +85,41 @@ export function ForwardForm() {
       const confidenceRatio = percentToRatio(Number(form.confidence))
 
       const calcResult = form.pityEnabled
-        ? tryCalculateTrialCountWithPity(
+        ? calculateTrialCountWithPity(
           successRateRatio,
           Number(form.pityCount),
           percentToRatio(Number(form.slipRatePercent)),
           confidenceRatio,
         )
-        : tryCalculateTrialCountForMultipleSuccess(
+        : calculateTrialCountForMultipleSuccess(
           successRateRatio,
           Number(form.targetCount),
           confidenceRatio,
         )
 
-      if (calcResult.ok) {
-        // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
-        // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
-        setResult({
-          trialCount: calcResult.value,
-          confidencePercent: Number(form.confidence),
-          targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
-          successRatePercent: Number(form.successRate),
-          pity: form.pityEnabled
-            ? {
-              pityCount: Number(form.pityCount),
-              slipRatePercent: Number(form.slipRatePercent),
-            }
-            : undefined,
-        })
-        setCalculationError(undefined)
-      }
-      else {
-        setResult(undefined)
-        setCalculationError(calcResult.message)
-      }
+      // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
+      // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+      calcResult.match(
+        (value) => {
+          setResult({
+            trialCount: value,
+            confidencePercent: Number(form.confidence),
+            targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
+            successRatePercent: Number(form.successRate),
+            pity: form.pityEnabled
+              ? {
+                pityCount: Number(form.pityCount),
+                slipRatePercent: Number(form.slipRatePercent),
+              }
+              : undefined,
+          })
+          setCalculationError(undefined)
+        },
+        (error) => {
+          setResult(undefined)
+          setCalculationError(formatDomainError(error))
+        },
+      )
     }
     catch (e) {
       throwToErrorBoundary(e)
