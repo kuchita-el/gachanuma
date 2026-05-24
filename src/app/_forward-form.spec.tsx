@@ -3,16 +3,17 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './_forward-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
-import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
+import { calculateTrialCountWithPity } from '@/probability/pity'
+import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
 
 vi.mock('@/probability/negative-binomial', async (importOriginal) => {
   const actual
     = await importOriginal<typeof import('@/probability/negative-binomial')>()
   return {
     ...actual,
-    tryCalculateTrialCountForMultipleSuccess: vi.fn(
-      actual.tryCalculateTrialCountForMultipleSuccess,
+    calculateTrialCountForMultipleSuccess: vi.fn(
+      actual.calculateTrialCountForMultipleSuccess,
     ),
   }
 })
@@ -21,7 +22,7 @@ vi.mock('@/probability/pity', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/probability/pity')>()
   return {
     ...actual,
-    tryCalculateTrialCountWithPity: vi.fn(actual.tryCalculateTrialCountWithPity),
+    calculateTrialCountWithPity: vi.fn(actual.calculateTrialCountWithPity),
   }
 })
 
@@ -585,7 +586,7 @@ describe('ForwardForm', () => {
     })
 
     it('目標成功回数を指定した計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementationOnce(
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
         },
@@ -613,7 +614,7 @@ describe('ForwardForm', () => {
     })
 
     it('天井ありの計算で想定外エラーが発生したときフォールバック UI に切り替わる', async () => {
-      vi.mocked(tryCalculateTrialCountWithPity).mockImplementationOnce(() => {
+      vi.mocked(calculateTrialCountWithPity).mockImplementationOnce(() => {
         throw new TypeError('boom')
       })
       const user = userEvent.setup()
@@ -640,10 +641,9 @@ describe('ForwardForm', () => {
     })
 
     it('ドメインエラーはフォールバックではなくフォーム内 Alert で表示される', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
-        ok: false,
-        message: 'ドメインエラー（テスト用）',
-      })
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('ドメインエラー（テスト用）'),
+      )
       const user = userEvent.setup()
       render(
         <ErrorBoundary>
@@ -664,10 +664,9 @@ describe('ForwardForm', () => {
     })
 
     it('天井ありの計算でドメインエラーが発生したときフォーム内 Alert で表示される', async () => {
-      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
-        ok: false,
-        message: '天井ドメインエラー（テスト用）',
-      })
+      vi.mocked(calculateTrialCountWithPity).mockReturnValueOnce(
+        makeDomainErrResult('天井ドメインエラー（テスト用）'),
+      )
       const user = userEvent.setup()
       render(
         <ErrorBoundary>
@@ -689,7 +688,7 @@ describe('ForwardForm', () => {
     })
 
     it('fallback 表示後に再試行で復帰し、再 submit で正常結果が表示される', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockImplementationOnce(
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockImplementationOnce(
         () => {
           throw new TypeError('boom')
         },
@@ -719,10 +718,9 @@ describe('ForwardForm', () => {
 
   describe('入力変更時の calculationError クリア', () => {
     it('成功率を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       const successRate = screen.getByLabelText('成功率')
@@ -736,10 +734,9 @@ describe('ForwardForm', () => {
     })
 
     it('目標成功回数を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -753,10 +750,9 @@ describe('ForwardForm', () => {
     })
 
     it('信頼度プリセット変更で Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -768,10 +764,9 @@ describe('ForwardForm', () => {
     })
 
     it('天井 Switch 切替で Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountWithPity).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       const sw = screen.getByRole('switch', { name: '天井を考慮する' })
@@ -787,10 +782,9 @@ describe('ForwardForm', () => {
     // OFF→ON 切替は他フィールドへの副作用 (setValue 連鎖) が無いため、pityEnabled 値変化単独で購読発火することを検証する独立ケース。
     // 切替時の副作用ロジックが変わった場合、本テストの前提も再確認すること。
     it('天井 Switch OFF→ON 単独切替で Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountForMultipleSuccess).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -802,10 +796,9 @@ describe('ForwardForm', () => {
     })
 
     it('天井 ON 時に天井回数を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountWithPity).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
@@ -820,10 +813,9 @@ describe('ForwardForm', () => {
     })
 
     it('天井 ON 時にすり抜け率を変更すると Alert が消える', async () => {
-      vi.mocked(tryCalculateTrialCountWithPity).mockReturnValueOnce({
-        ok: false,
-        message: 'テストエラー',
-      })
+      vi.mocked(calculateTrialCountWithPity).mockReturnValueOnce(
+        makeDomainErrResult('テストエラー'),
+      )
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))

@@ -17,12 +17,14 @@
  *    - m > 1-c: k = max(N, ceil(log((1-c)/m) / log(1-p)) + 1)
  *
  * 早期 short-circuit（p 極小ガード）:
- * - p 極小で calculateTrialCount が CalculationError を吐く境界では、m=0 なら天井で確定するため N を返す。
- *   m > 0 の場合は通常抽選が無効化されるほどの極小 p なので CalculationError を透過させる。
+ * - p 極小で calculateTrialCount が `NonFiniteResult` を返す境界では、m=0 なら天井で確定するため N を返す。
+ *   一般化して m ≤ 1-c の場合も k=N で P(N) ≥ c が成立するため N を返す。m > 1-c の場合は通常抽選が
+ *   無効化されるほどの極小 p なので NonFiniteResult を透過させる。InvalidInput や IterationLimitExceeded
+ *   は救済対象外（透過）。
  */
-import * as v from 'valibot'
-import { CalculationError, calculateTrialCount, toCalcResult } from './calculator'
-import type { CalcResult } from './calculator'
+import { err, ok, Result } from 'neverthrow'
+import { calculateTrialCount, type CalcResult } from './calculator'
+import { domainErr, parseInputOrErr } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   validConfidenceSchema,
@@ -38,70 +40,52 @@ import {
  * @param pityCount - 天井回数（1以上の整数）
  * @param slipRate - 天井すり抜け率（0 ≤ x ≤ 1、両端含む）
  * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
- * @returns 必要な試行回数（整数）
- * @throws {ValiError} 引数が値域外の場合
- * @throws {CalculationError} 浮動小数点境界で計算結果が非有限値になった場合
+ * @returns ok(必要な試行回数) または err(InvalidInput / NonFiniteResult)
  */
 export function calculateTrialCountWithPity(
   successRate: number,
   pityCount: number,
   slipRate: number,
   confidence: number = DEFAULT_CONFIDENCE,
-): number {
-  const validatedRate = v.parse(validProbabilityRatioSchema, successRate)
-  const validatedPity = v.parse(validTrialCountSchema, pityCount)
-  const validatedSlip = v.parse(validSlipRateRatioSchema, slipRate)
-  const validatedConfidence = v.parse(validConfidenceSchema, confidence)
-
-  let kNoPity: number
-  try {
-    kNoPity = calculateTrialCount(validatedRate, validatedConfidence)
-  }
-  catch (error) {
-    // p 極小での浮動小数点境界。m ≤ 1-c なら k=N で P(N) ≥ c が必ず成立するため
-    // （`(1-p)^(N-1) × m ≤ m ≤ 1-c` ⇒ `P(N) = 1 - (1-p)^(N-1) × m ≥ c`）、
-    // m=0 を含む一般化として N を返す。それ以外は通常抽選不能のため透過させる。
-    if (error instanceof CalculationError && validatedSlip <= 1 - validatedConfidence) {
-      return validatedPity
-    }
-    throw error
-  }
-
-  if (kNoPity < validatedPity) {
-    return kNoPity
-  }
-
-  // k ≥ N 領域: m=0 または m ≤ 1-c なら k=N で P(N) ≥ c が成立
-  if (validatedSlip === 0 || validatedSlip <= 1 - validatedConfidence) {
-    return validatedPity
-  }
-
-  // m > 1-c: (1-p)^(k-1) × m ≤ 1-c より k ≥ log((1-c)/m) / log(1-p) + 1
-  const kCandidate
-    = Math.ceil(
-      Math.log((1 - validatedConfidence) / validatedSlip) / Math.log(1 - validatedRate),
-    ) + 1
-  const result = Math.max(validatedPity, kCandidate)
-
-  if (!Number.isFinite(result)) {
-    throw new CalculationError(
-      '成功率が極端に小さいため試行回数を計算できません。値を見直してください。',
-    )
-  }
-  return result
-}
-
-/**
- * calculateTrialCountWithPity の Result 型ラッパ。
- * ValiError / CalculationError を ok:false に変換、想定外エラーは再 throw する。
- */
-export function tryCalculateTrialCountWithPity(
-  successRate: number,
-  pityCount: number,
-  slipRate: number,
-  confidence?: number,
 ): CalcResult {
-  return toCalcResult(() =>
-    calculateTrialCountWithPity(successRate, pityCount, slipRate, confidence),
-  )
+  return Result.combine([
+    parseInputOrErr(validProbabilityRatioSchema, successRate),
+    parseInputOrErr(validTrialCountSchema, pityCount),
+    parseInputOrErr(validSlipRateRatioSchema, slipRate),
+    parseInputOrErr(validConfidenceSchema, confidence),
+  ]).andThen(([validatedRate, validatedPity, validatedSlip, validatedConfidence]) => {
+    return calculateTrialCount(validatedRate, validatedConfidence)
+      .orElse((error) => {
+        // 救済路: NonFiniteResult のみ、かつ m ≤ 1-c のとき P(N) ≥ c が必ず成立するため N を返す。
+        // （`(1-p)^(N-1) × m ≤ m ≤ 1-c` ⇒ `P(N) = 1 - (1-p)^(N-1) × m ≥ c`）
+        // m=0 を含む一般化として N を返す。InvalidInput は救済対象外（このパスでは発生しないが、
+        // 将来の DomainError 拡張に備えて kind で明示判別）。
+        if (error.kind === 'NonFiniteResult' && validatedSlip <= 1 - validatedConfidence) {
+          return ok(validatedPity)
+        }
+        return err(error)
+      })
+      .andThen((kNoPity) => {
+        if (kNoPity < validatedPity) {
+          return ok(kNoPity)
+        }
+
+        // k ≥ N 領域: m=0 または m ≤ 1-c なら k=N で P(N) ≥ c が成立
+        if (validatedSlip === 0 || validatedSlip <= 1 - validatedConfidence) {
+          return ok(validatedPity)
+        }
+
+        // m > 1-c: (1-p)^(k-1) × m ≤ 1-c より k ≥ log((1-c)/m) / log(1-p) + 1
+        const kCandidate
+          = Math.ceil(
+            Math.log((1 - validatedConfidence) / validatedSlip) / Math.log(1 - validatedRate),
+          ) + 1
+        const result = Math.max(validatedPity, kCandidate)
+
+        if (!Number.isFinite(result)) {
+          return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
+        }
+        return ok(result)
+      })
+  })
 }
