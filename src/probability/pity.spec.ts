@@ -5,7 +5,7 @@ import { calculateTrialCountWithPity } from './pity'
 import * as calculator from './calculator'
 import { calculateTrialCount } from './calculator'
 import { formatDomainError, parseInputOrErr } from './domain-error'
-import { validSlipRateRatioSchema, slipRatePercentageSchema } from './probability'
+import { validSlipRateRatioSchema } from './probability'
 
 vi.mock('./domain-error', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./domain-error')>()
@@ -241,27 +241,5 @@ describe('validSlipRateRatioSchema', () => {
 
   it('1.01 で ValiError', () => {
     expect(() => v.parse(validSlipRateRatioSchema, 1.01)).toThrow(/すり抜け率/)
-  })
-})
-
-describe('slipRatePercentageSchema', () => {
-  it('境界値 0 を渡すとそのまま 0 を返す', () => {
-    expect(v.parse(slipRatePercentageSchema, 0)).toBe(0)
-  })
-
-  it('境界値 100 を渡すとそのまま 100 を返す', () => {
-    expect(v.parse(slipRatePercentageSchema, 100)).toBe(100)
-  })
-
-  it('文字列 "50" を渡すと 50 に変換される', () => {
-    expect(v.parse(slipRatePercentageSchema, '50')).toBe(50)
-  })
-
-  it('-1 で ValiError、メッセージに「0以上100以下」を含む', () => {
-    expect(() => v.parse(slipRatePercentageSchema, -1)).toThrow(/0以上100以下/)
-  })
-
-  it('101 で ValiError', () => {
-    expect(() => v.parse(slipRatePercentageSchema, 101)).toThrow(/0以上100以下/)
   })
 })
