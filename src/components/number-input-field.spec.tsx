@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
@@ -100,5 +100,72 @@ describe('NumberInputField', () => {
     await user.tab()
     expect(await screen.findByText('0より大きい数値を指定してください')).toBeInTheDocument()
     expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input.getAttribute('aria-describedby')!.split(' ')).toHaveLength(2)
+  })
+
+  it('defaultValue を渡すと初期値が反映され、ユーザー入力で双方向同期する', async () => {
+    const user = userEvent.setup()
+    render(<Harness defaultValue="50" />)
+    const input = screen.getByLabelText('成功率') as HTMLInputElement
+    expect(input.value).toBe('50')
+    await user.clear(input)
+    await user.type(input, '75')
+    expect(input.value).toBe('75')
+  })
+
+  it('複数フィールド + ネストパスでも各 NumberInputField が独立に描画される', () => {
+    type MultiForm = {
+      successRate: string
+      trial: { count: string }
+    }
+    function MultiHarness() {
+      const form = useForm<MultiForm>({
+        defaultValues: { successRate: '', trial: { count: '' } },
+      })
+      return (
+        <Form {...form}>
+          <NumberInputField
+            name="successRate"
+            control={form.control}
+            label="成功率"
+            suffix="%"
+            helperText="0より大きく100未満の数値を入力してください"
+            inputMode="decimal"
+            type="number"
+            step="any"
+          />
+          <NumberInputField
+            name="trial.count"
+            control={form.control}
+            label="試行回数"
+            suffix="回"
+            helperText="1以上の整数を入力してください"
+            inputMode="numeric"
+            type="number"
+          />
+        </Form>
+      )
+    }
+    render(<MultiHarness />)
+    expect(screen.getByLabelText('成功率')).toBeInTheDocument()
+    expect(screen.getByLabelText('試行回数')).toBeInTheDocument()
+  })
+
+  it('<Form> ラップなしでレンダーすると throw する (useFormContext 不在検出)', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function BareHarness() {
+      const form = useForm({ defaultValues: { rate: '' } })
+      return (
+        <NumberInputField
+          name="rate"
+          control={form.control}
+          label="成功率"
+          suffix="%"
+          helperText="0より大きく100未満の数値を入力してください"
+        />
+      )
+    }
+    expect(() => render(<BareHarness />)).toThrow()
+    errorSpy.mockRestore()
   })
 })

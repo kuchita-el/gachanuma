@@ -31,18 +31,27 @@ describe('InputAffix', () => {
     expect(screen.getByTestId('x')).toBeInTheDocument()
   })
 
-  it('ラッパは relative レイアウト・suffix span は absolute 配置の class を持つ', () => {
+  it('ラッパは relative・suffix は span 要素として描画される', () => {
     const { container } = render(
       <InputAffix suffix="%">
         <input data-testid="x" />
       </InputAffix>,
     )
     const wrapper = container.firstChild as HTMLElement
+    expect(wrapper.tagName).toBe('DIV')
     expect(wrapper.className).toMatch(/\brelative\b/)
     const suffixSpan = screen.getByText('%')
-    expect(suffixSpan.className).toMatch(/\babsolute\b/)
-    expect(suffixSpan.className).toMatch(/right-3/)
-    expect(suffixSpan.className).toMatch(/top-1\/2/)
-    expect(suffixSpan.className).toMatch(/-translate-y-1\/2/)
+    expect(suffixSpan.tagName).toBe('SPAN')
+  })
+
+  it('className を渡すと relative と合成される', () => {
+    const { container } = render(
+      <InputAffix suffix="%" className="my-custom-cls">
+        <input data-testid="x" />
+      </InputAffix>,
+    )
+    const wrapper = container.firstChild as HTMLElement
+    expect(wrapper.className).toMatch(/\brelative\b/)
+    expect(wrapper.className).toMatch(/\bmy-custom-cls\b/)
   })
 })
