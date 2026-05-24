@@ -44,10 +44,18 @@ npx vitest --watch
 - **Testing**: Vitest with React Testing Library in jsdom environment
 
 ### Project Structure
-- `src/app/` - Next.js App Router のページ・レイアウト
-- `src/components/ui/` - shadcn/ui で導入したコンポーネント
+- `src/app/` - Next.js App Router のページ・レイアウト（規約ファイルのみ配置）
+- `src/app/_components/` - `src/app/` 配下のページから利用される画面固有コンポーネント（Next.js 公式 private folder 規約により `_` プレフィックスでルート化を抑止）
+- `src/components/` - 複数画面で再利用する汎用コンポーネント
+- `src/components/ui/` - shadcn/ui で導入したコンポーネント（`src/components/` のサブカテゴリ）
 - `src/lib/` - ユーティリティ（`cn` ヘルパ等）
 - `src/probability/` - 確率計算ロジック・バリデーションスキーマ・ユニットテスト
+
+### コンポーネント配置規約
+- `src/app/` 直下は Next.js 規約ファイル（`page.tsx` / `layout.tsx` / `error.tsx` / `loading.tsx` / `not-found.tsx` / `route.ts` / `template.tsx` 等）のみ配置する
+- 画面固有コンポーネントは `src/app/_components/` 配下に配置する（Next.js 公式 private folder 規約 `_folder/` でルート化を抑止）
+- 汎用コンポーネントは `src/components/` 配下に配置する
+- テストファイル（`*.spec.tsx`）は実装ファイルと同一ディレクトリに併置する
 
 ### Key Architectural Patterns
 

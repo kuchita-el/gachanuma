@@ -46,10 +46,6 @@ describe('calculateTrialCountForMultipleSuccess', () => {
     it('p=0.5, targetCount=100, c=0.9 → 218（厳密値、正規近似 k≈218 と整合）', () => {
       expect(calculateTrialCountForMultipleSuccess(0.5, 100, 0.9)._unsafeUnwrap()).toBe(218)
     })
-
-    it('confidence 省略時は DEFAULT_CONFIDENCE=0.9 が適用される', () => {
-      expect(calculateTrialCountForMultipleSuccess(0.5, 2)._unsafeUnwrap()).toBe(7)
-    })
   })
 
   describe('単調性', () => {
@@ -155,7 +151,7 @@ describe('calculateTrialCountForMultipleSuccess (mock 経路)', () => {
   })
 
   it('targetCount=1 で tryCalculateTrialCount と同等の挙動（既存 API への帰着）', () => {
-    expect(calculateTrialCountForMultipleSuccess(0.5, 1)._unsafeUnwrap()).toBe(4)
+    expect(calculateTrialCountForMultipleSuccess(0.5, 1, 0.9)._unsafeUnwrap()).toBe(4)
   })
 
   it('targetCount=0 は err、文言に「目標成功回数」を含む', () => {
@@ -177,7 +173,7 @@ describe('calculateTrialCountForMultipleSuccess (mock 経路)', () => {
     vi.mocked(parseInputOrErr).mockReturnValueOnce(
       err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
     )
-    const r = calculateTrialCountForMultipleSuccess(0.1, 5)
+    const r = calculateTrialCountForMultipleSuccess(0.1, 5, 0.9)
     expect(r.isErr()).toBe(true)
     const message = formatDomainError(r._unsafeUnwrapErr())
     expect(message).toContain('M1')
