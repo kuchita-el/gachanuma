@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
+import { ResultPanel } from './result-panel'
 import { useFormErrorMessage } from '@/lib/use-form-error-message'
 import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
@@ -99,13 +100,7 @@ export function InverseForm() {
       </Form>
 
       {result !== undefined && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-label="計算結果"
-          className="bg-primary/10 mt-8 rounded-lg p-6"
-        >
-          <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
+        <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
             {(result.cumulativeProbabilityRatio * 100).toFixed(2)}
             %
@@ -114,7 +109,7 @@ export function InverseForm() {
             {result.trialCount}
             回試行したとき少なくとも1回成功する確率
           </p>
-        </div>
+        </ResultPanel>
       )}
 
       {calculationError && (
