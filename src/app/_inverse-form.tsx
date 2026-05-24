@@ -7,13 +7,14 @@ import {
 } from '@/probability/probability'
 import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useFormErrorMessage } from '@/lib/use-form-error-message'
 import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
 const schema = v.object({
@@ -35,15 +36,7 @@ export function InverseForm() {
     cumulativeProbabilityRatio: number
     trialCount: number
   }>()
-  const [calculationError, setCalculationError] = useState<string>()
-  // 値変化時のみ callback を発火させたいため `useWatch + useEffect` ではなく subscribe API を使用。
-  // 前者は依存配列に calculationError を含める必要があり、setCalculationError(msg) 直後の再 effect でガード通過 → 即 undefined 化で Alert が一瞬で消える不具合がある。
-  useEffect(() => {
-    return subscribe({
-      formState: { values: true },
-      callback: () => setCalculationError(undefined),
-    })
-  }, [subscribe])
+  const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
   const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
