@@ -15,8 +15,9 @@ import type { FieldValues, UseFormSubscribe } from 'react-hook-form'
  *
  * `useWatch + useEffect` を採用しない理由: 同パターンは依存配列に `message` を含める
  * 必要があり、`setMessage(msg)` 直後の再 effect でガード通過 → 即 `undefined` 化となり
- * Alert が一瞬で消える不具合がある。`subscribe` はフォーム値の変化時にのみ callback を
- * 発火するため、setter で立てた message が直後に消える事象が構造的に発生しない。
+ * Alert が一瞬で消える不具合がある。`subscribe` API は安定参照の `subscribe` 関数のみに
+ * 依存して購読登録するため、依存配列に `message` を含めずに済み、`setMessage(msg)` 呼び出し
+ * で effect が再実行されない（=「即 undefined 化」が構造的に発生しない）。
  *
  * @example
  * const { subscribe } = useForm()
