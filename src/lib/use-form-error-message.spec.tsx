@@ -3,10 +3,11 @@ import { act, renderHook } from '@testing-library/react'
 import type { UseFormSubscribe } from 'react-hook-form'
 import { useFormErrorMessage } from './use-form-error-message'
 
-type SubscribeOptions = Parameters<UseFormSubscribe<Record<string, unknown>>>[0]
+type SubscribeFn = UseFormSubscribe<Record<string, unknown>>
+type SubscribeOptions = Parameters<SubscribeFn>[0]
 
 interface SubscribeHarness {
-  subscribe: ReturnType<typeof vi.fn>
+  subscribe: SubscribeFn
   unsubscribe: ReturnType<typeof vi.fn>
   fireCallback: () => void
   lastOptions: () => SubscribeOptions
@@ -18,7 +19,7 @@ function createSubscribeHarness(): SubscribeHarness {
   const subscribe = vi.fn((options: SubscribeOptions) => {
     lastOptions = options
     return unsubscribe
-  })
+  }) as unknown as SubscribeFn
   return {
     subscribe,
     unsubscribe,
@@ -36,9 +37,7 @@ function createSubscribeHarness(): SubscribeHarness {
 describe('useFormErrorMessage', () => {
   it('初期値なしでマウントすると message は undefined を返す', () => {
     const harness = createSubscribeHarness()
-    const { result } = renderHook(() =>
-      useFormErrorMessage(harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>),
-    )
+    const { result } = renderHook(() => useFormErrorMessage(harness.subscribe))
     expect(result.current[0]).toBeUndefined()
     expect(typeof result.current[1]).toBe('function')
   })
@@ -46,19 +45,14 @@ describe('useFormErrorMessage', () => {
   it('初期値ありでマウントすると message に初期値が反映される', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useFormErrorMessage(
-        harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>,
-        '初期メッセージ',
-      ),
+      useFormErrorMessage(harness.subscribe, '初期メッセージ'),
     )
     expect(result.current[0]).toBe('初期メッセージ')
   })
 
   it('マウント時に subscribe が formState: { values: true } と callback で 1 回呼ばれる', () => {
     const harness = createSubscribeHarness()
-    renderHook(() =>
-      useFormErrorMessage(harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>),
-    )
+    renderHook(() => useFormErrorMessage(harness.subscribe))
     expect(harness.subscribe).toHaveBeenCalledTimes(1)
     const options = harness.lastOptions()
     expect(options.formState).toEqual({ values: true })
@@ -68,10 +62,7 @@ describe('useFormErrorMessage', () => {
   it('setter で値をセットした後、subscribe callback 発火で undefined に遷移する', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useFormErrorMessage(
-        harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>,
-        '初期',
-      ),
+      useFormErrorMessage(harness.subscribe, '初期'),
     )
     act(() => result.current[1]('エラー'))
     expect(result.current[0]).toBe('エラー')
@@ -81,9 +72,7 @@ describe('useFormErrorMessage', () => {
 
   it('setter で任意の文字列を渡すと message にセットされ、undefined を渡すとクリアされる', () => {
     const harness = createSubscribeHarness()
-    const { result } = renderHook(() =>
-      useFormErrorMessage(harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>),
-    )
+    const { result } = renderHook(() => useFormErrorMessage(harness.subscribe))
     act(() => result.current[1]('計算エラー'))
     expect(result.current[0]).toBe('計算エラー')
     act(() => result.current[1](undefined))
@@ -92,9 +81,7 @@ describe('useFormErrorMessage', () => {
 
   it('unmount 時に subscribe が返した unsubscribe 関数が呼ばれる', () => {
     const harness = createSubscribeHarness()
-    const { unmount } = renderHook(() =>
-      useFormErrorMessage(harness.subscribe as unknown as UseFormSubscribe<Record<string, unknown>>),
-    )
+    const { unmount } = renderHook(() => useFormErrorMessage(harness.subscribe))
     expect(harness.unsubscribe).not.toHaveBeenCalled()
     unmount()
     expect(harness.unsubscribe).toHaveBeenCalledTimes(1)
