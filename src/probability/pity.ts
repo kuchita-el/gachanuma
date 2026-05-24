@@ -26,7 +26,6 @@ import { err, ok, Result } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
 import { domainErr, parseInputOrErr } from './domain-error'
 import {
-  DEFAULT_CONFIDENCE,
   validConfidenceSchema,
   validProbabilityRatioSchema,
   validSlipRateRatioSchema,
@@ -39,14 +38,14 @@ import {
  * @param successRate - 単発実効排出率（0 < x < 1）
  * @param pityCount - 天井回数（1以上の整数）
  * @param slipRate - 天井すり抜け率（0 ≤ x ≤ 1、両端含む）
- * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
+ * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）
  * @returns ok(必要な試行回数) または err(InvalidInput / NonFiniteResult)
  */
 export function calculateTrialCountWithPity(
   successRate: number,
   pityCount: number,
   slipRate: number,
-  confidence: number = DEFAULT_CONFIDENCE,
+  confidence: number,
 ): CalcResult {
   return Result.combine([
     parseInputOrErr(validProbabilityRatioSchema, successRate),

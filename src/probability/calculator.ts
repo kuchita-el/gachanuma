@@ -1,7 +1,6 @@
 import { ok, type Result } from 'neverthrow'
 import { type DomainError, domainErr, parseInputOrErr } from './domain-error'
 import {
-  DEFAULT_CONFIDENCE,
   validConfidenceSchema,
   validProbabilityRatioSchema,
   validTrialCountSchema,
@@ -32,12 +31,12 @@ export type CalcResult<T = number> = Result<T, DomainError>
  *   戻り値の有限性を別途検証し、`NonFiniteResult` として err 返却する。
  *
  * @param successRate - 単発成功率（0 < x < 1）
- * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）。省略時は DEFAULT_CONFIDENCE
+ * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）
  * @returns ok(必要な試行回数、切り上げ済みの整数) または err(InvalidInput / NonFiniteResult)
  */
 export function calculateTrialCount(
   successRate: number,
-  confidence: number = DEFAULT_CONFIDENCE,
+  confidence: number,
 ): CalcResult {
   return parseInputOrErr(validProbabilityRatioSchema, successRate).andThen(validatedRate =>
     parseInputOrErr(validConfidenceSchema, confidence).andThen((validatedConfidence) => {
