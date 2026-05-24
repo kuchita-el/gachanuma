@@ -155,7 +155,7 @@ describe('calculateTrialCount', () => {
     })
   })
 
-  describe('信頼度引数明示', () => {
+  describe('信頼度の影響', () => {
     it('成功率0.5・信頼度0.9で4回', () => {
       expect(calculateTrialCount(0.5, 0.9)._unsafeUnwrap()).toBe(4)
     })
