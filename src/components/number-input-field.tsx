@@ -14,15 +14,21 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 
-type NumberInputFieldProps<TFieldValues extends FieldValues> = {
-  name: FieldPath<TFieldValues>
+type NumberInputFieldProps<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+> = {
+  name: TName
   control: Control<TFieldValues>
   label: string
   suffix: string
   helperText: string
-} & Omit<React.ComponentProps<'input'>, 'name'>
+} & Omit<React.ComponentProps<'input'>, 'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref'>
 
-function NumberInputField<TFieldValues extends FieldValues>({
+function NumberInputField<
+  TFieldValues extends FieldValues,
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+>({
   name,
   control,
   label,
@@ -30,7 +36,7 @@ function NumberInputField<TFieldValues extends FieldValues>({
   helperText,
   className,
   ...inputProps
-}: NumberInputFieldProps<TFieldValues>) {
+}: NumberInputFieldProps<TFieldValues, TName>) {
   return (
     <FormField
       control={control}
