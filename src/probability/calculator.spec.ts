@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
 import {
-  CalculationError,
   calculateCumulativeSuccessProbability,
   calculateTrialCount,
   tryCalculateCumulativeSuccessProbability,
   tryCalculateTrialCount,
 } from './calculator'
+import { formatDomainError } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   percentToRatio,
@@ -18,153 +18,151 @@ import {
 
 vi.mock('valibot', async (importOriginal) => {
   const actual = await importOriginal<typeof import('valibot')>()
-  return { ...actual, parse: vi.fn(actual.parse) }
+  return { ...actual, safeParse: vi.fn(actual.safeParse) }
 })
 
 describe('calculateTrialCount', () => {
   describe('正常系', () => {
     it('50%の成功率の場合、4回の試行が必要', () => {
-      const result = calculateTrialCount(0.5)
-      expect(result).toBe(4)
+      expect(calculateTrialCount(0.5)._unsafeUnwrap()).toBe(4)
     })
 
     it('10%の成功率の場合、22回の試行が必要', () => {
-      const result = calculateTrialCount(0.1)
-      expect(result).toBe(22)
+      expect(calculateTrialCount(0.1)._unsafeUnwrap()).toBe(22)
     })
 
     it('90%の成功率の場合、1回の試行が必要', () => {
-      const result = calculateTrialCount(0.9)
-      expect(result).toBe(1)
+      expect(calculateTrialCount(0.9)._unsafeUnwrap()).toBe(1)
     })
 
     it('1%の成功率の場合、230回の試行が必要', () => {
-      const result = calculateTrialCount(0.01)
-      expect(result).toBe(230)
+      expect(calculateTrialCount(0.01)._unsafeUnwrap()).toBe(230)
     })
 
     it('99%の成功率の場合、1回の試行が必要', () => {
-      const result = calculateTrialCount(0.99)
-      expect(result).toBe(1)
+      expect(calculateTrialCount(0.99)._unsafeUnwrap()).toBe(1)
     })
 
     it('小数点を含む成功率でも計算可能 (0.123)', () => {
-      const result = calculateTrialCount(0.123)
-      expect(result).toBeGreaterThan(0)
-      expect(Number.isFinite(result)).toBe(true)
+      const value = calculateTrialCount(0.123)._unsafeUnwrap()
+      expect(value).toBeGreaterThan(0)
+      expect(Number.isFinite(value)).toBe(true)
     })
   })
 
   describe('エッジケース: 0% (境界値)', () => {
-    it('0の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0)).toThrow()
+    it('0は InvalidInput を err 返却', () => {
+      const result = calculateTrialCount(0)
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
     it('非常に小さい正の値 (0.0001) は計算可能', () => {
-      const result = calculateTrialCount(0.0001)
-      expect(result).toBeGreaterThan(0)
-      expect(Number.isFinite(result)).toBe(true)
+      const value = calculateTrialCount(0.0001)._unsafeUnwrap()
+      expect(value).toBeGreaterThan(0)
+      expect(Number.isFinite(value)).toBe(true)
     })
 
-    it('負の値の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(-0.1)).toThrow()
+    it('負の値は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(-0.1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
   })
 
   describe('エッジケース: 100% (境界値)', () => {
-    it('1の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(1)).toThrow()
+    it('1は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
     it('非常に大きい値 (0.9999) は計算可能', () => {
-      const result = calculateTrialCount(0.9999)
-      expect(result).toBe(1)
-      expect(Number.isFinite(result)).toBe(true)
+      const value = calculateTrialCount(0.9999)._unsafeUnwrap()
+      expect(value).toBe(1)
     })
 
-    it('1より大きい値の場合ValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(1.1)).toThrow()
+    it('1より大きい値は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(1.1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
   })
 
   describe('異常系', () => {
-    it('範囲外の値 (2.0) の場合エラーをスローする', () => {
-      expect(() => calculateTrialCount(2.0)).toThrow()
+    it('範囲外の値 (2.0) は err 返却', () => {
+      expect(calculateTrialCount(2.0).isErr()).toBe(true)
     })
 
-    it('範囲外の値 (-1.0) の場合エラーをスローする', () => {
-      expect(() => calculateTrialCount(-1.0)).toThrow()
+    it('範囲外の値 (-1.0) は err 返却', () => {
+      expect(calculateTrialCount(-1.0).isErr()).toBe(true)
     })
 
-    it('成功率 NaN の場合 ValiError をスローする', () => {
-      expect(() => calculateTrialCount(NaN)).toThrow(v.ValiError)
+    it('成功率 NaN は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率 Infinity の場合 ValiError をスローする', () => {
-      expect(() => calculateTrialCount(Infinity)).toThrow(v.ValiError)
+    it('成功率 Infinity は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(Infinity)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率 -Infinity の場合 ValiError をスローする', () => {
-      expect(() => calculateTrialCount(-Infinity)).toThrow(v.ValiError)
+    it('成功率 -Infinity は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(-Infinity)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('信頼度 NaN の場合 ValiError をスローする', () => {
-      expect(() => calculateTrialCount(0.5, NaN)).toThrow(v.ValiError)
+    it('信頼度 NaN は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('信頼度 Infinity の場合 ValiError をスローする', () => {
-      expect(() => calculateTrialCount(0.5, Infinity)).toThrow(v.ValiError)
+    it('信頼度 Infinity は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, Infinity)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
   })
 
   describe('浮動小数点境界（C-1: 非有限値ガード）', () => {
-    it('成功率 1e-17（IEEE754 で 1-p=1 に丸まる）の場合、CalculationError をスローする', () => {
-      expect(() => calculateTrialCount(1e-17)).toThrow(CalculationError)
-      expect(() => calculateTrialCount(1e-17)).toThrow(/極端に小さい/)
+    it('成功率 1e-17（IEEE754 で 1-p=1 に丸まる）は NonFiniteResult を err 返却', () => {
+      const error = calculateTrialCount(1e-17)._unsafeUnwrapErr()
+      expect(error.kind).toBe('NonFiniteResult')
+      expect(formatDomainError(error)).toMatch(/極端に小さい/)
     })
 
-    it('成功率 Number.MIN_VALUE の場合、CalculationError をスローする', () => {
-      expect(() => calculateTrialCount(Number.MIN_VALUE)).toThrow(CalculationError)
+    it('成功率 Number.MIN_VALUE は NonFiniteResult を err 返却', () => {
+      expect(calculateTrialCount(Number.MIN_VALUE)._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
     })
 
-    it('CalculationError は ValiError とは区別される', () => {
-      expect(() => calculateTrialCount(5e-17)).toThrow(CalculationError)
-      expect(() => calculateTrialCount(5e-17)).not.toThrow(v.ValiError)
+    it('NonFiniteResult は InvalidInput とは区別される', () => {
+      const error = calculateTrialCount(5e-17)._unsafeUnwrapErr()
+      expect(error.kind).toBe('NonFiniteResult')
+      expect(error.kind).not.toBe('InvalidInput')
     })
 
     it('実用域の極小値 1e-10 は計算可能で有限', () => {
-      const result = calculateTrialCount(1e-10)
-      expect(Number.isFinite(result)).toBe(true)
-      expect(result).toBeGreaterThan(0)
+      const value = calculateTrialCount(1e-10)._unsafeUnwrap()
+      expect(Number.isFinite(value)).toBe(true)
+      expect(value).toBeGreaterThan(0)
     })
   })
 
   describe('戻り値の型チェック', () => {
     it('結果は数値型である', () => {
-      const result = calculateTrialCount(0.5)
-      expect(typeof result).toBe('number')
+      expect(typeof calculateTrialCount(0.5)._unsafeUnwrap()).toBe('number')
     })
 
     it('結果は整数である', () => {
-      const result = calculateTrialCount(0.5)
-      expect(Number.isInteger(result)).toBe(true)
+      expect(Number.isInteger(calculateTrialCount(0.5)._unsafeUnwrap())).toBe(true)
     })
 
     it('結果は有限値である', () => {
-      const result = calculateTrialCount(0.5)
-      expect(Number.isFinite(result)).toBe(true)
+      expect(Number.isFinite(calculateTrialCount(0.5)._unsafeUnwrap())).toBe(true)
     })
 
     it('結果は正の値である', () => {
-      const result = calculateTrialCount(0.5)
-      expect(result).toBeGreaterThan(0)
+      expect(calculateTrialCount(0.5)._unsafeUnwrap()).toBeGreaterThan(0)
     })
   })
 
   describe('信頼度引数明示', () => {
     it('信頼度省略は DEFAULT_CONFIDENCE 明示と等価', () => {
-      expect(calculateTrialCount(0.5)).toBe(calculateTrialCount(0.5, DEFAULT_CONFIDENCE))
-      expect(calculateTrialCount(0.1)).toBe(calculateTrialCount(0.1, DEFAULT_CONFIDENCE))
+      expect(calculateTrialCount(0.5)._unsafeUnwrap()).toBe(
+        calculateTrialCount(0.5, DEFAULT_CONFIDENCE)._unsafeUnwrap(),
+      )
+      expect(calculateTrialCount(0.1)._unsafeUnwrap()).toBe(
+        calculateTrialCount(0.1, DEFAULT_CONFIDENCE)._unsafeUnwrap(),
+      )
     })
 
     it('DEFAULT_CONFIDENCE は 0.9', () => {
@@ -172,49 +170,49 @@ describe('calculateTrialCount', () => {
     })
 
     it('成功率0.5・信頼度0.9で4回（デフォルト値と一致）', () => {
-      expect(calculateTrialCount(0.5, 0.9)).toBe(4)
+      expect(calculateTrialCount(0.5, 0.9)._unsafeUnwrap()).toBe(4)
     })
 
     it('成功率0.5・信頼度0.99で7回（信頼度上昇）', () => {
-      expect(calculateTrialCount(0.5, 0.99)).toBe(7)
+      expect(calculateTrialCount(0.5, 0.99)._unsafeUnwrap()).toBe(7)
     })
 
     it('成功率0.5・信頼度0.5で1回（信頼度下降）', () => {
-      expect(calculateTrialCount(0.5, 0.5)).toBe(1)
+      expect(calculateTrialCount(0.5, 0.5)._unsafeUnwrap()).toBe(1)
     })
 
     it('成功率0.1・信頼度0.9で22回（既存値との一致）', () => {
-      expect(calculateTrialCount(0.1, 0.9)).toBe(22)
+      expect(calculateTrialCount(0.1, 0.9)._unsafeUnwrap()).toBe(22)
     })
 
     it('信頼度を上げると試行回数は単調非減少（成功率0.3固定）', () => {
-      const lowConf = calculateTrialCount(0.3, 0.5)
-      const midConf = calculateTrialCount(0.3, 0.9)
-      const highConf = calculateTrialCount(0.3, 0.99)
+      const lowConf = calculateTrialCount(0.3, 0.5)._unsafeUnwrap()
+      const midConf = calculateTrialCount(0.3, 0.9)._unsafeUnwrap()
+      const highConf = calculateTrialCount(0.3, 0.99)._unsafeUnwrap()
       expect(midConf).toBeGreaterThanOrEqual(lowConf)
       expect(highConf).toBeGreaterThanOrEqual(midConf)
     })
   })
 
   describe('信頼度バリデーション', () => {
-    it('信頼度0でValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0.5, 0)).toThrow()
+    it('信頼度0は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, 0)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('信頼度1でValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0.5, 1)).toThrow()
+    it('信頼度1は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, 1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('信頼度-0.1でValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0.5, -0.1)).toThrow()
+    it('信頼度-0.1は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, -0.1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('信頼度1.5でValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0.5, 1.5)).toThrow()
+    it('信頼度1.5は InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0.5, 1.5)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率0・信頼度0.9で（成功率側の）ValiErrorをスローする', () => {
-      expect(() => calculateTrialCount(0, 0.9)).toThrow()
+    it('成功率0・信頼度0.9で（成功率側の）InvalidInput を err 返却', () => {
+      expect(calculateTrialCount(0, 0.9)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
   })
 })
@@ -222,130 +220,116 @@ describe('calculateTrialCount', () => {
 describe('calculateCumulativeSuccessProbability', () => {
   describe('正常系', () => {
     it('成功率0.5・試行回数4で0.9375を返す', () => {
-      expect(calculateCumulativeSuccessProbability(0.5, 4)).toBeCloseTo(0.9375)
+      expect(calculateCumulativeSuccessProbability(0.5, 4)._unsafeUnwrap()).toBeCloseTo(0.9375)
     })
 
     it('成功率0.5・試行回数1で0.5を返す', () => {
-      expect(calculateCumulativeSuccessProbability(0.5, 1)).toBeCloseTo(0.5)
+      expect(calculateCumulativeSuccessProbability(0.5, 1)._unsafeUnwrap()).toBeCloseTo(0.5)
     })
 
     it('成功率0.1・試行回数22で0.9以上を返す', () => {
-      expect(calculateCumulativeSuccessProbability(0.1, 22)).toBeGreaterThanOrEqual(0.9)
+      expect(calculateCumulativeSuccessProbability(0.1, 22)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
     })
 
     it('戻り値は number 型かつ 0 < r < 1 を満たす', () => {
-      const result = calculateCumulativeSuccessProbability(0.3, 5)
-      expect(typeof result).toBe('number')
-      expect(result).toBeGreaterThan(0)
-      expect(result).toBeLessThan(1)
+      const value = calculateCumulativeSuccessProbability(0.3, 5)._unsafeUnwrap()
+      expect(typeof value).toBe('number')
+      expect(value).toBeGreaterThan(0)
+      expect(value).toBeLessThan(1)
     })
 
     it('戻り値は有限値', () => {
-      const result = calculateCumulativeSuccessProbability(0.5, 10)
-      expect(Number.isFinite(result)).toBe(true)
+      expect(Number.isFinite(calculateCumulativeSuccessProbability(0.5, 10)._unsafeUnwrap())).toBe(true)
     })
   })
 
   describe('バリデーション', () => {
-    it('成功率NaNでValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(NaN, 4)).toThrow(v.ValiError)
+    it('成功率NaNは InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(NaN, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率InfinityでValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(Infinity, 4)).toThrow(v.ValiError)
+    it('成功率Infinityは InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(Infinity, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('試行回数NaNでValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0.5, NaN)).toThrow(v.ValiError)
+    it('試行回数NaNは InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('試行回数InfinityでValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0.5, Infinity)).toThrow(v.ValiError)
+    it('試行回数Infinityは InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, Infinity)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率0でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0, 4)).toThrow()
+    it('成功率0は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率1でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(1, 4)).toThrow()
+    it('成功率1は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(1, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率-0.1でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(-0.1, 4)).toThrow()
+    it('成功率-0.1は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(-0.1, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('成功率1.5でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(1.5, 4)).toThrow()
+    it('成功率1.5は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(1.5, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('試行回数0でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0.5, 0)).toThrow()
+    it('試行回数0は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, 0)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('試行回数-1でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0.5, -1)).toThrow()
+    it('試行回数-1は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, -1)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
 
-    it('試行回数1.5（小数）でValiErrorをスローする', () => {
-      expect(() => calculateCumulativeSuccessProbability(0.5, 1.5)).toThrow()
+    it('試行回数1.5（小数）は InvalidInput を err 返却', () => {
+      expect(calculateCumulativeSuccessProbability(0.5, 1.5)._unsafeUnwrapErr().kind).toBe('InvalidInput')
     })
   })
 
   describe('浮動小数点境界', () => {
-    it('成功率1e-17（極小）・試行回数1で ratio が 0 に飽和し CalculationError', () => {
-      expect(() => calculateCumulativeSuccessProbability(1e-17, 1)).toThrow(CalculationError)
+    it('成功率1e-17（極小）・試行回数1で ratio が 0 に飽和し NonFiniteResult', () => {
+      expect(calculateCumulativeSuccessProbability(1e-17, 1)._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
     })
   })
 })
 
 describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
-  it('成功時は ok:true と value を返す', () => {
+  it('成功時は ok の Result を返す', () => {
     const result = tryCalculateTrialCount(0.5)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.value).toBe(4)
-    }
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBe(4)
   })
 
   it('信頼度引数も透過する', () => {
-    const result = tryCalculateTrialCount(0.5, 0.99)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.value).toBe(7)
-    }
+    expect(tryCalculateTrialCount(0.5, 0.99)._unsafeUnwrap()).toBe(7)
   })
 
-  it('値域外の成功率は ok:false と ValiError メッセージを返す', () => {
+  it('値域外の成功率は err、formatDomainError が「成功率」を含む文言を返す', () => {
     const result = tryCalculateTrialCount(0)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/成功率/)
-    }
+    expect(result.isErr()).toBe(true)
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
-  it('値域外の信頼度は ok:false と ValiError メッセージを返す', () => {
+  it('値域外の信頼度は err、formatDomainError が「信頼度」を含む文言を返す', () => {
     const result = tryCalculateTrialCount(0.5, 1)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/信頼度/)
-    }
+    expect(result.isErr()).toBe(true)
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/信頼度/)
   })
 
-  it('浮動小数点境界（1e-17）は ok:false と CalculationError メッセージを返す', () => {
+  it('浮動小数点境界（1e-17）は NonFiniteResult を err、文言に「極端に小さい」を含む', () => {
     const result = tryCalculateTrialCount(1e-17)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/極端に小さい/)
-    }
+    expect(result._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/極端に小さい/)
   })
 
-  it('成功率 NaN は ok:false（ValiError 経由）を返す', () => {
-    const result = tryCalculateTrialCount(NaN)
-    expect(result.ok).toBe(false)
+  it('成功率 NaN は InvalidInput を err 返却', () => {
+    expect(tryCalculateTrialCount(NaN)._unsafeUnwrapErr().kind).toBe('InvalidInput')
   })
 
-  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+  it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
     const issue1: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
@@ -362,92 +346,70 @@ describe('tryCalculateTrialCount（Result 型ラッパ）', () => {
       received: '0.5',
       message: 'M2',
     }
-    vi.mocked(v.parse).mockImplementationOnce(() => {
-      throw new v.ValiError([issue1, issue2])
-    })
+    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
+      typed: false,
+      success: false,
+      output: undefined,
+      issues: [issue1, issue2],
+    }) as unknown as ReturnType<typeof v.safeParse>)
     const result = tryCalculateTrialCount(0.5)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toContain('M1')
-      expect(result.message).toContain('M2')
-      expect(result.message.split('\n').length).toBeGreaterThanOrEqual(2)
-    }
+    expect(result.isErr()).toBe(true)
+    const message = formatDomainError(result._unsafeUnwrapErr())
+    expect(message).toContain('M1')
+    expect(message).toContain('M2')
+    expect(message.split('\n').length).toBeGreaterThanOrEqual(2)
   })
 })
 
 describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', () => {
-  it('成功時は ok:true と累積確率 ratio を返す（0.5・4 → 0.9375）', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.value).toBeCloseTo(0.9375)
-    }
+  it('成功時は ok の Result を返し、累積確率 ratio（0.5・4 → 0.9375）', () => {
+    expect(tryCalculateCumulativeSuccessProbability(0.5, 4)._unsafeUnwrap()).toBeCloseTo(0.9375)
   })
 
   it('信頼度90%以上を満たす境界（0.1・22）で 0.9 以上の ratio を返す', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.1, 22)
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.value).toBeGreaterThanOrEqual(0.9)
-    }
+    expect(tryCalculateCumulativeSuccessProbability(0.1, 22)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
   })
 
-  it('成功率 0 は ok:false でメッセージに「成功率」を含む', () => {
+  it('成功率 0 は err、文言に「成功率」を含む', () => {
     const result = tryCalculateCumulativeSuccessProbability(0, 4)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/成功率/)
-    }
+    expect(result.isErr()).toBe(true)
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
-  it('成功率 1 は ok:false でメッセージに「成功率」を含む', () => {
+  it('成功率 1 は err、文言に「成功率」を含む', () => {
     const result = tryCalculateCumulativeSuccessProbability(1, 4)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/成功率/)
-    }
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
-  it('試行回数 0 は ok:false でメッセージに「試行回数」を含む', () => {
+  it('試行回数 0 は err、文言に「試行回数」を含む', () => {
     const result = tryCalculateCumulativeSuccessProbability(0.5, 0)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/試行回数/)
-    }
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/試行回数/)
   })
 
-  it('試行回数 1.5（非整数）は ok:false でメッセージに「試行回数」を含む', () => {
+  it('試行回数 1.5（非整数）は err、文言に「試行回数」を含む', () => {
     const result = tryCalculateCumulativeSuccessProbability(0.5, 1.5)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/試行回数/)
-    }
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/試行回数/)
   })
 
-  it('試行回数 -1 は ok:false を返す', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.5, -1)
-    expect(result.ok).toBe(false)
+  it('試行回数 -1 は err 返却', () => {
+    expect(tryCalculateCumulativeSuccessProbability(0.5, -1).isErr()).toBe(true)
   })
 
-  it('成功率 NaN は ok:false（ValiError 経由）を返す', () => {
-    const result = tryCalculateCumulativeSuccessProbability(NaN, 4)
-    expect(result.ok).toBe(false)
+  it('成功率 NaN は InvalidInput を err 返却', () => {
+    expect(tryCalculateCumulativeSuccessProbability(NaN, 4)._unsafeUnwrapErr().kind).toBe('InvalidInput')
   })
 
-  it('試行回数 Infinity は ok:false を返す', () => {
-    const result = tryCalculateCumulativeSuccessProbability(0.5, Infinity)
-    expect(result.ok).toBe(false)
+  it('試行回数 Infinity は err 返却', () => {
+    expect(tryCalculateCumulativeSuccessProbability(0.5, Infinity).isErr()).toBe(true)
   })
 
-  it('成功率1e-17は CalculationError 経由で ok:false を返し、メッセージに「極端に小さい」を含む', () => {
+  it('成功率1e-17は NonFiniteResult を err、文言に「極端に小さい」を含む', () => {
     const result = tryCalculateCumulativeSuccessProbability(1e-17, 1)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toMatch(/極端に小さい/)
-    }
+    expect(result._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
+    expect(formatDomainError(result._unsafeUnwrapErr())).toMatch(/極端に小さい/)
   })
 
-  it('複数 issue を持つ ValiError は全 issue.message を \\n 区切りで結合した message を返す', () => {
+  it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
     const issue1: v.BaseIssue<unknown> = {
       kind: 'validation',
       type: 'custom',
@@ -464,33 +426,35 @@ describe('tryCalculateCumulativeSuccessProbability（Result 型ラッパ）', ()
       received: '4',
       message: 'M2',
     }
-    vi.mocked(v.parse).mockImplementationOnce(() => {
-      throw new v.ValiError([issue1, issue2])
-    })
+    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
+      typed: false,
+      success: false,
+      output: undefined,
+      issues: [issue1, issue2],
+    }) as unknown as ReturnType<typeof v.safeParse>)
     const result = tryCalculateCumulativeSuccessProbability(0.5, 4)
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.message).toContain('M1')
-      expect(result.message).toContain('M2')
-      expect(result.message.split('\n').length).toBeGreaterThanOrEqual(2)
-    }
+    expect(result.isErr()).toBe(true)
+    const message = formatDomainError(result._unsafeUnwrapErr())
+    expect(message).toContain('M1')
+    expect(message).toContain('M2')
+    expect(message.split('\n').length).toBeGreaterThanOrEqual(2)
   })
 })
 
 describe('calculateTrialCount と calculateCumulativeSuccessProbability の往復整合', () => {
   it('成功率0.5・信頼度0.9で求めた試行回数で累積確率が0.9以上', () => {
-    const n = calculateTrialCount(0.5, 0.9)
-    expect(calculateCumulativeSuccessProbability(0.5, n)).toBeGreaterThanOrEqual(0.9)
+    const n = calculateTrialCount(0.5, 0.9)._unsafeUnwrap()
+    expect(calculateCumulativeSuccessProbability(0.5, n)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
   })
 
   it('成功率0.3・信頼度0.99で求めた試行回数で累積確率が0.99以上', () => {
-    const n = calculateTrialCount(0.3, 0.99)
-    expect(calculateCumulativeSuccessProbability(0.3, n)).toBeGreaterThanOrEqual(0.99)
+    const n = calculateTrialCount(0.3, 0.99)._unsafeUnwrap()
+    expect(calculateCumulativeSuccessProbability(0.3, n)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.99)
   })
 
   it('成功率0.01・信頼度0.9で求めた試行回数で累積確率が0.9以上', () => {
-    const n = calculateTrialCount(0.01, 0.9)
-    expect(calculateCumulativeSuccessProbability(0.01, n)).toBeGreaterThanOrEqual(0.9)
+    const n = calculateTrialCount(0.01, 0.9)._unsafeUnwrap()
+    expect(calculateCumulativeSuccessProbability(0.01, n)._unsafeUnwrap()).toBeGreaterThanOrEqual(0.9)
   })
 })
 

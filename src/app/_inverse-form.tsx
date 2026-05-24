@@ -6,6 +6,7 @@ import {
   trialCountInputSchema,
 } from '@/probability/probability'
 import { tryCalculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { formatDomainError } from '@/probability/domain-error'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -49,17 +50,19 @@ export function InverseForm() {
         percentToRatio(Number(form.successRate)),
         Number(form.trialCount),
       )
-      if (calcResult.ok) {
-        setResult({
-          cumulativeProbabilityRatio: calcResult.value,
-          trialCount: Number(form.trialCount),
-        })
-        setCalculationError(undefined)
-      }
-      else {
-        setResult(undefined)
-        setCalculationError(calcResult.message)
-      }
+      calcResult.match(
+        (value) => {
+          setResult({
+            cumulativeProbabilityRatio: value,
+            trialCount: Number(form.trialCount),
+          })
+          setCalculationError(undefined)
+        },
+        (error) => {
+          setResult(undefined)
+          setCalculationError(formatDomainError(error))
+        },
+      )
     }
     catch (e) {
       throwToErrorBoundary(e)
