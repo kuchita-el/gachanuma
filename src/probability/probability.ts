@@ -1,6 +1,26 @@
 import * as v from 'valibot'
 
 /**
+ * フォーム入力（文字列または数値）を数値型に確定するヘルパスキーマ。
+ *
+ * 文字列分岐は v.decimal() で全体一致を強制してから Number() で数値化する。
+ * 「全体一致」が肝で、parseFloat の貪欲解釈（"12abc" → 12、"5,000" → 5、"1e2"
+ * → 100、"0x10" → 0、"Infinity" → Infinity、前後空白許容）を排除し、
+ * UI フォームでユーザが意図しない値が無音で通過するのを防ぐ。
+ *
+ * 失敗時のメッセージは union 自体に紐づけ、文字列分岐・数値分岐どちらの失敗でも
+ * 単一の「数値を指定してください。」を返す。output 型は number（有限値とは限らない点に
+ * 注意。NaN/Infinity が数値リテラルとして直接渡された場合は通過する）。
+ */
+export const numericInputSchema = v.union(
+  [
+    v.pipe(v.string(), v.decimal(), v.transform(Number)),
+    v.number(),
+  ],
+  '数値を指定してください。',
+)
+
+/**
  * 計算に使用可能な確率（0より大きく1未満）のValibotスキーマ
  * 0と1は除外される
  */
@@ -12,21 +32,11 @@ export const validProbabilityRatioSchema = v.pipe(
 
 /**
  * 確率をパーセンテージ（0-100）で表すValibotスキーマ
- * 0より大きく100未満の範囲を許可
- * 文字列からの変換に対応
+ * 0より大きく100未満の範囲を許可。0/100 を含めると比率変換後に
+ * validProbabilityRatioSchema の両端排除条件と整合しないため除外。
  */
 export const probabilityPercentageSchema = v.pipe(
-  v.union([
-    v.pipe(
-      v.string(),
-      v.transform((val) => {
-        const num = parseFloat(val)
-        return isNaN(num) ? val : num
-      }),
-    ),
-    v.number(),
-  ]),
-  v.number('数値を指定してください。'),
+  numericInputSchema,
   v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
   v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
 )
@@ -54,20 +64,10 @@ export const validSlipRateRatioSchema = v.pipe(
 
 /**
  * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すValibotスキーマ
- * 0と100は計算式の境界条件で除外。整数のみ受理し、文字列からの変換に対応。
+ * 0と100は計算式の境界条件で除外。整数のみ受理（小数の信頼度は UI 仕様外）。
  */
 export const confidencePercentageSchema = v.pipe(
-  v.union([
-    v.pipe(
-      v.string(),
-      v.transform((val) => {
-        const num = parseFloat(val)
-        return isNaN(num) ? val : num
-      }),
-    ),
-    v.number(),
-  ]),
-  v.number('数値を指定してください。'),
+  numericInputSchema,
   v.integer('整数を指定してください。'),
   v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
   v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
@@ -95,20 +95,11 @@ export const validTargetCountSchema = v.pipe(
 )
 
 /**
- * 目標成功回数のフォーム入力用スキーマ。文字列入力を整数に変換し、1〜100 の整数を許容。
+ * 目標成功回数のフォーム入力用スキーマ。1〜100 の整数を許容。
+ * 100 上限は UI 表示・計算精度の双方を考慮した validTargetCountSchema の制約と一致。
  */
 export const targetCountInputSchema = v.pipe(
-  v.union([
-    v.pipe(
-      v.string(),
-      v.transform((val) => {
-        const num = parseFloat(val)
-        return isNaN(num) ? val : num
-      }),
-    ),
-    v.number(),
-  ]),
-  v.number('数値を指定してください。'),
+  numericInputSchema,
   v.integer('目標成功回数は整数を指定してください。'),
   v.minValue(1, '目標成功回数は1以上を指定してください。'),
   v.maxValue(100, '目標成功回数は100以下を指定してください。'),
@@ -120,37 +111,17 @@ export const targetCountInputSchema = v.pipe(
  * probabilityPercentageSchema との差。
  */
 export const slipRatePercentageSchema = v.pipe(
-  v.union([
-    v.pipe(
-      v.string(),
-      v.transform((val) => {
-        const num = parseFloat(val)
-        return isNaN(num) ? val : num
-      }),
-    ),
-    v.number(),
-  ]),
-  v.number('数値を指定してください。'),
+  numericInputSchema,
   v.minValue(0, '0以上100以下の数値を指定してください。'),
   v.maxValue(100, '0以上100以下の数値を指定してください。'),
 )
 
 /**
- * 試行回数のフォーム入力用スキーマ。文字列入力を整数に変換し、1以上の整数を許容。
+ * 試行回数のフォーム入力用スキーマ。1 以上の整数を許容。
  * UI フォーム（react-hook-form + valibotResolver）から呼ばれる前提。
  */
 export const trialCountInputSchema = v.pipe(
-  v.union([
-    v.pipe(
-      v.string(),
-      v.transform((val) => {
-        const num = parseFloat(val)
-        return isNaN(num) ? val : num
-      }),
-    ),
-    v.number(),
-  ]),
-  v.number('数値を指定してください。'),
+  numericInputSchema,
   v.integer('試行回数は整数を指定してください。'),
   v.minValue(1, '試行回数は1以上を指定してください。'),
 )
