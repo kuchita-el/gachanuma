@@ -26,13 +26,6 @@ export function computeXAxisUpperBound(successRateRatio: number): CalcResult {
   )
 }
 
-/**
- * computeXAxisUpperBound のエイリアス（責務統合後の単純委譲）。
- */
-export function tryComputeXAxisUpperBound(successRateRatio: number): CalcResult {
-  return computeXAxisUpperBound(successRateRatio)
-}
-
 const sampleTrialCountsInputSchema = v.object({
   upperBound: v.pipe(
     v.number('upperBound は1以上の整数を指定してください'),
@@ -65,14 +58,14 @@ export function sampleTrialCounts(
       const ub = validated.upperBound
       const mp = validated.maxPoints
       if (ub <= mp) {
-        return ok<number[], DomainError>(Array.from({ length: ub }, (_, i) => i + 1))
+        return ok(Array.from({ length: ub }, (_, i) => i + 1))
       }
       const set = new Set<number>([1, ub])
       // i=1..maxPoints-1 の等間隔点を追加
       for (let i = 1; i < mp; i++) {
         set.add(Math.round((i * (ub - 1)) / (mp - 1)) + 1)
       }
-      return ok<number[], DomainError>([...set].sort((a, b) => a - b))
+      return ok([...set].sort((a, b) => a - b))
     },
   )
 }

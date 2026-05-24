@@ -110,12 +110,17 @@ describe('ProbabilityChart', () => {
     expect(strokes).toContain('var(--chart-1)')
   })
 
-  it('successRatePercent が極小（schema 不通過の理論値 1e-15）でも throw せず null フォールバック', () => {
-    // Result チェーン経路により NonFiniteResult が err 透過し、match の err 分岐で null が返される
+  it('successRatePercent が極小（schema 不通過の理論値 1e-15）はエラー文言を inline 表示', () => {
+    // Result チェーン経路により NonFiniteResult が err 透過し、match の err 分岐で
+    // formatDomainError 経由の文言が role="img" aria-label="グラフエラー" の div に表示される。
     const { container } = render(
       <ProbabilityChart successRatePercent={1e-15} confidencePercent={90} />,
     )
     expect(container.querySelector('svg')).toBeNull()
     expect(container.querySelector('[data-testid="probability-chart"]')).toBeNull()
+    const errorView = screen.getByRole('img', { name: 'グラフエラー' })
+    expect(errorView).toBeInTheDocument()
+    expect(errorView).toHaveTextContent(/グラフを描画できません/)
+    expect(errorView).toHaveTextContent(/極端に小さい/)
   })
 })

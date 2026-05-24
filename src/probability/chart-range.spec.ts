@@ -1,15 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
-import * as v from 'valibot'
+import { err } from 'neverthrow'
 import {
   computeXAxisUpperBound,
   sampleTrialCounts,
-  tryComputeXAxisUpperBound,
 } from './chart-range'
-import { formatDomainError } from './domain-error'
+import { formatDomainError, parseInputOrErr } from './domain-error'
 
-vi.mock('valibot', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('valibot')>()
-  return { ...actual, safeParse: vi.fn(actual.safeParse) }
+vi.mock('./domain-error', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./domain-error')>()
+  return { ...actual, parseInputOrErr: vi.fn(actual.parseInputOrErr) }
 })
 
 describe('computeXAxisUpperBound', () => {
@@ -123,48 +122,29 @@ describe('sampleTrialCounts', () => {
   })
 })
 
-describe('tryComputeXAxisUpperBound（Result 型ラッパ）', () => {
+describe('computeXAxisUpperBound (mock 経路)', () => {
   it('成功時は ok の Result を返す', () => {
-    expect(tryComputeXAxisUpperBound(0.5)._unsafeUnwrap()).toBe(11)
+    expect(computeXAxisUpperBound(0.5)._unsafeUnwrap()).toBe(11)
   })
 
   it('p=0 は err、文言に「成功率」を含む', () => {
-    const r = tryComputeXAxisUpperBound(0)
+    const r = computeXAxisUpperBound(0)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('p=NaN は err 返却', () => {
-    expect(tryComputeXAxisUpperBound(NaN).isErr()).toBe(true)
+    expect(computeXAxisUpperBound(NaN).isErr()).toBe(true)
   })
 
   it('p 極小（1e-17）は err 返却（NonFiniteResult 経由）', () => {
-    expect(tryComputeXAxisUpperBound(1e-17).isErr()).toBe(true)
+    expect(computeXAxisUpperBound(1e-17).isErr()).toBe(true)
   })
 
   it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
-    const issue1: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.5,
-      expected: null,
-      received: '0.5',
-      message: 'M1',
-    }
-    const issue2: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.5,
-      expected: null,
-      received: '0.5',
-      message: 'M2',
-    }
-    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-      typed: false,
-      success: false,
-      output: undefined,
-      issues: [issue1, issue2],
-    }) as unknown as ReturnType<typeof v.safeParse>)
-    const r = tryComputeXAxisUpperBound(0.5)
+    vi.mocked(parseInputOrErr).mockReturnValueOnce(
+      err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
+    )
+    const r = computeXAxisUpperBound(0.5)
     expect(r.isErr()).toBe(true)
     const message = formatDomainError(r._unsafeUnwrapErr())
     expect(message).toContain('M1')

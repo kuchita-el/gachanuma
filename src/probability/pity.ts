@@ -24,7 +24,7 @@
  */
 import { err, ok, Result } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { type DomainError, parseInputOrErr } from './domain-error'
+import { domainErr, parseInputOrErr } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   validConfidenceSchema,
@@ -61,9 +61,9 @@ export function calculateTrialCountWithPity(
         // m=0 を含む一般化として N を返す。InvalidInput は救済対象外（このパスでは発生しないが、
         // 将来の DomainError 拡張に備えて kind で明示判別）。
         if (error.kind === 'NonFiniteResult' && validatedSlip <= 1 - validatedConfidence) {
-          return ok<number, DomainError>(validatedPity)
+          return ok(validatedPity)
         }
-        return err<number, DomainError>(error)
+        return err(error)
       })
       .andThen((kNoPity) => {
         if (kNoPity < validatedPity) {
@@ -83,21 +83,9 @@ export function calculateTrialCountWithPity(
         const result = Math.max(validatedPity, kCandidate)
 
         if (!Number.isFinite(result)) {
-          return err<number, DomainError>({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
+          return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
         }
-        return ok<number, DomainError>(result)
+        return ok(result)
       })
   })
-}
-
-/**
- * calculateTrialCountWithPity のエイリアス（責務統合後の単純委譲）。
- */
-export function tryCalculateTrialCountWithPity(
-  successRate: number,
-  pityCount: number,
-  slipRate: number,
-  confidence?: number,
-): CalcResult {
-  return calculateTrialCountWithPity(successRate, pityCount, slipRate, confidence)
 }

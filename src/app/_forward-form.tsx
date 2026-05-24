@@ -8,8 +8,8 @@ import {
   targetCountInputSchema,
   trialCountInputSchema,
 } from '@/probability/probability'
-import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { tryCalculateTrialCountWithPity } from '@/probability/pity'
+import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
+import { calculateTrialCountWithPity } from '@/probability/pity'
 import { formatDomainError } from '@/probability/domain-error'
 import { ProbabilityChart } from './_probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -85,13 +85,13 @@ export function ForwardForm() {
       const confidenceRatio = percentToRatio(Number(form.confidence))
 
       const calcResult = form.pityEnabled
-        ? tryCalculateTrialCountWithPity(
+        ? calculateTrialCountWithPity(
           successRateRatio,
           Number(form.pityCount),
           percentToRatio(Number(form.slipRatePercent)),
           confidenceRatio,
         )
-        : tryCalculateTrialCountForMultipleSuccess(
+        : calculateTrialCountForMultipleSuccess(
           successRateRatio,
           Number(form.targetCount),
           confidenceRatio,

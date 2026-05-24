@@ -18,9 +18,9 @@
  *   超過時に `IterationLimitExceeded` を err 返却する。
  * - 戻り値の有限性も別途検証し、非有限値なら `NonFiniteResult` を err 返却する。
  */
-import { Result, err, ok } from 'neverthrow'
+import { Result, ok } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { type DomainError, parseInputOrErr } from './domain-error'
+import { domainErr, parseInputOrErr } from './domain-error'
 import {
   DEFAULT_CONFIDENCE,
   validConfidenceSchema,
@@ -81,31 +81,22 @@ export function calculateTrialCountForMultipleSuccess(
       pmf[0] = q * pmf[0]!
 
       const accumulator = pmf[validatedTarget]!
+      // NaN/Infinity を先に検出する。`accumulator >= c` の内側に置くと NaN は常に false で
+      // ループが継続し IterationLimitExceeded に誤分類されるため、ループ内冒頭で短絡する。
+      if (!Number.isFinite(accumulator)) {
+        return domainErr({
+          kind: 'NonFiniteResult',
+          source: 'calculateTrialCountForMultipleSuccess',
+        })
+      }
       if (accumulator >= validatedConfidence) {
-        if (!Number.isFinite(accumulator)) {
-          return err<number, DomainError>({
-            kind: 'NonFiniteResult',
-            source: 'calculateTrialCountForMultipleSuccess',
-          })
-        }
-        return ok<number, DomainError>(k)
+        return ok(k)
       }
     }
 
-    return err<number, DomainError>({
+    return domainErr({
       kind: 'IterationLimitExceeded',
       source: 'calculateTrialCountForMultipleSuccess',
     })
   })
-}
-
-/**
- * calculateTrialCountForMultipleSuccess のエイリアス（責務統合後の単純委譲）。
- */
-export function tryCalculateTrialCountForMultipleSuccess(
-  successRate: number,
-  targetCount: number,
-  confidence?: number,
-): CalcResult {
-  return calculateTrialCountForMultipleSuccess(successRate, targetCount, confidence)
 }

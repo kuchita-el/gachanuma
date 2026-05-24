@@ -1,16 +1,24 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
-import {
-  calculateTrialCountWithPity,
-  tryCalculateTrialCountWithPity,
-} from './pity'
+import { err } from 'neverthrow'
+import { calculateTrialCountWithPity } from './pity'
+import * as calculator from './calculator'
 import { calculateTrialCount } from './calculator'
-import { formatDomainError } from './domain-error'
+import { formatDomainError, parseInputOrErr } from './domain-error'
 import { validSlipRateRatioSchema, slipRatePercentageSchema } from './probability'
 
-vi.mock('valibot', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('valibot')>()
-  return { ...actual, safeParse: vi.fn(actual.safeParse) }
+vi.mock('./domain-error', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./domain-error')>()
+  return { ...actual, parseInputOrErr: vi.fn(actual.parseInputOrErr) }
+})
+
+// 救済路の kind 判別を直接検証するため、`calculateTrialCount` 自体を spy 化して
+// 任意の DomainError を注入できるようにする。`parseInputOrErr` 経路では `Result.combine` の
+// 最初の `safeParse` で発火してしまい `calculateTrialCount` 委譲経路を通れないため、
+// 救済路ロジックを直接ターゲットにするには `calculator` 側を mock する必要がある。
+vi.mock('./calculator', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./calculator')>()
+  return { ...actual, calculateTrialCount: vi.fn(actual.calculateTrialCount) }
 })
 
 describe('calculateTrialCountWithPity', () => {
@@ -167,21 +175,13 @@ describe('calculateTrialCountWithPity', () => {
     })
 
     it('救済路は NonFiniteResult 限定（InvalidInput は救済されず err 透過）', () => {
-      // safeParse をモックして InvalidInput を強制注入する。
-      // 救済路の条件 m ≤ 1-c を満たしても、kind が NonFiniteResult でなければ救済しない。
-      vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-        typed: false,
-        success: false,
-        output: undefined,
-        issues: [{
-          kind: 'validation',
-          type: 'custom',
-          input: 0.5,
-          expected: null,
-          received: '0.5',
-          message: 'forced invalid input',
-        } as v.BaseIssue<unknown>],
-      }) as unknown as ReturnType<typeof v.safeParse>)
+      // `calculateTrialCount` 自体を mock して InvalidInput を返させる。
+      // 救済路の条件 m=0 ≤ 1-c を満たしても、kind が NonFiniteResult でなければ救済しない。
+      // 入力 (0.5, 100, 0, 0.9) は valid なので前段の parseInputOrErr 群は通過し、
+      // `calculateTrialCount` 委譲経路に到達した時点で mock が発火する。
+      vi.mocked(calculator.calculateTrialCount).mockReturnValueOnce(
+        err({ kind: 'InvalidInput', issues: [{ message: 'forced invalid input' }] }),
+      )
       const result = calculateTrialCountWithPity(0.5, 100, 0, 0.9)
       // 救済路に入らず、InvalidInput がそのまま透過する
       expect(result._unsafeUnwrapErr().kind).toBe('InvalidInput')
@@ -189,58 +189,39 @@ describe('calculateTrialCountWithPity', () => {
   })
 })
 
-describe('tryCalculateTrialCountWithPity（Result 型ラッパ）', () => {
+describe('calculateTrialCountWithPity (mock 経路)', () => {
   it('成功時は ok を返す', () => {
-    expect(tryCalculateTrialCountWithPity(0.5, 10, 0, 0.9)._unsafeUnwrap()).toBe(4)
+    expect(calculateTrialCountWithPity(0.5, 10, 0, 0.9)._unsafeUnwrap()).toBe(4)
   })
 
   it('p=0 は err、文言に「成功率」を含む', () => {
-    const r = tryCalculateTrialCountWithPity(0, 10, 0.5, 0.9)
+    const r = calculateTrialCountWithPity(0, 10, 0.5, 0.9)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('m=-1 は err、文言に「すり抜け率」を含む', () => {
-    const r = tryCalculateTrialCountWithPity(0.5, 10, -1, 0.9)
+    const r = calculateTrialCountWithPity(0.5, 10, -1, 0.9)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/すり抜け率/)
   })
 
   it('N=0 は err、文言に「試行回数」を含む', () => {
-    const r = tryCalculateTrialCountWithPity(0.5, 0, 0.5, 0.9)
+    const r = calculateTrialCountWithPity(0.5, 0, 0.5, 0.9)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/試行回数/)
   })
 
   it('浮動小数点境界 (p=1e-17, m=0.5) は err', () => {
-    expect(tryCalculateTrialCountWithPity(1e-17, 100, 0.5, 0.9).isErr()).toBe(true)
+    expect(calculateTrialCountWithPity(1e-17, 100, 0.5, 0.9).isErr()).toBe(true)
   })
 
   it('浮動小数点境界 (p=1e-17, m=0) は ok で N を返す', () => {
-    expect(tryCalculateTrialCountWithPity(1e-17, 100, 0, 0.9)._unsafeUnwrap()).toBe(100)
+    expect(calculateTrialCountWithPity(1e-17, 100, 0, 0.9)._unsafeUnwrap()).toBe(100)
   })
 
   it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
-    const issue1: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.05,
-      expected: null,
-      received: '0.05',
-      message: 'M1',
-    }
-    const issue2: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 100,
-      expected: null,
-      received: '100',
-      message: 'M2',
-    }
-    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-      typed: false,
-      success: false,
-      output: undefined,
-      issues: [issue1, issue2],
-    }) as unknown as ReturnType<typeof v.safeParse>)
-    const r = tryCalculateTrialCountWithPity(0.05, 100, 0.5)
+    vi.mocked(parseInputOrErr).mockReturnValueOnce(
+      err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
+    )
+    const r = calculateTrialCountWithPity(0.05, 100, 0.5)
     expect(r.isErr()).toBe(true)
     const message = formatDomainError(r._unsafeUnwrapErr())
     expect(message).toContain('M1')

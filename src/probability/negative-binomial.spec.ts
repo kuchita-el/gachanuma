@@ -1,16 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
-import {
-  calculateTrialCountForMultipleSuccess,
-  tryCalculateTrialCountForMultipleSuccess,
-} from './negative-binomial'
+import { err } from 'neverthrow'
+import { calculateTrialCountForMultipleSuccess } from './negative-binomial'
 import { calculateTrialCount } from './calculator'
-import { formatDomainError } from './domain-error'
+import { formatDomainError, parseInputOrErr } from './domain-error'
 import { validTargetCountSchema } from './probability'
 
-vi.mock('valibot', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('valibot')>()
-  return { ...actual, safeParse: vi.fn(actual.safeParse) }
+vi.mock('./domain-error', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./domain-error')>()
+  return { ...actual, parseInputOrErr: vi.fn(actual.parseInputOrErr) }
 })
 
 describe('calculateTrialCountForMultipleSuccess', () => {
@@ -151,54 +149,35 @@ describe('calculateTrialCountForMultipleSuccess', () => {
   })
 })
 
-describe('tryCalculateTrialCountForMultipleSuccess（Result 型ラッパ）', () => {
+describe('calculateTrialCountForMultipleSuccess (mock 経路)', () => {
   it('成功時は ok を返す', () => {
-    expect(tryCalculateTrialCountForMultipleSuccess(0.5, 2, 0.9)._unsafeUnwrap()).toBe(7)
+    expect(calculateTrialCountForMultipleSuccess(0.5, 2, 0.9)._unsafeUnwrap()).toBe(7)
   })
 
   it('targetCount=1 で tryCalculateTrialCount と同等の挙動（既存 API への帰着）', () => {
-    expect(tryCalculateTrialCountForMultipleSuccess(0.5, 1)._unsafeUnwrap()).toBe(4)
+    expect(calculateTrialCountForMultipleSuccess(0.5, 1)._unsafeUnwrap()).toBe(4)
   })
 
   it('targetCount=0 は err、文言に「目標成功回数」を含む', () => {
-    const r = tryCalculateTrialCountForMultipleSuccess(0.5, 0, 0.9)
+    const r = calculateTrialCountForMultipleSuccess(0.5, 0, 0.9)
     expect(r.isErr()).toBe(true)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/目標成功回数/)
   })
 
   it('successRate=0 は err、文言に「成功率」を含む', () => {
-    const r = tryCalculateTrialCountForMultipleSuccess(0, 2, 0.9)
+    const r = calculateTrialCountForMultipleSuccess(0, 2, 0.9)
     expect(formatDomainError(r._unsafeUnwrapErr())).toMatch(/成功率/)
   })
 
   it('浮動小数点境界 p=1e-17, targetCount=1 は err（NonFiniteResult 経由）', () => {
-    expect(tryCalculateTrialCountForMultipleSuccess(1e-17, 1, 0.9).isErr()).toBe(true)
+    expect(calculateTrialCountForMultipleSuccess(1e-17, 1, 0.9).isErr()).toBe(true)
   })
 
   it('複数 issue を持つバリデーション失敗は全 issue.message を \\n 区切りで結合', () => {
-    const issue1: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 0.1,
-      expected: null,
-      received: '0.1',
-      message: 'M1',
-    }
-    const issue2: v.BaseIssue<unknown> = {
-      kind: 'validation',
-      type: 'custom',
-      input: 5,
-      expected: null,
-      received: '5',
-      message: 'M2',
-    }
-    vi.mocked(v.safeParse).mockImplementationOnce(() => ({
-      typed: false,
-      success: false,
-      output: undefined,
-      issues: [issue1, issue2],
-    }) as unknown as ReturnType<typeof v.safeParse>)
-    const r = tryCalculateTrialCountForMultipleSuccess(0.1, 5)
+    vi.mocked(parseInputOrErr).mockReturnValueOnce(
+      err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
+    )
+    const r = calculateTrialCountForMultipleSuccess(0.1, 5)
     expect(r.isErr()).toBe(true)
     const message = formatDomainError(r._unsafeUnwrapErr())
     expect(message).toContain('M1')
