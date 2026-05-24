@@ -40,5 +40,18 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "playwright"
-  ]
+  ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm ci --no-audit --no-fund 1>&2 || exit 2"
+          }
+        ]
+      }
+    ]
+  }
 }
