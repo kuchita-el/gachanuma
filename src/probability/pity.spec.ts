@@ -42,10 +42,6 @@ describe('calculateTrialCountWithPity', () => {
     it('p=0.5, N=4, m=1, c=0.9 → 5（kNoPity==N 境界、m=1 で k=N で P<c、k=N+1）', () => {
       expect(calculateTrialCountWithPity(0.5, 4, 1, 0.9)._unsafeUnwrap()).toBe(5)
     })
-
-    it('confidence 省略時は DEFAULT_CONFIDENCE=0.9 が適用される', () => {
-      expect(calculateTrialCountWithPity(0.5, 10, 0)._unsafeUnwrap()).toBe(4)
-    })
   })
 
   describe('境界値', () => {
@@ -221,7 +217,7 @@ describe('calculateTrialCountWithPity (mock 経路)', () => {
     vi.mocked(parseInputOrErr).mockReturnValueOnce(
       err({ kind: 'InvalidInput', issues: [{ message: 'M1' }, { message: 'M2' }] }),
     )
-    const r = calculateTrialCountWithPity(0.05, 100, 0.5)
+    const r = calculateTrialCountWithPity(0.05, 100, 0.5, 0.9)
     expect(r.isErr()).toBe(true)
     const message = formatDomainError(r._unsafeUnwrapErr())
     expect(message).toContain('M1')
