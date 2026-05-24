@@ -12,7 +12,7 @@ import { tryCalculateTrialCountForMultipleSuccess } from '@/probability/negative
 import { tryCalculateTrialCountWithPity } from '@/probability/pity'
 import { ProbabilityChart } from './_probability-chart'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { useFormErrorMessage } from '@/lib/use-form-error-message'
 import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
 const schema = v.object({
@@ -63,15 +64,7 @@ export function ForwardForm() {
     successRatePercent: number
     pity?: { pityCount: number, slipRatePercent: number }
   }>()
-  const [calculationError, setCalculationError] = useState<string>()
-  // 値変化時のみ callback を発火させたいため `useWatch + useEffect` ではなく subscribe API を使用。
-  // 前者は依存配列に calculationError を含める必要があり、setCalculationError(msg) 直後の再 effect でガード通過 → 即 undefined 化で Alert が一瞬で消える不具合がある。
-  useEffect(() => {
-    return subscribe({
-      formState: { values: true },
-      callback: () => setCalculationError(undefined),
-    })
-  }, [subscribe])
+  const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
   const throwToErrorBoundary = useThrowToErrorBoundary()
   const successRateId = useId()
   const successRateHelperId = useId()
