@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
-import { numericInputSchema } from './probability'
+import {
+  numericInputSchema,
+  slipRatePercentageSchema,
+  percentToRatio,
+  ratioToPercent,
+} from './form-schemas'
 
 describe('numericInputSchema', () => {
   describe('正常系', () => {
@@ -61,5 +66,67 @@ describe('numericInputSchema', () => {
     it('後空白付き "50 " はエラー', () => {
       expect(() => v.parse(numericInputSchema, '50 ')).toThrow(/数値を指定してください。/)
     })
+  })
+})
+
+describe('slipRatePercentageSchema', () => {
+  it('境界値 0 を渡すとそのまま 0 を返す', () => {
+    expect(v.parse(slipRatePercentageSchema, 0)).toBe(0)
+  })
+
+  it('境界値 100 を渡すとそのまま 100 を返す', () => {
+    expect(v.parse(slipRatePercentageSchema, 100)).toBe(100)
+  })
+
+  it('文字列 "50" を渡すと 50 に変換される', () => {
+    expect(v.parse(slipRatePercentageSchema, '50')).toBe(50)
+  })
+
+  it('-1 で ValiError、メッセージに「0以上100以下」を含む', () => {
+    expect(() => v.parse(slipRatePercentageSchema, -1)).toThrow(/0以上100以下/)
+  })
+
+  it('101 で ValiError', () => {
+    expect(() => v.parse(slipRatePercentageSchema, 101)).toThrow(/0以上100以下/)
+  })
+})
+
+describe('percentToRatio', () => {
+  it('50を渡すと0.5を返す', () => {
+    expect(percentToRatio(50)).toBeCloseTo(0.5)
+  })
+
+  it('100を渡すと1、0を渡すと0を返す（バリデーションなし純関数）', () => {
+    expect(percentToRatio(100)).toBeCloseTo(1)
+    expect(percentToRatio(0)).toBeCloseTo(0)
+  })
+
+  it('0.5（小数パーセント）を渡すと0.005を返す', () => {
+    expect(percentToRatio(0.5)).toBeCloseTo(0.005)
+  })
+})
+
+describe('ratioToPercent', () => {
+  it('0.5を渡すと50を返す', () => {
+    expect(ratioToPercent(0.5)).toBeCloseTo(50)
+  })
+
+  it('1を渡すと100、0を渡すと0を返す（バリデーションなし純関数）', () => {
+    expect(ratioToPercent(1)).toBeCloseTo(100)
+    expect(ratioToPercent(0)).toBeCloseTo(0)
+  })
+})
+
+describe('変換ユーティリティの往復整合', () => {
+  it('ratioToPercent(percentToRatio(p)) === p（任意のpで成立）', () => {
+    for (const p of [1, 10, 50, 99]) {
+      expect(ratioToPercent(percentToRatio(p))).toBeCloseTo(p)
+    }
+  })
+
+  it('percentToRatio(ratioToPercent(r)) === r（任意のrで成立）', () => {
+    for (const r of [0.01, 0.5, 0.9, 0.99]) {
+      expect(percentToRatio(ratioToPercent(r))).toBeCloseTo(r)
+    }
   })
 })

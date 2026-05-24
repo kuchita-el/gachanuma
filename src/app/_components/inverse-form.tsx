@@ -4,7 +4,7 @@ import {
   percentToRatio,
   probabilityPercentageSchema,
   trialCountInputSchema,
-} from '@/probability/probability'
+} from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { formatDomainError } from '@/probability/domain-error'
 import { valibotResolver } from '@hookform/resolvers/valibot'
