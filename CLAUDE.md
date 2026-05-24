@@ -78,6 +78,10 @@ npx -y @playwright/mcp@0.0.75 --isolated --headless --browser chromium
 
 接続状態は `claude mcp list` で確認できる（`playwright` が `Connected` 表示）。
 
+## Worktree
+
+`EnterWorktree` 直後は `.claude/settings.json` の `PostToolUse` hook が worktree 内で `npm ci --no-audit --no-fund` を自動実行する。複数 worktree で `npm run dev` を並行起動する場合、ポート衝突回避のため `PORT=3001 npm run dev` 等で明示指定する。
+
 ## Language
 
 The application UI and codebase use Japanese for user-facing text and comments. Error messages in validation schemas are in Japanese.
