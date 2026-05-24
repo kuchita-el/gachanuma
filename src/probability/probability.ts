@@ -127,13 +127,6 @@ export const trialCountInputSchema = v.pipe(
 )
 
 /**
- * 信頼度のデフォルト値。
- * 旧 calculateTrialCount 仕様の90%固定を後方互換として維持。
- * UI 表示文言「{X}%の確率で成功するために必要な試行回数」と連動する。
- */
-export const DEFAULT_CONFIDENCE = 0.9
-
-/**
  * 検証済みの確率比率型（0より大きく1未満）
  */
 export type ValidProbabilityRatio = v.InferOutput<typeof validProbabilityRatioSchema>
