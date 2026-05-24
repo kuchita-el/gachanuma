@@ -8,13 +8,13 @@ import {
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { formatDomainError } from '@/probability/domain-error'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Form } from '@/components/ui/form'
+import { NumberInputField } from '@/components/number-input-field'
 import { useFormErrorMessage } from '@/lib/use-form-error-message'
 import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
 
@@ -24,7 +24,7 @@ const schema = v.object({
 })
 
 export function InverseForm() {
-  const { handleSubmit, control, subscribe } = useForm({
+  const form = useForm({
     resolver: valibotResolver(schema),
     mode: 'onBlur',
     defaultValues: {
@@ -32,6 +32,7 @@ export function InverseForm() {
       trialCount: '',
     },
   })
+  const { handleSubmit, control, subscribe } = form
 
   const [result, setResult] = useState<{
     cumulativeProbabilityRatio: number
@@ -39,10 +40,6 @@ export function InverseForm() {
   }>()
   const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
   const throwToErrorBoundary = useThrowToErrorBoundary()
-  const successRateId = useId()
-  const successRateHelperId = useId()
-  const trialCountId = useId()
-  const trialCountHelperId = useId()
 
   const onSubmit = handleSubmit((form) => {
     try {
@@ -71,78 +68,35 @@ export function InverseForm() {
 
   return (
     <div>
-      <form onSubmit={onSubmit}>
-        <Controller
-          name="successRate"
-          control={control}
-          render={({ field, formState: { errors } }) => {
-            const errorMessage = errors.successRate?.message
-            return (
-              <div className="space-y-2">
-                <Label htmlFor={successRateId}>成功率</Label>
-                <div className="relative">
-                  <Input
-                    id={successRateId}
-                    inputMode="decimal"
-                    type="number"
-                    step="any"
-                    aria-describedby={successRateHelperId}
-                    aria-invalid={!!errorMessage}
-                    className="pr-8"
-                    {...field}
-                  />
-                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                    %
-                  </span>
-                </div>
-                <p
-                  id={successRateHelperId}
-                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {errorMessage || '0より大きく100未満の数値を入力してください'}
-                </p>
-              </div>
-            )
-          }}
-        />
+      <Form {...form}>
+        <form onSubmit={onSubmit}>
+          <NumberInputField
+            control={control}
+            name="successRate"
+            label="成功率"
+            suffix="%"
+            helperText="0より大きく100未満の数値を入力してください"
+            inputMode="decimal"
+            type="number"
+            step="any"
+          />
 
-        <Controller
-          name="trialCount"
-          control={control}
-          render={({ field, formState: { errors } }) => {
-            const errorMessage = errors.trialCount?.message
-            return (
-              <div className="mt-4 space-y-2">
-                <Label htmlFor={trialCountId}>試行回数</Label>
-                <div className="relative">
-                  <Input
-                    id={trialCountId}
-                    inputMode="numeric"
-                    type="number"
-                    aria-describedby={trialCountHelperId}
-                    aria-invalid={!!errorMessage}
-                    className="pr-8"
-                    {...field}
-                  />
-                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                    回
-                  </span>
-                </div>
-                <p
-                  id={trialCountHelperId}
-                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {errorMessage || '1以上の整数を入力してください'}
-                </p>
-              </div>
-            )
-          }}
-        />
+          <NumberInputField
+            control={control}
+            name="trialCount"
+            label="試行回数"
+            suffix="回"
+            helperText="1以上の整数を入力してください"
+            inputMode="numeric"
+            type="number"
+            className="mt-4"
+          />
 
-        <Button type="submit" className="mt-4">
-          計算
-        </Button>
-      </form>
+          <Button type="submit" className="mt-4">
+            計算
+          </Button>
+        </form>
+      </Form>
 
       {result !== undefined && (
         <div
