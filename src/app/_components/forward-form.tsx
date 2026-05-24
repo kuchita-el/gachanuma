@@ -7,7 +7,7 @@ import {
   slipRatePercentageSchema,
   targetCountInputSchema,
   trialCountInputSchema,
-} from '@/probability/probability'
+} from './form-schemas'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
 import { formatDomainError } from '@/probability/domain-error'

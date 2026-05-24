@@ -13,12 +13,11 @@ import { Result } from 'neverthrow'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
 import { formatDomainError } from '@/probability/domain-error'
-import { percentToRatio } from '@/probability/probability'
+import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
 const CHART_WIDTH = 600
 const CHART_HEIGHT = 320
 const Y_TICKS = [0, 25, 50, 75, 100]
-const DEFAULT_CONFIDENCE_PERCENT = 90
 
 interface ProbabilityChartProps {
   successRatePercent: number
