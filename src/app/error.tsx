@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
@@ -11,9 +12,18 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const pathname = usePathname()
+
   useEffect(() => {
-    console.error(error)
-  }, [error])
+    console.error('[error-boundary]', {
+      pathname,
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+      cause: error.cause,
+    })
+  }, [error, pathname])
 
   return (
     <div className="mx-auto max-w-screen-sm px-4 py-8">
