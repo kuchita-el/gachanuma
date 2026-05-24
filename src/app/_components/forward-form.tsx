@@ -12,6 +12,7 @@ import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-bi
 import { calculateTrialCountWithPity } from '@/probability/pity'
 import { formatDomainError } from '@/probability/domain-error'
 import { ProbabilityChart } from './probability-chart'
+import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useId, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
@@ -271,13 +272,7 @@ export function ForwardForm() {
       </Form>
 
       {result !== undefined && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-label="計算結果"
-          className="bg-primary/10 mt-8 rounded-lg p-6"
-        >
-          <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
+        <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
             {result.trialCount}
             回
@@ -305,7 +300,7 @@ export function ForwardForm() {
               % 込み
             </p>
           )}
-        </div>
+        </ResultPanel>
       )}
 
       {result !== undefined && (
