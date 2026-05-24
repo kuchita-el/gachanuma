@@ -18,6 +18,16 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { InputAffix } from '@/components/input-affix'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -36,14 +46,7 @@ const schema = v.object({
 const CONFIDENCE_PRESETS = [50, 75, 90, 95, 99] as const
 
 export function ForwardForm() {
-  const {
-    handleSubmit,
-    control,
-    setValue,
-    clearErrors,
-    subscribe,
-    formState: { errors },
-  } = useForm({
+  const form = useForm({
     resolver: valibotResolver(schema),
     mode: 'onBlur',
     defaultValues: {
@@ -55,6 +58,14 @@ export function ForwardForm() {
       slipRatePercent: '0',
     },
   })
+  const {
+    handleSubmit,
+    control,
+    setValue,
+    clearErrors,
+    subscribe,
+    formState: { errors },
+  } = form
 
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
 
@@ -71,8 +82,6 @@ export function ForwardForm() {
   const successRateHelperId = useId()
   const targetCountId = useId()
   const targetCountHelperId = useId()
-  const confidenceId = useId()
-  const confidenceHelperId = useId()
   const pityEnabledId = useId()
   const pityCountId = useId()
   const pityCountHelperId = useId()
@@ -136,85 +145,84 @@ export function ForwardForm() {
 
   return (
     <div>
-      <form onSubmit={onSubmit}>
-        <Controller
-          name="successRate"
-          control={control}
-          render={({ field, formState: { errors } }) => {
-            const errorMessage = errors.successRate?.message
-            return (
-              <div className="space-y-2">
-                <Label htmlFor={successRateId}>成功率</Label>
-                <div className="relative">
-                  <Input
-                    id={successRateId}
-                    inputMode="decimal"
-                    type="number"
-                    step="any"
-                    aria-describedby={successRateHelperId}
-                    aria-invalid={!!errorMessage}
-                    className="pr-8"
-                    {...field}
-                  />
-                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                    %
-                  </span>
+      <Form {...form}>
+        <form onSubmit={onSubmit}>
+          <Controller
+            name="successRate"
+            control={control}
+            render={({ field, formState: { errors } }) => {
+              const errorMessage = errors.successRate?.message
+              return (
+                <div className="space-y-2">
+                  <Label htmlFor={successRateId}>成功率</Label>
+                  <div className="relative">
+                    <Input
+                      id={successRateId}
+                      inputMode="decimal"
+                      type="number"
+                      step="any"
+                      aria-describedby={successRateHelperId}
+                      aria-invalid={!!errorMessage}
+                      className="pr-8"
+                      {...field}
+                    />
+                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                      %
+                    </span>
+                  </div>
+                  <p
+                    id={successRateHelperId}
+                    className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                  >
+                    {errorMessage || '0より大きく100未満の数値を入力してください'}
+                  </p>
                 </div>
-                <p
-                  id={successRateHelperId}
-                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {errorMessage || '0より大きく100未満の数値を入力してください'}
-                </p>
-              </div>
-            )
-          }}
-        />
+              )
+            }}
+          />
 
-        <Controller
-          name="targetCount"
-          control={control}
-          render={({ field, formState: { errors } }) => {
-            const errorMessage = errors.targetCount?.message
-            return (
-              <div className="mt-4 space-y-2">
-                <Label htmlFor={targetCountId}>目標成功回数</Label>
-                <div className="relative">
-                  <Input
-                    id={targetCountId}
-                    inputMode="numeric"
-                    type="number"
-                    step="1"
-                    min="1"
-                    max="100"
-                    aria-describedby={targetCountHelperId}
-                    aria-invalid={!!errorMessage}
-                    className="pr-8"
-                    {...field}
-                  />
-                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                    回
-                  </span>
+          <Controller
+            name="targetCount"
+            control={control}
+            render={({ field, formState: { errors } }) => {
+              const errorMessage = errors.targetCount?.message
+              return (
+                <div className="mt-4 space-y-2">
+                  <Label htmlFor={targetCountId}>目標成功回数</Label>
+                  <div className="relative">
+                    <Input
+                      id={targetCountId}
+                      inputMode="numeric"
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="100"
+                      aria-describedby={targetCountHelperId}
+                      aria-invalid={!!errorMessage}
+                      className="pr-8"
+                      {...field}
+                    />
+                    <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                      回
+                    </span>
+                  </div>
+                  <p
+                    id={targetCountHelperId}
+                    className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                  >
+                    {errorMessage || '1〜100 の整数を入力してください'}
+                  </p>
                 </div>
-                <p
-                  id={targetCountHelperId}
-                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {errorMessage || '1〜100 の整数を入力してください'}
-                </p>
-              </div>
-            )
-          }}
-        />
+              )
+            }}
+          />
 
-        <Controller
-          name="confidence"
-          control={control}
-          render={({ field, formState: { errors } }) => {
-            const errorMessage = errors.confidence?.message
-            return (
-              <div className="mt-4 space-y-2">
-                <Label htmlFor={confidenceId}>信頼度</Label>
+          <FormField
+            control={control}
+            name="confidence"
+            render={({ field }) => (
+              <FormItem className="mt-4">
+                <FormLabel>信頼度</FormLabel>
                 <div className="flex flex-wrap gap-2">
                   {CONFIDENCE_PRESETS.map((preset) => {
                     const selected = field.value === String(preset)
@@ -233,138 +241,130 @@ export function ForwardForm() {
                     )
                   })}
                 </div>
-                <div className="relative">
-                  <Input
-                    id={confidenceId}
-                    inputMode="numeric"
-                    type="number"
-                    aria-describedby={confidenceHelperId}
-                    aria-invalid={!!errorMessage}
-                    className="pr-8"
-                    {...field}
-                  />
-                  <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                    %
-                  </span>
-                </div>
-                <p
-                  id={confidenceHelperId}
-                  className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {errorMessage || '0より大きく100未満の整数を入力してください'}
-                </p>
-              </div>
-            )
-          }}
-        />
+                <InputAffix suffix="%">
+                  <FormControl>
+                    <Input
+                      inputMode="numeric"
+                      type="number"
+                      className="pr-8"
+                      {...field}
+                    />
+                  </FormControl>
+                </InputAffix>
+                <FormDescription>0より大きく100未満の整数を入力してください</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <Controller
-          name="pityEnabled"
-          control={control}
-          render={({ field }) => (
-            <div className="mt-4 flex items-center gap-2">
-              <Switch
-                id={pityEnabledId}
-                checked={field.value}
-                onCheckedChange={(checked) => {
-                  field.onChange(checked)
-                  // OFF に切り替える際は天井フィールドの値とエラーをデフォルトに戻す。
-                  // 隠れたエラー（schema が pityCount/slipRatePercent を常時検証するため）が
-                  // submit を阻害するのを防ぐ。
-                  if (!checked) {
-                    setValue('pityCount', '100')
-                    setValue('slipRatePercent', '0')
-                    clearErrors(['pityCount', 'slipRatePercent'])
-                  }
+          <Controller
+            name="pityEnabled"
+            control={control}
+            render={({ field }) => (
+              <div className="mt-4 flex items-center gap-2">
+                <Switch
+                  id={pityEnabledId}
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked)
+                    // OFF に切り替える際は天井フィールドの値とエラーをデフォルトに戻す。
+                    // 隠れたエラー（schema が pityCount/slipRatePercent を常時検証するため）が
+                    // submit を阻害するのを防ぐ。
+                    if (!checked) {
+                      setValue('pityCount', '100')
+                      setValue('slipRatePercent', '0')
+                      clearErrors(['pityCount', 'slipRatePercent'])
+                    }
+                  }}
+                />
+                <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
+              </div>
+            )}
+          />
+
+          {pityEnabled && (
+            <>
+              <Controller
+                name="pityCount"
+                control={control}
+                render={({ field, formState: { errors } }) => {
+                  const errorMessage = errors.pityCount?.message
+                  return (
+                    <div className="mt-4 space-y-2">
+                      <Label htmlFor={pityCountId}>天井回数</Label>
+                      <div className="relative">
+                        <Input
+                          id={pityCountId}
+                          inputMode="numeric"
+                          type="number"
+                          step="1"
+                          min="1"
+                          aria-describedby={pityCountHelperId}
+                          aria-invalid={!!errorMessage}
+                          className="pr-8"
+                          {...field}
+                        />
+                        <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                          回
+                        </span>
+                      </div>
+                      <p
+                        id={pityCountHelperId}
+                        className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                      >
+                        {errorMessage || '1以上の整数を入力してください'}
+                      </p>
+                    </div>
+                  )
                 }}
               />
-              <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
-            </div>
+
+              <Controller
+                name="slipRatePercent"
+                control={control}
+                render={({ field, formState: { errors } }) => {
+                  const errorMessage = errors.slipRatePercent?.message
+                  return (
+                    <div className="mt-4 space-y-2">
+                      <Label htmlFor={slipRateId}>天井すり抜け率</Label>
+                      <div className="relative">
+                        <Input
+                          id={slipRateId}
+                          inputMode="decimal"
+                          type="number"
+                          step="any"
+                          aria-describedby={slipRateHelperId}
+                          aria-invalid={!!errorMessage}
+                          className="pr-8"
+                          {...field}
+                        />
+                        <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                          %
+                        </span>
+                      </div>
+                      <p
+                        id={slipRateHelperId}
+                        className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
+                      >
+                        {errorMessage || '0以上100以下の数値を入力してください'}
+                      </p>
+                    </div>
+                  )
+                }}
+              />
+            </>
           )}
-        />
 
-        {pityEnabled && (
-          <>
-            <Controller
-              name="pityCount"
-              control={control}
-              render={({ field, formState: { errors } }) => {
-                const errorMessage = errors.pityCount?.message
-                return (
-                  <div className="mt-4 space-y-2">
-                    <Label htmlFor={pityCountId}>天井回数</Label>
-                    <div className="relative">
-                      <Input
-                        id={pityCountId}
-                        inputMode="numeric"
-                        type="number"
-                        step="1"
-                        min="1"
-                        aria-describedby={pityCountHelperId}
-                        aria-invalid={!!errorMessage}
-                        className="pr-8"
-                        {...field}
-                      />
-                      <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                        回
-                      </span>
-                    </div>
-                    <p
-                      id={pityCountHelperId}
-                      className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                    >
-                      {errorMessage || '1以上の整数を入力してください'}
-                    </p>
-                  </div>
-                )
-              }}
-            />
-
-            <Controller
-              name="slipRatePercent"
-              control={control}
-              render={({ field, formState: { errors } }) => {
-                const errorMessage = errors.slipRatePercent?.message
-                return (
-                  <div className="mt-4 space-y-2">
-                    <Label htmlFor={slipRateId}>天井すり抜け率</Label>
-                    <div className="relative">
-                      <Input
-                        id={slipRateId}
-                        inputMode="decimal"
-                        type="number"
-                        step="any"
-                        aria-describedby={slipRateHelperId}
-                        aria-invalid={!!errorMessage}
-                        className="pr-8"
-                        {...field}
-                      />
-                      <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm">
-                        %
-                      </span>
-                    </div>
-                    <p
-                      id={slipRateHelperId}
-                      className={`text-sm ${errorMessage ? 'text-destructive' : 'text-muted-foreground'}`}
-                    >
-                      {errorMessage || '0以上100以下の数値を入力してください'}
-                    </p>
-                  </div>
-                )
-              }}
-            />
-          </>
-        )}
-
-        {/* disabled は信頼度・目標成功回数・天井起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
-        <Button
-          type="submit"
-          className="mt-4"
-          disabled={submitDisabled}
-        >
-          計算
-        </Button>
-      </form>
+          {/* disabled は信頼度・目標成功回数・天井起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
+          <Button
+            type="submit"
+            className="mt-4"
+            disabled={submitDisabled}
+          >
+            計算
+          </Button>
+        </form>
+      </Form>
 
       {result !== undefined && (
         <div
