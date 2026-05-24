@@ -22,7 +22,7 @@
  *   無効化されるほどの極小 p なので NonFiniteResult を透過させる。InvalidInput や IterationLimitExceeded
  *   は救済対象外（透過）。
  */
-import { err, ok, Result, type Result as ResultType } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
 import { type DomainError, parseInputOrErr } from './domain-error'
 import {
@@ -65,7 +65,7 @@ export function calculateTrialCountWithPity(
         }
         return err<number, DomainError>(error)
       })
-      .andThen<number, DomainError>((kNoPity): ResultType<number, DomainError> => {
+      .andThen((kNoPity) => {
         if (kNoPity < validatedPity) {
           return ok(kNoPity)
         }
@@ -83,9 +83,9 @@ export function calculateTrialCountWithPity(
         const result = Math.max(validatedPity, kCandidate)
 
         if (!Number.isFinite(result)) {
-          return err({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
+          return err<number, DomainError>({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
         }
-        return ok(result)
+        return ok<number, DomainError>(result)
       })
   })
 }
