@@ -33,7 +33,7 @@ export function InverseForm() {
   })
   const { handleSubmit, control, subscribe } = form
 
-  const { result, error: calculationError, run } = useCalculation<{
+  const calc = useCalculation<{
     cumulativeProbabilityRatio: number
     trialCount: number
   }>(subscribe)
@@ -41,7 +41,7 @@ export function InverseForm() {
   const onSubmit = handleSubmit((form) => {
     const trialCount = Number(form.trialCount)
     // 計算呼び出し（v.parse のブランド化含む）はサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
-    run(() =>
+    calc.run(() =>
       calculateCumulativeSuccessProbability(
         v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate))),
         v.parse(validTrialCountSchema, trialCount),
@@ -84,27 +84,27 @@ export function InverseForm() {
         </form>
       </Form>
 
-      {result !== undefined && (
+      {calc.status === 'success' && (
         <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
-            {(result.cumulativeProbabilityRatio * 100).toFixed(2)}
+            {(calc.result.cumulativeProbabilityRatio * 100).toFixed(2)}
             %
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {result.trialCount}
+            {calc.result.trialCount}
             回試行したとき少なくとも1回成功する確率
           </p>
         </ResultPanel>
       )}
 
-      {calculationError && (
+      {calc.status === 'error' && (
         <Alert
           variant="destructive"
           role="alert"
           aria-live="assertive"
           className="mt-4"
         >
-          <AlertDescription>{calculationError}</AlertDescription>
+          <AlertDescription>{calc.error}</AlertDescription>
         </Alert>
       )}
     </div>
