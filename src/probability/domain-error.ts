@@ -29,6 +29,8 @@ export type NonFiniteSource
     | 'calculateCumulativeSuccessProbability'
     | 'calculateTrialCountForMultipleSuccess'
     | 'calculateTrialCountWithPity'
+    | 'computeXAxisUpperBound'
+    | 'sampleTrialCounts'
 
 /**
  * IterationLimitExceeded を発生させ得る計算関数の識別子（現状は負の二項分布のみ）。
@@ -81,6 +83,9 @@ function formatNonFiniteResult(source: NonFiniteSource): string {
       return '成功率が極端に小さいため累積成功確率を計算できません。値を見直してください。'
     case 'calculateTrialCountForMultipleSuccess':
       return '計算結果が数値として表現できません。値を見直してください。'
+    case 'computeXAxisUpperBound':
+    case 'sampleTrialCounts':
+      return 'グラフの試行回数範囲を計算できません。値を見直してください。'
     default:
       return assertNever(source)
   }
@@ -102,4 +107,22 @@ export function parseInputOrErr<
     kind: 'InvalidInput',
     issues: result.issues.map(i => ({ message: i.message })),
   })
+}
+
+/**
+ * 計算結果を出力スキーマで再検証してブランド化する。`v.parse` と異なり失敗時に throw せず
+ * `NonFiniteResult` の err を返すため、計算層の throw 撲滅契約（結果は Result で表現）を保ったまま
+ * 戻り値の値域を実行時にも担保できる。Result チェーン（描画中の chart 等）を貫通する throw を防ぐ。
+ *
+ * 入力値域違反は `parseInputOrErr`（`InvalidInput`）が担う。本関数は検証済み入力から算出した
+ * 結果の不変条件違反（通常は到達不能）を Result 経路へ正規化する用途に限る。
+ */
+export function validateOrNonFinite<
+  TSchema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,
+>(schema: TSchema, value: unknown, source: NonFiniteSource): Result<v.InferOutput<TSchema>, DomainError> {
+  const result = v.safeParse(schema, value)
+  if (result.success) {
+    return ok(result.output)
+  }
+  return domainErr({ kind: 'NonFiniteResult', source })
 }

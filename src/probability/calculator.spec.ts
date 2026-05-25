@@ -6,6 +6,7 @@ import {
 } from './calculator'
 import {
   validConfidenceSchema,
+  validCumulativeSuccessRatioSchema,
   validProbabilityRatioSchema,
   validTrialCountSchema,
 } from './probability'
@@ -149,6 +150,20 @@ describe('calculateCumulativeSuccessProbability', () => {
     it('成功率1e-17（極小）・試行回数1で ratio が 0 に飽和し NonFiniteResult', () => {
       expect(calculateCumulativeSuccessProbability(prob(1e-17), trial(1))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
     })
+  })
+})
+
+describe('戻り値ブランドの出力スキーマ整合（throw しない再検証）', () => {
+  it('calculateTrialCount の戻り値は validTrialCountSchema を満たす', () => {
+    const value = calculateTrialCount(prob(0.1), conf(0.9))._unsafeUnwrap()
+    expect(() => v.parse(validTrialCountSchema, value)).not.toThrow()
+  })
+
+  it('calculateCumulativeSuccessProbability の戻り値は validCumulativeSuccessRatioSchema を満たす', () => {
+    const value = calculateCumulativeSuccessProbability(prob(0.5), trial(4))._unsafeUnwrap()
+    expect(() => v.parse(validCumulativeSuccessRatioSchema, value)).not.toThrow()
+    expect(value).toBeGreaterThan(0)
+    expect(value).toBeLessThanOrEqual(1)
   })
 })
 
