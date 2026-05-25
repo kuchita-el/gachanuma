@@ -12,7 +12,8 @@ import {
 import { Result } from 'neverthrow'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
-import { formatDomainError } from '@/probability/domain-error'
+import { formatDomainError, parseInputOrErr } from '@/probability/domain-error'
+import { validProbabilityRatioSchema } from '@/probability/probability'
 import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
 const CHART_WIDTH = 600
@@ -36,20 +37,24 @@ export function ProbabilityChart({
   successRatePercent,
   confidencePercent,
 }: ProbabilityChartProps) {
-  const rate = percentToRatio(successRatePercent)
-
-  // upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
-  // どこかで err が出れば全体を err として match の err 分岐で null フォールバックする。
-  const chartResult = computeXAxisUpperBound(rate).andThen(upperBound =>
-    sampleTrialCounts(upperBound).andThen(samples =>
-      Result.combine(
-        samples.map(n =>
-          calculateCumulativeSuccessProbability(rate, n).map(value => ({
-            trialCount: n,
-            cumulativeProbabilityPercent: value * 100,
-          })),
-        ),
-      ).map(data => ({ upperBound, data })),
+  // rate のブランド化 → upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
+  // どこかで err が出れば全体を err として match の err 分岐でインラインエラー表示にフォールバックする。
+  // ブランド化境界の parse も safeParse ベース（parseInputOrErr）で受け、計算層と同じ throw なし契約に揃える。
+  const chartResult = parseInputOrErr(
+    validProbabilityRatioSchema,
+    percentToRatio(successRatePercent),
+  ).andThen(rate =>
+    computeXAxisUpperBound(rate).andThen(upperBound =>
+      sampleTrialCounts(upperBound).andThen(samples =>
+        Result.combine(
+          samples.map(n =>
+            calculateCumulativeSuccessProbability(rate, n).map(value => ({
+              trialCount: n,
+              cumulativeProbabilityPercent: value * 100,
+            })),
+          ),
+        ).map(data => ({ upperBound, data })),
+      ),
     ),
   )
 
