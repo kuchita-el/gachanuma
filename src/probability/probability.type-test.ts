@@ -101,6 +101,10 @@ export const trialArgSwap = calculateCumulativeSuccessProbability(tProb, tPity)
 export const targetArgSwap = calculateTrialCountForMultipleSuccess(tProb, tTrial, tConf)
 // @ts-expect-error TargetCount を trialCount 引数へ渡すと型エラー（TargetCount↔TrialCount 逆方向）
 export const trialFromTargetArg = calculateCumulativeSuccessProbability(tProb, tTarget)
+// @ts-expect-error PityCount を targetCount 引数へ渡すと型エラー（PityCount↔TargetCount）
+export const targetFromPityArg = calculateTrialCountForMultipleSuccess(tProb, tPity, tConf)
+// @ts-expect-error TargetCount を pityCount 引数へ渡すと型エラー（TargetCount↔PityCount）
+export const pityFromTargetArg = calculateTrialCountWithPity(tProb, tTarget, tSlip, tConf)
 
 // --- 戻り値ブランド観測（AC5）---
 
