@@ -24,7 +24,7 @@ const X_AXIS_EXTRA_RATIO = 1.5
  * 成功率 ratio に対する X 軸上限を返す。N99 = calculateTrialCount(p, 0.99) の 1.5 倍を切り上げ。
  *
  * @param successRateRatio - 単発成功率（検証済みブランド値、0 < x < 1）
- * @returns ok(X 軸上限の整数、1 以上) または err(NonFiniteResult、calculateTrialCount 経由)
+ * @returns ok(X 軸上限の整数、1 以上) または err(NonFiniteResult、calculateTrialCount 経由または上限値の再検証で)
  */
 export function computeXAxisUpperBound(successRateRatio: ProbabilityRatio): CalcResult<TrialCount> {
   return calculateTrialCount(successRateRatio, N99_CONFIDENCE).andThen(n99 =>
@@ -52,7 +52,7 @@ const maxPointsSchema = v.pipe(
  *
  * @param upperBound - X 軸上限（検証済みブランド値、整数、1 以上）
  * @param maxPoints - サンプル点数上限（デフォルト 200）
- * @returns ok(試行回数の整数配列、昇順・重複なし・長さ ≤ maxPoints) または err(InvalidInput)
+ * @returns ok(試行回数の整数配列、昇順・重複なし・長さ ≤ maxPoints) または err(InvalidInput / NonFiniteResult)
  */
 export function sampleTrialCounts(
   upperBound: TrialCount,
