@@ -123,4 +123,18 @@ describe('ProbabilityChart', () => {
     expect(errorView).toHaveTextContent(/グラフを描画できません/)
     expect(errorView).toHaveTextContent(/極端に小さい/)
   })
+
+  it('successRatePercent が値域外（schema 不通過の 0）でも throw せず inline エラー表示', () => {
+    // ブランド化境界の parse を safeParse ベース（parseInputOrErr）で受けるため、
+    // 値域外入力は ValiError を throw せず InvalidInput err として Result チェーンを透過し、
+    // match の err 分岐でインラインエラーを描画する（render 中 throw による Error Boundary 行きを回避）。
+    const { container } = render(
+      <ProbabilityChart successRatePercent={0} confidencePercent={90} />,
+    )
+    expect(container.querySelector('svg')).toBeNull()
+    const errorView = screen.getByRole('img', { name: 'グラフエラー' })
+    expect(errorView).toBeInTheDocument()
+    expect(errorView).toHaveTextContent(/グラフを描画できません/)
+    expect(errorView).toHaveTextContent(/成功率は0より大きい値を指定してください/)
+  })
 })
