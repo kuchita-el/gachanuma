@@ -119,33 +119,32 @@ describe('useCalculation', () => {
     expect(result.current.error).toBeUndefined()
   })
 
-  // 内包する useFormErrorMessage の挙動: フォーム値変更で error のみクリア、result は保持
-  it('subscribe callback 発火で error のみクリアし result は保持する', () => {
+  // 内包する useFormErrorMessage の挙動を 2 関心に分離して検証する。result と error は
+  // 排他更新のため「両方セット済み」状態は作れない（result 保持と error クリアは別 run 起点）。
+  it('成功後に subscribe callback が発火しても result は保持される', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
       useCalculation<number>(harness.subscribe),
     )
-    act(() => result.current.run(() => ok(10)))
-    act(() =>
-      result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
-    // 失敗直後は result クリア済みのため、成功させてから error を再付与する
-    act(() => result.current.run(() => ok(15)))
-    act(() =>
-      result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
-    expect(result.current.result).toBeUndefined()
-
-    // 成功 → result/error 確定後に subscribe callback を発火する
     act(() => result.current.run(() => ok(99)))
     expect(result.current.result).toBe(99)
     act(() => harness.fireCallback())
-    expect(result.current.error).toBeUndefined()
     expect(result.current.result).toBe(99)
+  })
+
+  it('ドメインエラー後に subscribe callback が発火すると error がクリアされる', () => {
+    const harness = createSubscribeHarness()
+    const { result } = renderHook(() =>
+      useCalculation<number>(harness.subscribe),
+    )
+    act(() =>
+      result.current.run(() =>
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
+      ),
+    )
+    expect(result.current.error).toBeDefined()
+    act(() => harness.fireCallback())
+    expect(result.current.error).toBeUndefined()
   })
 
   describe('想定外例外の Error Boundary 伝播（AC3 / S-1）', () => {
