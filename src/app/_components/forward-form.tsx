@@ -3,17 +3,19 @@
 import {
   confidencePercentageSchema,
   percentToRatio,
+  pityCountInputSchema,
   probabilityPercentageSchema,
   slipRatePercentageSchema,
   targetCountInputSchema,
-  trialCountInputSchema,
 } from './form-schemas'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
 import {
   validConfidenceSchema,
+  validPityCountSchema,
   validProbabilityRatioSchema,
   validSlipRateRatioSchema,
+  validTargetCountSchema,
 } from '@/probability/probability'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
@@ -44,7 +46,7 @@ const schema = v.object({
   targetCount: targetCountInputSchema,
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
-  pityCount: trialCountInputSchema,
+  pityCount: pityCountInputSchema,
   slipRatePercent: slipRatePercentageSchema,
 })
 
@@ -92,13 +94,13 @@ export function ForwardForm() {
       const calcResult = form.pityEnabled
         ? calculateTrialCountWithPity(
           successRateRatio,
-          Number(form.pityCount),
+          v.parse(validPityCountSchema, Number(form.pityCount)),
           v.parse(validSlipRateRatioSchema, percentToRatio(Number(form.slipRatePercent))),
           confidenceRatio,
         )
         : calculateTrialCountForMultipleSuccess(
           successRateRatio,
-          Number(form.targetCount),
+          v.parse(validTargetCountSchema, Number(form.targetCount)),
           confidenceRatio,
         )
 

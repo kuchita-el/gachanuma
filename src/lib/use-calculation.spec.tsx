@@ -3,11 +3,17 @@ import { Component, type ReactNode } from 'react'
 import { act, render, renderHook, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ok } from 'neverthrow'
+import * as v from 'valibot'
 import type { UseFormSubscribe } from 'react-hook-form'
 import { useCalculation } from './use-calculation'
 import { calculateTrialCount, type CalcResult } from '@/probability/calculator'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { domainErr } from '@/probability/domain-error'
+import {
+  validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validTargetCountSchema,
+} from '@/probability/probability'
 import { Button } from '@/components/ui/button'
 
 type SubscribeFn = UseFormSubscribe<Record<string, unknown>>
@@ -204,7 +210,14 @@ describe('useCalculation', () => {
       const { result } = renderHook(() =>
         useCalculation<number>(harness.subscribe),
       )
-      act(() => result.current.run(() => calculateTrialCount(1e-17, 0.9)))
+      act(() =>
+        result.current.run(() =>
+          calculateTrialCount(
+            v.parse(validProbabilityRatioSchema, 1e-17),
+            v.parse(validConfidenceSchema, 0.9),
+          ),
+        ),
+      )
       expect(result.current.result).toBeUndefined()
       expect(result.current.error).toBe(
         '成功率が極端に小さいため試行回数を計算できません。値を見直してください。',
@@ -218,7 +231,11 @@ describe('useCalculation', () => {
       )
       act(() =>
         result.current.run(() =>
-          calculateTrialCountForMultipleSuccess(1e-17, 2, 0.9),
+          calculateTrialCountForMultipleSuccess(
+            v.parse(validProbabilityRatioSchema, 1e-17),
+            v.parse(validTargetCountSchema, 2),
+            v.parse(validConfidenceSchema, 0.9),
+          ),
         ),
       )
       expect(result.current.result).toBeUndefined()
