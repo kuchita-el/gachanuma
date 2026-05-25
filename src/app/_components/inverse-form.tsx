@@ -6,6 +6,7 @@ import {
   trialCountInputSchema,
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { validProbabilityRatioSchema } from '@/probability/probability'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
@@ -39,10 +40,11 @@ export function InverseForm() {
 
   const onSubmit = handleSubmit((form) => {
     // 計算呼び出しはサンク内に置く。useCalculation.run が計算呼び出しを try で包み、
-    // 想定外例外（DomainError 以外の throw）を Error Boundary に委譲するため。
+    // 想定外例外（DomainError 以外の throw、ブランド化 v.parse の失敗等）を
+    // Error Boundary に委譲するため。
     run(() =>
       calculateCumulativeSuccessProbability(
-        percentToRatio(Number(form.successRate)),
+        v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate))),
         Number(form.trialCount),
       ).map(value => ({
         cumulativeProbabilityRatio: value,
