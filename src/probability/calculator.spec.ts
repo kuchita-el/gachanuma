@@ -219,9 +219,62 @@ describe('validTrialCountSchema', () => {
 })
 
 describe('validProbabilityRatioSchema', () => {
-  it('エラーメッセージに「成功率」を含む', () => {
+  it('典型値0.5を渡すとそのまま0.5を返す', () => {
+    expect(v.parse(validProbabilityRatioSchema, 0.5)).toBe(0.5)
+  })
+
+  it('0を渡すとValiError、メッセージに「成功率」を含む', () => {
     expect(() => v.parse(validProbabilityRatioSchema, 0)).toThrow(/成功率/)
+  })
+
+  it('1を渡すとValiError、メッセージに「成功率」を含む', () => {
     expect(() => v.parse(validProbabilityRatioSchema, 1)).toThrow(/成功率/)
+  })
+
+  it('負値-0.1を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, -0.1)).toThrow()
+  })
+
+  it('1超1.5を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, 1.5)).toThrow()
+  })
+
+  it('NaNを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, NaN)).toThrow()
+  })
+
+  it('Infinityを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, Infinity)).toThrow()
+  })
+
+  it('文字列を渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validProbabilityRatioSchema, '0.5')).toThrow()
+  })
+})
+
+describe('validCumulativeSuccessRatioSchema', () => {
+  it('典型値0.5を渡すとそのまま0.5を返す', () => {
+    expect(v.parse(validCumulativeSuccessRatioSchema, 0.5)).toBe(0.5)
+  })
+
+  it('上限1（閉区間）を渡すとそのまま1を返す', () => {
+    expect(v.parse(validCumulativeSuccessRatioSchema, 1)).toBe(1)
+  })
+
+  it('下限0（開区間）はValiError、メッセージに「累積成功率」を含む', () => {
+    expect(() => v.parse(validCumulativeSuccessRatioSchema, 0)).toThrow(/累積成功率/)
+  })
+
+  it('1超1.0001はValiError、メッセージに「累積成功率」を含む', () => {
+    expect(() => v.parse(validCumulativeSuccessRatioSchema, 1.0001)).toThrow(/累積成功率/)
+  })
+
+  it('負値-0.1はValiErrorをスローする', () => {
+    expect(() => v.parse(validCumulativeSuccessRatioSchema, -0.1)).toThrow()
+  })
+
+  it('NaNを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validCumulativeSuccessRatioSchema, NaN)).toThrow()
   })
 })
 
@@ -244,6 +297,14 @@ describe('validConfidenceSchema', () => {
 
   it('1.5を渡すとValiErrorをスローする', () => {
     expect(() => v.parse(validConfidenceSchema, 1.5)).toThrow()
+  })
+
+  it('NaNを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validConfidenceSchema, NaN)).toThrow()
+  })
+
+  it('Infinityを渡すとValiErrorをスローする', () => {
+    expect(() => v.parse(validConfidenceSchema, Infinity)).toThrow()
   })
 
   it('文字列を渡すとValiErrorをスローする', () => {

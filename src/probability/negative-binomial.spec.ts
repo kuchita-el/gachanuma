@@ -111,4 +111,8 @@ describe('validTargetCountSchema', () => {
   it('NaN を渡すと ValiError', () => {
     expect(() => v.parse(validTargetCountSchema, NaN)).toThrow()
   })
+
+  it('Infinity を渡すと ValiError（整数チェックで弾かれる）', () => {
+    expect(() => v.parse(validTargetCountSchema, Infinity)).toThrow()
+  })
 })
