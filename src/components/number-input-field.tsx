@@ -17,9 +17,10 @@ import {
 type NumberInputFieldProps<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+  TTransformedValues = TFieldValues,
 > = {
   name: TName
-  control: Control<TFieldValues>
+  control: Control<TFieldValues, unknown, TTransformedValues>
   label: string
   suffix: string
   helperText: string
@@ -28,6 +29,7 @@ type NumberInputFieldProps<
 function NumberInputField<
   TFieldValues extends FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+  TTransformedValues = TFieldValues,
 >({
   name,
   control,
@@ -36,7 +38,7 @@ function NumberInputField<
   helperText,
   className,
   ...inputProps
-}: NumberInputFieldProps<TFieldValues, TName>) {
+}: NumberInputFieldProps<TFieldValues, TName, TTransformedValues>) {
   return (
     <FormField
       control={control}

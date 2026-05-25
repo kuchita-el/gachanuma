@@ -20,10 +20,6 @@ describe('numericInputSchema', () => {
       expect(v.parse(numericInputSchema, '50')).toBe(50)
     })
 
-    it('数値 50 を渡すとそのまま 50 を返す', () => {
-      expect(v.parse(numericInputSchema, 50)).toBe(50)
-    })
-
     it('小数文字列 "3.14" を渡すと数値 3.14 に変換される', () => {
       expect(v.parse(numericInputSchema, '3.14')).toBe(3.14)
     })
@@ -162,13 +158,13 @@ describe('probabilityPercentageSchema（合成後の回帰）', () => {
   })
 
   it('境界値 0 は「0より大きく100未満」', () => {
-    expect(() => v.parse(probabilityPercentageSchema, 0)).toThrow(
+    expect(() => v.parse(probabilityPercentageSchema, '0')).toThrow(
       /0より大きく100未満/,
     )
   })
 
   it('境界値 100 は「0より大きく100未満」', () => {
-    expect(() => v.parse(probabilityPercentageSchema, 100)).toThrow(
+    expect(() => v.parse(probabilityPercentageSchema, '100')).toThrow(
       /0より大きく100未満/,
     )
   })
@@ -180,23 +176,23 @@ describe('probabilityPercentageSchema（合成後の回帰）', () => {
 
 describe('confidencePercentageSchema（合成後の回帰）', () => {
   it('小数 99.5 は「整数を指定してください。」', () => {
-    expect(() => v.parse(confidencePercentageSchema, 99.5)).toThrow(
+    expect(() => v.parse(confidencePercentageSchema, '99.5')).toThrow(
       /整数を指定してください/,
     )
   })
 
   it('範囲外かつ非整数 150.5 は整数エラーが優先される（アクション順序保存）', () => {
-    expect(() => v.parse(confidencePercentageSchema, 150.5)).toThrow(/整数/)
+    expect(() => v.parse(confidencePercentageSchema, '150.5')).toThrow(/整数/)
   })
 
   it('境界値 0 は「0より大きく100未満」', () => {
-    expect(() => v.parse(confidencePercentageSchema, 0)).toThrow(
+    expect(() => v.parse(confidencePercentageSchema, '0')).toThrow(
       /0より大きく100未満/,
     )
   })
 
   it('境界値 100 は「0より大きく100未満」', () => {
-    expect(() => v.parse(confidencePercentageSchema, 100)).toThrow(
+    expect(() => v.parse(confidencePercentageSchema, '100')).toThrow(
       /0より大きく100未満/,
     )
   })
@@ -204,11 +200,11 @@ describe('confidencePercentageSchema（合成後の回帰）', () => {
 
 describe('slipRatePercentageSchema（合成後の回帰）', () => {
   it('境界値 0 を渡すとそのまま 0 を返す', () => {
-    expect(v.parse(slipRatePercentageSchema, 0)).toBe(0)
+    expect(v.parse(slipRatePercentageSchema, '0')).toBe(0)
   })
 
   it('境界値 100 を渡すとそのまま 100 を返す', () => {
-    expect(v.parse(slipRatePercentageSchema, 100)).toBe(100)
+    expect(v.parse(slipRatePercentageSchema, '100')).toBe(100)
   })
 
   it('文字列 "50" を渡すと 50 に変換される', () => {
@@ -216,29 +212,29 @@ describe('slipRatePercentageSchema（合成後の回帰）', () => {
   })
 
   it('-1 で ValiError、メッセージに「0以上100以下」を含む', () => {
-    expect(() => v.parse(slipRatePercentageSchema, -1)).toThrow(/0以上100以下/)
+    expect(() => v.parse(slipRatePercentageSchema, '-1')).toThrow(/0以上100以下/)
   })
 
   it('101 で ValiError', () => {
-    expect(() => v.parse(slipRatePercentageSchema, 101)).toThrow(/0以上100以下/)
+    expect(() => v.parse(slipRatePercentageSchema, '101')).toThrow(/0以上100以下/)
   })
 })
 
 describe('targetCountInputSchema（合成後の回帰）', () => {
   it('101 は「目標成功回数は100以下」', () => {
-    expect(() => v.parse(targetCountInputSchema, 101)).toThrow(
+    expect(() => v.parse(targetCountInputSchema, '101')).toThrow(
       /目標成功回数は100以下/,
     )
   })
 
   it('0 は「目標成功回数は1以上」', () => {
-    expect(() => v.parse(targetCountInputSchema, 0)).toThrow(
+    expect(() => v.parse(targetCountInputSchema, '0')).toThrow(
       /目標成功回数は1以上/,
     )
   })
 
   it('小数 1.5 は「目標成功回数は整数」', () => {
-    expect(() => v.parse(targetCountInputSchema, 1.5)).toThrow(
+    expect(() => v.parse(targetCountInputSchema, '1.5')).toThrow(
       /目標成功回数は整数/,
     )
   })
@@ -246,11 +242,11 @@ describe('targetCountInputSchema（合成後の回帰）', () => {
 
 describe('trialCountInputSchema（合成後の回帰）', () => {
   it('0 は「試行回数は1以上」', () => {
-    expect(() => v.parse(trialCountInputSchema, 0)).toThrow(/試行回数は1以上/)
+    expect(() => v.parse(trialCountInputSchema, '0')).toThrow(/試行回数は1以上/)
   })
 
   it('小数 1.5 は「試行回数は整数」', () => {
-    expect(() => v.parse(trialCountInputSchema, 1.5)).toThrow(/試行回数は整数/)
+    expect(() => v.parse(trialCountInputSchema, '1.5')).toThrow(/試行回数は整数/)
   })
 })
 

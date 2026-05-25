@@ -8,23 +8,20 @@ import { validTargetCountSchema, validTrialCountSchema } from '@/probability/pro
 export const DEFAULT_CONFIDENCE_PERCENT = 90
 
 /**
- * フォーム入力（文字列または数値）を数値型に確定するヘルパスキーマ。
+ * フォーム入力（文字列）を数値型に確定するヘルパスキーマ。
  *
- * 文字列分岐は v.decimal() で全体一致を強制してから Number() で数値化する。
+ * 文字列入力を v.decimal() で全体一致を強制してから Number() で数値化する。
  * 「全体一致」が肝で、parseFloat の貪欲解釈（"12abc" → 12、"5,000" → 5、"1e2"
  * → 100、"0x10" → 0、"Infinity" → Infinity、前後空白許容）を排除し、
  * UI フォームでユーザが意図しない値が無音で通過するのを防ぐ。
  *
- * 失敗時のメッセージは union 自体に紐づけ、文字列分岐・数値分岐どちらの失敗でも
- * 単一の「数値を指定してください。」を返す。output 型は number（有限値とは限らない点に
- * 注意。NaN/Infinity が数値リテラルとして直接渡された場合は通過する）。
+ * 非文字列（型不一致）は v.string、全体不一致は v.decimal がそれぞれ捕捉し、
+ * いずれも「数値を指定してください。」を返す。output 型は number。
  */
-export const numericInputSchema = v.union(
-  [
-    v.pipe(v.string(), v.decimal(), v.transform(Number)),
-    v.number(),
-  ],
-  '数値を指定してください。',
+export const numericInputSchema = v.pipe(
+  v.string('数値を指定してください。'),
+  v.decimal('数値を指定してください。'),
+  v.transform(Number),
 )
 
 /**
