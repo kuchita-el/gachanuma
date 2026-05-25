@@ -6,9 +6,7 @@ import {
   trialCountInputSchema,
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { formatDomainError } from '@/probability/domain-error'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -16,8 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
-import { useFormErrorMessage } from '@/lib/use-form-error-message'
-import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
+import { useCalculation } from '@/lib/use-calculation'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -35,36 +32,23 @@ export function InverseForm() {
   })
   const { handleSubmit, control, subscribe } = form
 
-  const [result, setResult] = useState<{
+  const { result, error: calculationError, run } = useCalculation<{
     cumulativeProbabilityRatio: number
     trialCount: number
-  }>()
-  const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
-  const throwToErrorBoundary = useThrowToErrorBoundary()
+  }>(subscribe)
 
   const onSubmit = handleSubmit((form) => {
-    try {
-      const calcResult = calculateCumulativeSuccessProbability(
+    // 計算呼び出しはサンク内に置く。useCalculation.run が計算呼び出しを try で包み、
+    // 想定外例外（DomainError 以外の throw）を Error Boundary に委譲するため。
+    run(() =>
+      calculateCumulativeSuccessProbability(
         percentToRatio(Number(form.successRate)),
         Number(form.trialCount),
-      )
-      calcResult.match(
-        (value) => {
-          setResult({
-            cumulativeProbabilityRatio: value,
-            trialCount: Number(form.trialCount),
-          })
-          setCalculationError(undefined)
-        },
-        (error) => {
-          setResult(undefined)
-          setCalculationError(formatDomainError(error))
-        },
-      )
-    }
-    catch (e) {
-      throwToErrorBoundary(e)
-    }
+      ).map(value => ({
+        cumulativeProbabilityRatio: value,
+        trialCount: Number(form.trialCount),
+      })),
+    )
   })
 
   return (
