@@ -84,9 +84,7 @@ export function ForwardForm() {
   const pityEnabledId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    // 計算呼び出しはサンク内に置く。useCalculation.run が計算呼び出しを try で包み、
-    // 想定外例外（DomainError 以外の throw、ブランド化 v.parse の失敗等）を
-    // Error Boundary に委譲するため。
+    // 計算呼び出し（v.parse のブランド化含む）はサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
     run(() => {
       const successRateRatio = v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate)))
       const confidenceRatio = v.parse(validConfidenceSchema, percentToRatio(Number(form.confidence)))

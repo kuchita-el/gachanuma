@@ -13,8 +13,12 @@ import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
  * `forward-form` / `inverse-form` の `onSubmit` 内で対称的に重複していた
  * 「計算 Result の成功/失敗分岐 → result/error の排他 setter → 想定外例外の
  * Error Boundary パススルー」を 1 箇所に集約する。エラー state は
- * `useFormErrorMessage(subscribe)` を内包して所有し（Pattern A: nested composition）、
+ * `useFormErrorMessage(subscribe)` を内包して所有し（フックのネスト合成）、
  * フォーム値変更時の自動クリアを引き継ぐ。
+ *
+ * `result` と `error` は `run` の更新規律により排他的に更新される。成功時は
+ * result セット & error クリア、ドメインエラー時は result クリア & error セットと
+ * なり、両者が同時に定義される状態は発生しない（型上は直積だが run が保証する）。
  *
  * `run` は計算実行サンク（`() => CalcResult<TResult>`）を毎回受け取る方式。
  * 計算関数の呼び出しは呼び出し側（form）に残るため、form 単体 spec の
@@ -25,6 +29,10 @@ import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
  * setter（`setResult` / `setError`）は Hooks API の不変条件により同期 throw しない
  * ため、`match` のコールバック内 setter を try で囲う必要がない。これにより想定外
  * 例外の Boundary 委譲経路に setter を巻き込まない（Issue #91 / PR #93 レビュー S-1）。
+ *
+ * `run` は 1 イベント内で複数回同期呼びしないこと。内包する `useThrowToErrorBoundary`
+ * は同一 render サイクルで複数回呼ぶと先行の想定外例外を取りこぼす制約があるため
+ * （現状の両 form は単一呼びのため実害なし）。
  *
  * @example
  * const { subscribe } = useForm()
