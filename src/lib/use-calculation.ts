@@ -55,7 +55,7 @@ export type CalculationState<TResult>
  * @example
  * const { subscribe } = useForm()
  * const calc = useCalculation<DisplayResult>(subscribe)
- * calc.run(() => calc(...).map(value => ({ ... })))
+ * calc.run(() => calculateXxx(...).map(value => ({ ... })))
  * if (calc.status === 'success') { ... calc.result ... }
  */
 export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
