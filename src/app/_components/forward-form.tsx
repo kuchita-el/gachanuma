@@ -10,6 +10,11 @@ import {
 } from './form-schemas'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
+import {
+  validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validSlipRateRatioSchema,
+} from '@/probability/probability'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -80,16 +85,17 @@ export function ForwardForm() {
 
   const onSubmit = handleSubmit((form) => {
     // 計算呼び出しはサンク内に置く。useCalculation.run が計算呼び出しを try で包み、
-    // 想定外例外（DomainError 以外の throw）を Error Boundary に委譲するため。
+    // 想定外例外（DomainError 以外の throw、ブランド化 v.parse の失敗等）を
+    // Error Boundary に委譲するため。
     run(() => {
-      const successRateRatio = percentToRatio(Number(form.successRate))
-      const confidenceRatio = percentToRatio(Number(form.confidence))
+      const successRateRatio = v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate)))
+      const confidenceRatio = v.parse(validConfidenceSchema, percentToRatio(Number(form.confidence)))
 
       const calcResult = form.pityEnabled
         ? calculateTrialCountWithPity(
           successRateRatio,
           Number(form.pityCount),
-          percentToRatio(Number(form.slipRatePercent)),
+          v.parse(validSlipRateRatioSchema, percentToRatio(Number(form.slipRatePercent))),
           confidenceRatio,
         )
         : calculateTrialCountForMultipleSuccess(
