@@ -44,6 +44,18 @@ describe('formatDomainError', () => {
     ).toBe('計算結果が数値として表現できません。値を見直してください。')
   })
 
+  it('NonFiniteResult / computeXAxisUpperBound はグラフ範囲文言', () => {
+    expect(
+      formatDomainError({ kind: 'NonFiniteResult', source: 'computeXAxisUpperBound' }),
+    ).toBe('グラフの試行回数範囲を計算できません。値を見直してください。')
+  })
+
+  it('NonFiniteResult / sampleTrialCounts はグラフ範囲文言', () => {
+    expect(
+      formatDomainError({ kind: 'NonFiniteResult', source: 'sampleTrialCounts' }),
+    ).toBe('グラフの試行回数範囲を計算できません。値を見直してください。')
+  })
+
   it('IterationLimitExceeded は反復上限文言', () => {
     expect(
       formatDomainError({

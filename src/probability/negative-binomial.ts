@@ -18,13 +18,14 @@
  *   超過時に `IterationLimitExceeded` を err 返却する。
  * - 戻り値の有限性も別途検証し、非有限値なら `NonFiniteResult` を err 返却する。
  */
-import { Result, ok } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { domainErr, parseInputOrErr } from './domain-error'
+import { domainErr, validateOrNonFinite } from './domain-error'
 import {
-  validConfidenceSchema,
-  validProbabilityRatioSchema,
-  validTargetCountSchema,
+  type ConfidenceRatio,
+  type ProbabilityRatio,
+  type TargetCount,
+  type TrialCount,
+  validTrialCountSchema,
 } from './probability'
 
 /**
@@ -36,66 +37,60 @@ const MAX_ITERATIONS = 1_000_000
 /**
  * 目標成功回数 targetCount を達成する累積確率が信頼度以上となる試行回数を返す。
  *
- * @param successRate - 単発成功率（0 < x < 1）
- * @param targetCount - 目標成功回数（1〜100 の整数）
- * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）
- * @returns ok(必要な試行回数) または err(InvalidInput / NonFiniteResult / IterationLimitExceeded)
+ * @param successRate - 単発成功率（検証済みブランド値、0 < x < 1）
+ * @param targetCount - 目標成功回数（検証済みブランド値、1〜100 の整数）
+ * @param confidence - 信頼度（達成確率の閾値、検証済みブランド値、0 < x < 1）
+ * @returns ok(必要な試行回数) または err(NonFiniteResult / IterationLimitExceeded)
  */
 export function calculateTrialCountForMultipleSuccess(
-  successRate: number,
-  targetCount: number,
-  confidence: number,
-): CalcResult {
-  return Result.combine([
-    parseInputOrErr(validProbabilityRatioSchema, successRate),
-    parseInputOrErr(validTargetCountSchema, targetCount),
-    parseInputOrErr(validConfidenceSchema, confidence),
-  ]).andThen(([validatedRate, validatedTarget, validatedConfidence]) => {
-    if (validatedTarget === 1) {
-      return calculateTrialCount(validatedRate, validatedConfidence)
+  successRate: ProbabilityRatio,
+  targetCount: TargetCount,
+  confidence: ConfidenceRatio,
+): CalcResult<TrialCount> {
+  if (targetCount === 1) {
+    return calculateTrialCount(successRate, confidence)
+  }
+
+  const p = successRate
+  const q = 1 - p
+  // 期待試行回数 (targetCount/p) を基準に動的上限を設定し、UI スレッドの長時間ブロッキングを予防する。
+  // 安全係数 50 は信頼度 0.99 等の極端ケースでも収束する余裕。実用域に届かない極小 p では
+  // MAX_ITERATIONS で頭打ちし、最終的に IterationLimitExceeded として収束失敗を表面化する。
+  const expectedTrials = targetCount / p
+  const dynamicLimit = Math.min(MAX_ITERATIONS, Math.max(1000, Math.ceil(expectedTrials * 50)))
+  // pmf[j] (0 ≤ j < targetCount) は P(X = j | k) を保持。
+  // pmf[targetCount] は P(X ≥ targetCount | k) のアキュムレータ。
+  // fill(0) 済みのため全要素が確実に number で、indexed access の undefined 可能性は実行時には発生しない。
+  const pmf = new Array<number>(targetCount + 1).fill(0) as number[]
+  pmf[0] = 1
+
+  for (let k = 1; k <= dynamicLimit; k++) {
+    // アキュムレータ pmf[targetCount] は前 k での値に新規流入 p·pmf[targetCount-1] を加算して更新する
+    //   （アキュムレータ自身が q を乗じる挙動は流入と相殺）。
+    // 続いて j = targetCount-1 から 1 まで降順で漸化式 pmf[j] = q·pmf[j] + p·pmf[j-1] を適用し、
+    // 最後に pmf[0] のみ q で減衰させる。降順処理により上書き前の pmf[j-1] を参照できる。
+    pmf[targetCount] = pmf[targetCount]! + p * pmf[targetCount - 1]!
+    for (let j = targetCount - 1; j >= 1; j--) {
+      pmf[j] = q * pmf[j]! + p * pmf[j - 1]!
     }
+    pmf[0] = q * pmf[0]!
 
-    const p = validatedRate
-    const q = 1 - p
-    // 期待試行回数 (targetCount/p) を基準に動的上限を設定し、UI スレッドの長時間ブロッキングを予防する。
-    // 安全係数 50 は信頼度 0.99 等の極端ケースでも収束する余裕。実用域に届かない極小 p では
-    // MAX_ITERATIONS で頭打ちし、最終的に IterationLimitExceeded として収束失敗を表面化する。
-    const expectedTrials = validatedTarget / p
-    const dynamicLimit = Math.min(MAX_ITERATIONS, Math.max(1000, Math.ceil(expectedTrials * 50)))
-    // pmf[j] (0 ≤ j < targetCount) は P(X = j | k) を保持。
-    // pmf[targetCount] は P(X ≥ targetCount | k) のアキュムレータ。
-    // fill(0) 済みのため全要素が確実に number で、indexed access の undefined 可能性は実行時には発生しない。
-    const pmf = new Array<number>(validatedTarget + 1).fill(0) as number[]
-    pmf[0] = 1
-
-    for (let k = 1; k <= dynamicLimit; k++) {
-      // アキュムレータ pmf[targetCount] は前 k での値に新規流入 p·pmf[targetCount-1] を加算して更新する
-      //   （アキュムレータ自身が q を乗じる挙動は流入と相殺）。
-      // 続いて j = targetCount-1 から 1 まで降順で漸化式 pmf[j] = q·pmf[j] + p·pmf[j-1] を適用し、
-      // 最後に pmf[0] のみ q で減衰させる。降順処理により上書き前の pmf[j-1] を参照できる。
-      pmf[validatedTarget] = pmf[validatedTarget]! + p * pmf[validatedTarget - 1]!
-      for (let j = validatedTarget - 1; j >= 1; j--) {
-        pmf[j] = q * pmf[j]! + p * pmf[j - 1]!
-      }
-      pmf[0] = q * pmf[0]!
-
-      const accumulator = pmf[validatedTarget]!
-      // NaN/Infinity を先に検出する。`accumulator >= c` の内側に置くと NaN は常に false で
-      // ループが継続し IterationLimitExceeded に誤分類されるため、ループ内冒頭で短絡する。
-      if (!Number.isFinite(accumulator)) {
-        return domainErr({
-          kind: 'NonFiniteResult',
-          source: 'calculateTrialCountForMultipleSuccess',
-        })
-      }
-      if (accumulator >= validatedConfidence) {
-        return ok(k)
-      }
+    const accumulator = pmf[targetCount]!
+    // NaN/Infinity を先に検出する。`accumulator >= c` の内側に置くと NaN は常に false で
+    // ループが継続し IterationLimitExceeded に誤分類されるため、ループ内冒頭で短絡する。
+    if (!Number.isFinite(accumulator)) {
+      return domainErr({
+        kind: 'NonFiniteResult',
+        source: 'calculateTrialCountForMultipleSuccess',
+      })
     }
+    if (accumulator >= confidence) {
+      return validateOrNonFinite(validTrialCountSchema, k, 'calculateTrialCountForMultipleSuccess')
+    }
+  }
 
-    return domainErr({
-      kind: 'IterationLimitExceeded',
-      source: 'calculateTrialCountForMultipleSuccess',
-    })
+  return domainErr({
+    kind: 'IterationLimitExceeded',
+    source: 'calculateTrialCountForMultipleSuccess',
   })
 }

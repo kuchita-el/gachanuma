@@ -478,7 +478,7 @@ describe('ForwardForm', () => {
       await user.clear(input)
       await user.type(input, '0')
       await user.tab()
-      expect(await screen.findByText('試行回数は1以上を指定してください。')).toBeInTheDocument()
+      expect(await screen.findByText('天井回数は1以上を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
       expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
     })

@@ -1,8 +1,11 @@
-import { ok, type Result } from 'neverthrow'
-import { type DomainError, domainErr, parseInputOrErr } from './domain-error'
+import { type Result } from 'neverthrow'
+import { type DomainError, domainErr, validateOrNonFinite } from './domain-error'
 import {
-  validConfidenceSchema,
-  validProbabilityRatioSchema,
+  type ConfidenceRatio,
+  type CumulativeSuccessRatio,
+  type ProbabilityRatio,
+  type TrialCount,
+  validCumulativeSuccessRatioSchema,
   validTrialCountSchema,
 } from './probability'
 
@@ -27,26 +30,22 @@ export type CalcResult<T = number> = Result<T, DomainError>
  *
  * 浮動小数点境界:
  * - p が極小（例: 1e-17）の場合、IEEE754 では `1 - p` が 1 に丸まり log(1-p)=0 となるため
- *   結果が -Infinity に発散する。validProbabilityRatioSchema は `> 0` までしか保証しないため、
+ *   結果が -Infinity に発散する。ProbabilityRatio は `> 0` までしか保証しないため、
  *   戻り値の有限性を別途検証し、`NonFiniteResult` として err 返却する。
  *
- * @param successRate - 単発成功率（0 < x < 1）
- * @param confidence - 信頼度（達成確率の閾値、0 < x < 1）
- * @returns ok(必要な試行回数、切り上げ済みの整数) または err(InvalidInput / NonFiniteResult)
+ * @param successRate - 単発成功率（検証済みブランド値、0 < x < 1）
+ * @param confidence - 信頼度（達成確率の閾値、検証済みブランド値、0 < x < 1）
+ * @returns ok(必要な試行回数、切り上げ済みの整数) または err(NonFiniteResult)
  */
 export function calculateTrialCount(
-  successRate: number,
-  confidence: number,
-): CalcResult {
-  return parseInputOrErr(validProbabilityRatioSchema, successRate).andThen(validatedRate =>
-    parseInputOrErr(validConfidenceSchema, confidence).andThen((validatedConfidence) => {
-      const result = Math.ceil(Math.log(1 - validatedConfidence) / Math.log(1 - validatedRate))
-      if (!Number.isFinite(result)) {
-        return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })
-      }
-      return ok(result)
-    }),
-  )
+  successRate: ProbabilityRatio,
+  confidence: ConfidenceRatio,
+): CalcResult<TrialCount> {
+  const result = Math.ceil(Math.log(1 - confidence) / Math.log(1 - successRate))
+  if (!Number.isFinite(result)) {
+    return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })
+  }
+  return validateOrNonFinite(validTrialCountSchema, result, 'calculateTrialCount')
 }
 
 /**
@@ -61,24 +60,24 @@ export function calculateTrialCount(
  * - p が高く n が大きい場合 ratio は 1 に飽和するが、これは「100% に十分近い」として
  *   `100.00%` 表示で許容する（err は返さない）。
  *
- * @param successRate - 単発成功率（0 < x < 1）
- * @param trialCount - 試行回数（1以上の整数）
- * @returns ok(累積成功確率、0 < r ≤ 1) または err(InvalidInput / NonFiniteResult)
+ * @param successRate - 単発成功率（検証済みブランド値、0 < x < 1）
+ * @param trialCount - 試行回数（検証済みブランド値、1以上の整数）
+ * @returns ok(累積成功確率、0 < r ≤ 1) または err(NonFiniteResult)
  */
 export function calculateCumulativeSuccessProbability(
-  successRate: number,
-  trialCount: number,
-): CalcResult {
-  return parseInputOrErr(validProbabilityRatioSchema, successRate).andThen(validatedRate =>
-    parseInputOrErr(validTrialCountSchema, trialCount).andThen((validatedCount) => {
-      const result = 1 - Math.pow(1 - validatedRate, validatedCount)
-      if (!Number.isFinite(result) || result === 0) {
-        return domainErr({
-          kind: 'NonFiniteResult',
-          source: 'calculateCumulativeSuccessProbability',
-        })
-      }
-      return ok(result)
-    }),
+  successRate: ProbabilityRatio,
+  trialCount: TrialCount,
+): CalcResult<CumulativeSuccessRatio> {
+  const result = 1 - Math.pow(1 - successRate, trialCount)
+  if (!Number.isFinite(result) || result === 0) {
+    return domainErr({
+      kind: 'NonFiniteResult',
+      source: 'calculateCumulativeSuccessProbability',
+    })
+  }
+  return validateOrNonFinite(
+    validCumulativeSuccessRatioSchema,
+    result,
+    'calculateCumulativeSuccessProbability',
   )
 }
