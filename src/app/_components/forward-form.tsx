@@ -11,6 +11,11 @@ import {
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
 import { formatDomainError } from '@/probability/domain-error'
+import {
+  validConfidenceSchema,
+  validProbabilityRatioSchema,
+  validSlipRateRatioSchema,
+} from '@/probability/probability'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -84,14 +89,14 @@ export function ForwardForm() {
 
   const onSubmit = handleSubmit((form) => {
     try {
-      const successRateRatio = percentToRatio(Number(form.successRate))
-      const confidenceRatio = percentToRatio(Number(form.confidence))
+      const successRateRatio = v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate)))
+      const confidenceRatio = v.parse(validConfidenceSchema, percentToRatio(Number(form.confidence)))
 
       const calcResult = form.pityEnabled
         ? calculateTrialCountWithPity(
           successRateRatio,
           Number(form.pityCount),
-          percentToRatio(Number(form.slipRatePercent)),
+          v.parse(validSlipRateRatioSchema, percentToRatio(Number(form.slipRatePercent))),
           confidenceRatio,
         )
         : calculateTrialCountForMultipleSuccess(

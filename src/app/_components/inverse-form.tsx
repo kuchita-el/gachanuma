@@ -7,6 +7,7 @@ import {
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { formatDomainError } from '@/probability/domain-error'
+import { validProbabilityRatioSchema } from '@/probability/probability'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -45,7 +46,7 @@ export function InverseForm() {
   const onSubmit = handleSubmit((form) => {
     try {
       const calcResult = calculateCumulativeSuccessProbability(
-        percentToRatio(Number(form.successRate)),
+        v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate))),
         Number(form.trialCount),
       )
       calcResult.match(
