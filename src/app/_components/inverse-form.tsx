@@ -6,7 +6,7 @@ import {
   trialCountInputSchema,
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { validProbabilityRatioSchema } from '@/probability/probability'
+import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/probability'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
@@ -43,7 +43,7 @@ export function InverseForm() {
     run(() =>
       calculateCumulativeSuccessProbability(
         v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate))),
-        Number(form.trialCount),
+        v.parse(validTrialCountSchema, Number(form.trialCount)),
       ).map(value => ({
         cumulativeProbabilityRatio: value,
         trialCount: Number(form.trialCount),
