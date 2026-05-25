@@ -77,6 +77,7 @@ const tProb = v.parse(validProbabilityRatioSchema, 0.5)
 const tConf = v.parse(validConfidenceSchema, 0.9)
 const tSlip = v.parse(validSlipRateRatioSchema, 0.5)
 const tTrial = v.parse(validTrialCountSchema, 10)
+const tTarget = v.parse(validTargetCountSchema, 3)
 const tPity = v.parse(validPityCountSchema, 100)
 
 // raw number を計算層引数へ渡すと代入不可
@@ -98,6 +99,8 @@ export const pityArgSwap = calculateTrialCountWithPity(tProb, tTrial, tSlip, tCo
 export const trialArgSwap = calculateCumulativeSuccessProbability(tProb, tPity)
 // @ts-expect-error TrialCount を targetCount 引数へ渡すと型エラー
 export const targetArgSwap = calculateTrialCountForMultipleSuccess(tProb, tTrial, tConf)
+// @ts-expect-error TargetCount を trialCount 引数へ渡すと型エラー（TargetCount↔TrialCount 逆方向）
+export const trialFromTargetArg = calculateCumulativeSuccessProbability(tProb, tTarget)
 
 // --- 戻り値ブランド観測（AC5）---
 

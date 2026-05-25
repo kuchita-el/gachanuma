@@ -6,9 +6,9 @@
  * - プロット点列: X 軸範囲の整数点を 200 点上限で等間隔サンプリング。先頭は必ず 1、末尾は upperBound。
  */
 import * as v from 'valibot'
-import { type Result, ok } from 'neverthrow'
+import { Result } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { type DomainError, parseInputOrErr } from './domain-error'
+import { type DomainError, parseInputOrErr, validateOrNonFinite } from './domain-error'
 import {
   type ProbabilityRatio,
   type TrialCount,
@@ -27,8 +27,12 @@ const X_AXIS_EXTRA_RATIO = 1.5
  * @returns ok(X 軸上限の整数、1 以上) または err(NonFiniteResult、calculateTrialCount 経由)
  */
 export function computeXAxisUpperBound(successRateRatio: ProbabilityRatio): CalcResult<TrialCount> {
-  return calculateTrialCount(successRateRatio, N99_CONFIDENCE).map(n99 =>
-    v.parse(validTrialCountSchema, Math.ceil(n99 * X_AXIS_EXTRA_RATIO)),
+  return calculateTrialCount(successRateRatio, N99_CONFIDENCE).andThen(n99 =>
+    validateOrNonFinite(
+      validTrialCountSchema,
+      Math.ceil(n99 * X_AXIS_EXTRA_RATIO),
+      'computeXAxisUpperBound',
+    ),
   )
 }
 
@@ -56,14 +60,18 @@ export function sampleTrialCounts(
 ): Result<TrialCount[], DomainError> {
   return parseInputOrErr(maxPointsSchema, maxPoints).andThen((mp) => {
     const ub = upperBound
+    // 各点を validateOrNonFinite でブランド化（throw せず Result へ正規化）して Result.combine で束ねる。
+    // 値は常に 1 以上 upperBound 以下の整数のため失敗は到達不能だが、計算層の throw 撲滅契約に揃える。
+    const brand = (n: number) =>
+      validateOrNonFinite(validTrialCountSchema, n, 'sampleTrialCounts')
     if (ub <= mp) {
-      return ok(Array.from({ length: ub }, (_, i) => v.parse(validTrialCountSchema, i + 1)))
+      return Result.combine(Array.from({ length: ub }, (_, i) => brand(i + 1)))
     }
     const set = new Set<number>([1, ub])
     // i=1..maxPoints-1 の等間隔点を追加
     for (let i = 1; i < mp; i++) {
       set.add(Math.round((i * (ub - 1)) / (mp - 1)) + 1)
     }
-    return ok([...set].sort((a, b) => a - b).map(n => v.parse(validTrialCountSchema, n)))
+    return Result.combine([...set].sort((a, b) => a - b).map(brand))
   })
 }

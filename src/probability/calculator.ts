@@ -1,6 +1,5 @@
-import * as v from 'valibot'
-import { ok, type Result } from 'neverthrow'
-import { type DomainError, domainErr } from './domain-error'
+import { type Result } from 'neverthrow'
+import { type DomainError, domainErr, validateOrNonFinite } from './domain-error'
 import {
   type ConfidenceRatio,
   type CumulativeSuccessRatio,
@@ -31,7 +30,7 @@ export type CalcResult<T = number> = Result<T, DomainError>
  *
  * 浮動小数点境界:
  * - p が極小（例: 1e-17）の場合、IEEE754 では `1 - p` が 1 に丸まり log(1-p)=0 となるため
- *   結果が -Infinity に発散する。validProbabilityRatioSchema は `> 0` までしか保証しないため、
+ *   結果が -Infinity に発散する。ProbabilityRatio は `> 0` までしか保証しないため、
  *   戻り値の有限性を別途検証し、`NonFiniteResult` として err 返却する。
  *
  * @param successRate - 単発成功率（検証済みブランド値、0 < x < 1）
@@ -46,7 +45,7 @@ export function calculateTrialCount(
   if (!Number.isFinite(result)) {
     return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })
   }
-  return ok(v.parse(validTrialCountSchema, result))
+  return validateOrNonFinite(validTrialCountSchema, result, 'calculateTrialCount')
 }
 
 /**
@@ -76,5 +75,9 @@ export function calculateCumulativeSuccessProbability(
       source: 'calculateCumulativeSuccessProbability',
     })
   }
-  return ok(v.parse(validCumulativeSuccessRatioSchema, result))
+  return validateOrNonFinite(
+    validCumulativeSuccessRatioSchema,
+    result,
+    'calculateCumulativeSuccessProbability',
+  )
 }

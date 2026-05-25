@@ -22,10 +22,9 @@
  *   無効化されるほどの極小 p なので NonFiniteResult を透過させる。InvalidInput や IterationLimitExceeded
  *   は救済対象外（透過）。
  */
-import * as v from 'valibot'
 import { err, ok } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { domainErr } from './domain-error'
+import { domainErr, validateOrNonFinite } from './domain-error'
 import {
   type ConfidenceRatio,
   type PityCount,
@@ -51,8 +50,9 @@ export function calculateTrialCountWithPity(
   confidence: ConfidenceRatio,
 ): CalcResult<TrialCount> {
   // 天井回数 N を「試行回数の答え」として返す際は、概念が PityCount → TrialCount へ転じるため
-  // ブランドを付け替える（数値は不変、1以上整数なので必ず妥当）。
-  const pityAsTrialCount = v.parse(validTrialCountSchema, pityCount)
+  // ブランドを付け替える（数値は不変、1以上整数なので必ず妥当）。答えが N に確定する分岐でのみ生成する。
+  const pityAsTrialCount = (): CalcResult<TrialCount> =>
+    validateOrNonFinite(validTrialCountSchema, pityCount, 'calculateTrialCountWithPity')
 
   return calculateTrialCount(successRate, confidence)
     .orElse((error) => {
@@ -61,7 +61,7 @@ export function calculateTrialCountWithPity(
       // m=0 を含む一般化として N を返す。InvalidInput は救済対象外（このパスでは発生しないが、
       // 将来の DomainError 拡張に備えて kind で明示判別）。
       if (error.kind === 'NonFiniteResult' && slipRate <= 1 - confidence) {
-        return ok(pityAsTrialCount)
+        return pityAsTrialCount()
       }
       return err(error)
     })
@@ -72,7 +72,7 @@ export function calculateTrialCountWithPity(
 
       // k ≥ N 領域: m=0 または m ≤ 1-c なら k=N で P(N) ≥ c が成立
       if (slipRate === 0 || slipRate <= 1 - confidence) {
-        return ok(pityAsTrialCount)
+        return pityAsTrialCount()
       }
 
       // m > 1-c: (1-p)^(k-1) × m ≤ 1-c より k ≥ log((1-c)/m) / log(1-p) + 1
@@ -85,6 +85,6 @@ export function calculateTrialCountWithPity(
       if (!Number.isFinite(result)) {
         return domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCountWithPity' })
       }
-      return ok(v.parse(validTrialCountSchema, result))
+      return validateOrNonFinite(validTrialCountSchema, result, 'calculateTrialCountWithPity')
     })
 }

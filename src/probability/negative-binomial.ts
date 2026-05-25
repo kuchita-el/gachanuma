@@ -18,10 +18,8 @@
  *   超過時に `IterationLimitExceeded` を err 返却する。
  * - 戻り値の有限性も別途検証し、非有限値なら `NonFiniteResult` を err 返却する。
  */
-import * as v from 'valibot'
-import { ok } from 'neverthrow'
 import { calculateTrialCount, type CalcResult } from './calculator'
-import { domainErr } from './domain-error'
+import { domainErr, validateOrNonFinite } from './domain-error'
 import {
   type ConfidenceRatio,
   type ProbabilityRatio,
@@ -87,7 +85,7 @@ export function calculateTrialCountForMultipleSuccess(
       })
     }
     if (accumulator >= confidence) {
-      return ok(v.parse(validTrialCountSchema, k))
+      return validateOrNonFinite(validTrialCountSchema, k, 'calculateTrialCountForMultipleSuccess')
     }
   }
 
