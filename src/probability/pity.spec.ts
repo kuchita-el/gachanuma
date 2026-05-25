@@ -156,6 +156,10 @@ describe('validPityCountSchema', () => {
   it('NaN を渡すと ValiError', () => {
     expect(() => v.parse(validPityCountSchema, NaN)).toThrow()
   })
+
+  it('Infinity を渡すと ValiError（整数チェックで弾かれる）', () => {
+    expect(() => v.parse(validPityCountSchema, Infinity)).toThrow()
+  })
 })
 
 describe('validSlipRateRatioSchema', () => {
@@ -173,5 +177,9 @@ describe('validSlipRateRatioSchema', () => {
 
   it('1.01 で ValiError', () => {
     expect(() => v.parse(validSlipRateRatioSchema, 1.01)).toThrow(/すり抜け率/)
+  })
+
+  it('NaN で ValiError', () => {
+    expect(() => v.parse(validSlipRateRatioSchema, NaN)).toThrow()
   })
 })
