@@ -10,11 +10,10 @@ import {
 } from './form-schemas'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
 import { calculateTrialCountWithPity } from '@/probability/pity'
-import { formatDomainError } from '@/probability/domain-error'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -33,8 +32,7 @@ import { NumberInputField } from '@/components/number-input-field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { useFormErrorMessage } from '@/lib/use-form-error-message'
-import { useThrowToErrorBoundary } from '@/lib/use-throw-to-error-boundary'
+import { useCalculation } from '@/lib/use-calculation'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -71,19 +69,19 @@ export function ForwardForm() {
 
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
 
-  const [result, setResult] = useState<{
+  const { result, error: calculationError, run } = useCalculation<{
     trialCount: number
     confidencePercent: number
     targetCount: number
     successRatePercent: number
     pity?: { pityCount: number, slipRatePercent: number }
-  }>()
-  const [calculationError, setCalculationError] = useFormErrorMessage(subscribe)
-  const throwToErrorBoundary = useThrowToErrorBoundary()
+  }>(subscribe)
   const pityEnabledId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    try {
+    // 計算呼び出しはサンク内に置く。useCalculation.run が計算呼び出しを try で包み、
+    // 想定外例外（DomainError 以外の throw）を Error Boundary に委譲するため。
+    run(() => {
       const successRateRatio = percentToRatio(Number(form.successRate))
       const confidenceRatio = percentToRatio(Number(form.confidence))
 
@@ -102,31 +100,19 @@ export function ForwardForm() {
 
       // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
       // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
-      calcResult.match(
-        (value) => {
-          setResult({
-            trialCount: value,
-            confidencePercent: Number(form.confidence),
-            targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
-            successRatePercent: Number(form.successRate),
-            pity: form.pityEnabled
-              ? {
-                pityCount: Number(form.pityCount),
-                slipRatePercent: Number(form.slipRatePercent),
-              }
-              : undefined,
-          })
-          setCalculationError(undefined)
-        },
-        (error) => {
-          setResult(undefined)
-          setCalculationError(formatDomainError(error))
-        },
-      )
-    }
-    catch (e) {
-      throwToErrorBoundary(e)
-    }
+      return calcResult.map(value => ({
+        trialCount: value,
+        confidencePercent: Number(form.confidence),
+        targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
+        successRatePercent: Number(form.successRate),
+        pity: form.pityEnabled
+          ? {
+            pityCount: Number(form.pityCount),
+            slipRatePercent: Number(form.slipRatePercent),
+          }
+          : undefined,
+      }))
+    })
   })
 
   // pityEnabled=true のときは天井計算が targetCount を無視するため、targetCount のエラーは
