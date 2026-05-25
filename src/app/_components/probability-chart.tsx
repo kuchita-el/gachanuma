@@ -10,9 +10,11 @@ import {
   YAxis,
 } from 'recharts'
 import { Result } from 'neverthrow'
+import * as v from 'valibot'
 import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
 import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
 import { formatDomainError } from '@/probability/domain-error'
+import { validProbabilityRatioSchema } from '@/probability/probability'
 import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
 const CHART_WIDTH = 600
@@ -36,7 +38,7 @@ export function ProbabilityChart({
   successRatePercent,
   confidencePercent,
 }: ProbabilityChartProps) {
-  const rate = percentToRatio(successRatePercent)
+  const rate = v.parse(validProbabilityRatioSchema, percentToRatio(successRatePercent))
 
   // upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
   // どこかで err が出れば全体を err として match の err 分岐で null フォールバックする。
