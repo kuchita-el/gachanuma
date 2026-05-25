@@ -10,6 +10,7 @@ import {
   slipRatePercentageSchema,
   targetCountInputSchema,
   trialCountInputSchema,
+  pityCountInputSchema,
   percentToRatio,
   ratioToPercent,
 } from './form-schemas'
@@ -251,6 +252,34 @@ describe('trialCountInputSchema（合成後の回帰）', () => {
 
   it('小数 1.5 は「試行回数は整数」', () => {
     expect(() => v.parse(trialCountInputSchema, 1.5)).toThrow(/試行回数は整数/)
+  })
+})
+
+// 計算層から移管した天井回数の実行時値域検証の受け皿（UI 入口スキーマの責務）。
+// 試行回数とは別概念のため「天井回数」文言で返る（UI 層 TrialCount 流用解消）。
+describe('pityCountInputSchema（合成後の回帰）', () => {
+  it('文字列 "100" を渡すと数値 100 に変換される（合成が機能）', () => {
+    expect(v.parse(pityCountInputSchema, '100')).toBe(100)
+  })
+
+  it('境界値 1 はそのまま 1 を返す', () => {
+    expect(v.parse(pityCountInputSchema, 1)).toBe(1)
+  })
+
+  it('0 は「天井回数は1以上」', () => {
+    expect(() => v.parse(pityCountInputSchema, 0)).toThrow(/天井回数は1以上/)
+  })
+
+  it('負値 -1 は「天井回数は1以上」', () => {
+    expect(() => v.parse(pityCountInputSchema, -1)).toThrow(/天井回数は1以上/)
+  })
+
+  it('小数 1.5 は「天井回数は整数」', () => {
+    expect(() => v.parse(pityCountInputSchema, 1.5)).toThrow(/天井回数は整数/)
+  })
+
+  it('非数値文字列 "abc" は「数値を指定してください。」', () => {
+    expect(() => v.parse(pityCountInputSchema, 'abc')).toThrow(/数値を指定してください/)
   })
 })
 

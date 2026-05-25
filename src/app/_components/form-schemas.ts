@@ -1,5 +1,9 @@
 import * as v from 'valibot'
-import { validTargetCountSchema, validTrialCountSchema } from '@/probability/probability'
+import {
+  validPityCountSchema,
+  validTargetCountSchema,
+  validTrialCountSchema,
+} from '@/probability/probability'
 
 /**
  * 信頼度のフォーム既定値（percent）。
@@ -114,6 +118,16 @@ export const slipRatePercentageSchema = v.pipe(
 export const trialCountInputSchema = v.pipe(
   numericInputSchema,
   validTrialCountSchema,
+)
+
+/**
+ * 天井回数のフォーム入力用スキーマ。1 以上の整数を許容。
+ * 文字列→数値（numericInputSchema）＋数値→valid（validPityCountSchema）の 2 段合成。
+ * 試行回数（trialCountInputSchema）とは別概念のため専用スキーマを持つ（方針A）。
+ */
+export const pityCountInputSchema = v.pipe(
+  numericInputSchema,
+  validPityCountSchema,
 )
 
 /**
