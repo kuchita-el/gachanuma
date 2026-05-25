@@ -76,7 +76,7 @@ export function ForwardForm() {
 
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
 
-  const { result, error: calculationError, run } = useCalculation<{
+  const calc = useCalculation<{
     trialCount: number
     confidencePercent: number
     targetCount: number
@@ -87,7 +87,7 @@ export function ForwardForm() {
 
   const onSubmit = handleSubmit((form) => {
     // 計算呼び出し（v.parse のブランド化含む）はサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
-    run(() => {
+    calc.run(() => {
       const successRateRatio = v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate)))
       const confidenceRatio = v.parse(validConfidenceSchema, percentToRatio(Number(form.confidence)))
 
@@ -263,53 +263,53 @@ export function ForwardForm() {
         </form>
       </Form>
 
-      {result !== undefined && (
+      {calc.status === 'success' && (
         <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
-            {result.trialCount}
+            {calc.result.trialCount}
             回
-            {result.targetCount >= 2 && (
+            {calc.result.targetCount >= 2 && (
               <span className="text-muted-foreground ml-2 text-base font-normal">
                 （
-                {result.targetCount}
+                {calc.result.targetCount}
                 個獲得）
               </span>
             )}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {result.confidencePercent}
+            {calc.result.confidencePercent}
             %の確率で成功するために必要な試行回数
           </p>
-          {result.pity && (
+          {calc.result.pity && (
             <p className="text-muted-foreground mt-1 text-sm">
               天井
               {' '}
-              {result.pity.pityCount}
+              {calc.result.pity.pityCount}
               {' '}
               回・すり抜け率
               {' '}
-              {result.pity.slipRatePercent}
+              {calc.result.pity.slipRatePercent}
               % 込み
             </p>
           )}
         </ResultPanel>
       )}
 
-      {result !== undefined && (
+      {calc.status === 'success' && (
         <ProbabilityChart
-          successRatePercent={result.successRatePercent}
-          confidencePercent={result.confidencePercent}
+          successRatePercent={calc.result.successRatePercent}
+          confidencePercent={calc.result.confidencePercent}
         />
       )}
 
-      {calculationError && (
+      {calc.status === 'error' && (
         <Alert
           variant="destructive"
           role="alert"
           aria-live="assertive"
           className="mt-4"
         >
-          <AlertDescription>{calculationError}</AlertDescription>
+          <AlertDescription>{calc.error}</AlertDescription>
         </Alert>
       )}
     </div>
