@@ -3,23 +3,33 @@
  * 累積成功確率が信頼度以上となる最小の試行回数を求める。
  *
  * 計算方針:
- * - X ~ Binomial(k, p) として `P(X ≥ targetCount | k) = Σ_{j=targetCount..k} C(k,j)·p^j·(1-p)^(k-j)` を
- *   評価し、最小の k で `P ≥ confidence` となる k を返す。
- * - 直接二項計算は overflow / 数値精度の問題があるため、PMF 漸化式を使ったアキュムレータ方式を採用:
- *     `P(X=j|k) = P(X=j|k-1)·(1-p) + P(X=j-1|k-1)·p`
- *   `pmf[targetCount]` を「X ≥ targetCount」の累積確率として吸収項化し、毎反復で更新する。
+ * - X ~ Binomial(k, p) として `P(X ≥ targetCount | k) = I_p(targetCount, k − targetCount + 1)`
+ *   （正則化不完全ベータ）で評価する。X ≥ r の累積確率は k に対し単調非減少であり、
+ *   `[targetCount, dynamicLimit]` を **二分探索**して最小の k を求める。
+ * - 各 k の確率評価は `betai`（連続分数展開、`./incomplete-beta`）が k 規模に依存せず
+ *   数十反復で収束するため、全体計算量は O(log dynamicLimit × βcf反復) で、実測上
+ *   µs オーダーで返る（旧 PMF 漸化式の最悪 O(dynamicLimit × targetCount) を解消）。
+ *
+ * exact-threshold 許容誤差（Issue #58）:
+ * - 二項確率がちょうど信頼度に等しい dyadic 入力（例: p=0.5, target=2, c=0.5 → P=0.5 厳密）で、
+ *   不完全ベータの数値計算が信頼度を sub-ULP 単位で下回ることがあり、その場合に二分探索が
+ *   +1 過剰な k を返してしまう。`EPS_THRESHOLD = 1e-12` を比較に乗せ（`P + ε ≥ c`）、
+ *   数学的に正しい最小 k を返すよう吸収する。`betai` 自身の精度（~1e-14）に対し ε は十分大きく、
+ *   かつ実用域で隣接 k 間の確率差 (>> 1e-12) を割り込まないため逆方向のずれは生じない。
  *
  * 早期 short-circuit:
- * - `targetCount === 1` の場合は `calculateTrialCount(rate, confidence)` を直接呼び、既存 API と
- *   完全に同一値を返す（受け入れ条件「targetCount=1 で `calculateTrialCount` と同一値」の保証）。
+ * - `targetCount === 1` の場合は `calculateTrialCount(rate, confidence)` を直接呼び、
+ *   既存 API と完全に同一値を返す。
  *
- * 浮動小数点境界・無限ループ防御:
- * - `targetCount >= 2` で `p` が極小だと `pmf[0]` が減少せず累積が進まないため、`MAX_ITERATIONS`
- *   超過時に `IterationLimitExceeded` を err 返却する。
- * - 戻り値の有限性も別途検証し、非有限値なら `NonFiniteResult` を err 返却する。
+ * 反復上限・収束不能判定:
+ * - `dynamicLimit = min(MAX_ITERATIONS, max(1000, ceil(targetCount/p × 50)))` を二分探索の
+ *   上限（＝収束不能判定の閾値）として使う。`P(dynamicLimit) + ε < c` の場合は実用域を
+ *   超える解として `IterationLimitExceeded` を err 返却する。
+ * - 戻り値の有限性は `validateOrNonFinite` で防御する。
  */
 import { calculateTrialCount, type CalcResult } from './calculator'
 import { domainErr, validateOrNonFinite } from './domain-error'
+import { betai } from './incomplete-beta'
 import {
   type ConfidenceRatio,
   type ProbabilityRatio,
@@ -29,10 +39,24 @@ import {
 } from './probability'
 
 /**
- * 累積成功確率が信頼度以上となるまでの反復上限。実用域（p ≥ 0.001、targetCount ≤ 100、c ≤ 0.99）を
- * 2 桁以上の余裕で覆える値として 1_000_000 を採用。これを超える場合は計算不能とみなす。
+ * 反復上限（二分探索の上限算出時のハードキャップ）。実用域（p ≥ 0.001、targetCount ≤ 100、
+ * c ≤ 0.99）を 2 桁以上の余裕で覆える値として 1_000_000 を採用。
  */
 const MAX_ITERATIONS = 1_000_000
+
+/**
+ * exact-threshold（二項確率がちょうど信頼度に等しい dyadic 入力）での sub-ULP undershoot を
+ * 吸収する許容誤差。`betai` 精度（~1e-14）より十分大きく、実用域の隣接 k 間の確率差
+ * （>> 1e-12）を割り込まない値として 1e-12 を採用。
+ */
+const EPS_THRESHOLD = 1e-12
+
+/**
+ * P(X ≥ targetCount | k) を不完全ベータで評価する。X ~ Binomial(k, p)。
+ */
+function cumProb(p: number, targetCount: number, k: number): number {
+  return betai(targetCount, k - targetCount + 1, p)
+}
 
 /**
  * 目標成功回数 targetCount を達成する累積確率が信頼度以上となる試行回数を返す。
@@ -52,45 +76,36 @@ export function calculateTrialCountForMultipleSuccess(
   }
 
   const p = successRate
-  const q = 1 - p
-  // 期待試行回数 (targetCount/p) を基準に動的上限を設定し、UI スレッドの長時間ブロッキングを予防する。
-  // 安全係数 50 は信頼度 0.99 等の極端ケースでも収束する余裕。実用域に届かない極小 p では
-  // MAX_ITERATIONS で頭打ちし、最終的に IterationLimitExceeded として収束失敗を表面化する。
-  const expectedTrials = targetCount / p
+  const target = targetCount
+  const c = confidence
+
+  // dynamicLimit は二分探索の上限（≒収束不能判定の閾値）。期待試行回数 (target/p) の 50 倍を基準に、
+  // 下限 1000 で実用域の最小ケースを確実に覆い、MAX_ITERATIONS でハードキャップする。
+  const expectedTrials = target / p
   const dynamicLimit = Math.min(MAX_ITERATIONS, Math.max(1000, Math.ceil(expectedTrials * 50)))
-  // pmf[j] (0 ≤ j < targetCount) は P(X = j | k) を保持。
-  // pmf[targetCount] は P(X ≥ targetCount | k) のアキュムレータ。
-  // fill(0) 済みのため全要素が確実に number で、indexed access の undefined 可能性は実行時には発生しない。
-  const pmf = new Array<number>(targetCount + 1).fill(0) as number[]
-  pmf[0] = 1
 
-  for (let k = 1; k <= dynamicLimit; k++) {
-    // アキュムレータ pmf[targetCount] は前 k での値に新規流入 p·pmf[targetCount-1] を加算して更新する
-    //   （アキュムレータ自身が q を乗じる挙動は流入と相殺）。
-    // 続いて j = targetCount-1 から 1 まで降順で漸化式 pmf[j] = q·pmf[j] + p·pmf[j-1] を適用し、
-    // 最後に pmf[0] のみ q で減衰させる。降順処理により上書き前の pmf[j-1] を参照できる。
-    pmf[targetCount] = pmf[targetCount]! + p * pmf[targetCount - 1]!
-    for (let j = targetCount - 1; j >= 1; j--) {
-      pmf[j] = q * pmf[j]! + p * pmf[j - 1]!
-    }
-    pmf[0] = q * pmf[0]!
+  // 上限到達でも収束不能なら IterationLimitExceeded を返す。
+  if (cumProb(p, target, dynamicLimit) + EPS_THRESHOLD < c) {
+    return domainErr({
+      kind: 'IterationLimitExceeded',
+      source: 'calculateTrialCountForMultipleSuccess',
+    })
+  }
 
-    const accumulator = pmf[targetCount]!
-    // NaN/Infinity を先に検出する。`accumulator >= c` の内側に置くと NaN は常に false で
-    // ループが継続し IterationLimitExceeded に誤分類されるため、ループ内冒頭で短絡する。
-    if (!Number.isFinite(accumulator)) {
-      return domainErr({
-        kind: 'NonFiniteResult',
-        source: 'calculateTrialCountForMultipleSuccess',
-      })
+  // [target, dynamicLimit] を二分探索: smallest k with `cumProb(k) + ε ≥ c`。
+  // `lo` は ブランド型 `TargetCount` から推論されると `mid + 1` 代入で型不整合になるため
+  // `number` に明示して widening する（探索インデックスはドメイン概念ではなく単なる整数）。
+  let lo: number = target
+  let hi: number = dynamicLimit
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (cumProb(p, target, mid) + EPS_THRESHOLD >= c) {
+      hi = mid
     }
-    if (accumulator >= confidence) {
-      return validateOrNonFinite(validTrialCountSchema, k, 'calculateTrialCountForMultipleSuccess')
+    else {
+      lo = mid + 1
     }
   }
 
-  return domainErr({
-    kind: 'IterationLimitExceeded',
-    source: 'calculateTrialCountForMultipleSuccess',
-  })
+  return validateOrNonFinite(validTrialCountSchema, lo, 'calculateTrialCountForMultipleSuccess')
 }
