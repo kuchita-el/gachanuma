@@ -52,13 +52,6 @@ const MAX_ITERATIONS = 1_000_000
 const EPS_THRESHOLD = 1e-12
 
 /**
- * P(X ≥ targetCount | k) を不完全ベータで評価する。X ~ Binomial(k, p)。
- */
-function cumProb(p: number, targetCount: number, k: number): number {
-  return betai(targetCount, k - targetCount + 1, p)
-}
-
-/**
  * 目標成功回数 targetCount を達成する累積確率が信頼度以上となる試行回数を返す。
  *
  * @param successRate - 単発成功率（検証済みブランド値、0 < x < 1）
@@ -84,22 +77,27 @@ export function calculateTrialCountForMultipleSuccess(
   const expectedTrials = target / p
   const dynamicLimit = Math.min(MAX_ITERATIONS, Math.max(1000, Math.ceil(expectedTrials * 50)))
 
+  // 二分探索の述語: P(X ≥ target | k) が信頼度（exact-threshold 許容 ε 込み）を満たすか。
+  // X ~ Binomial(k, p) で `P(X ≥ target) = I_p(target, k − target + 1)`。
+  const meetsThreshold = (k: number): boolean =>
+    betai(target, k - target + 1, p) + EPS_THRESHOLD >= c
+
   // 上限到達でも収束不能なら IterationLimitExceeded を返す。
-  if (cumProb(p, target, dynamicLimit) + EPS_THRESHOLD < c) {
+  if (!meetsThreshold(dynamicLimit)) {
     return domainErr({
       kind: 'IterationLimitExceeded',
       source: 'calculateTrialCountForMultipleSuccess',
     })
   }
 
-  // [target, dynamicLimit] を二分探索: smallest k with `cumProb(k) + ε ≥ c`。
+  // [target, dynamicLimit] を二分探索: smallest k with meetsThreshold(k)。
   // `lo` は ブランド型 `TargetCount` から推論されると `mid + 1` 代入で型不整合になるため
   // `number` に明示して widening する（探索インデックスはドメイン概念ではなく単なる整数）。
   let lo: number = target
   let hi: number = dynamicLimit
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2)
-    if (cumProb(p, target, mid) + EPS_THRESHOLD >= c) {
+    if (meetsThreshold(mid)) {
       hi = mid
     }
     else {
