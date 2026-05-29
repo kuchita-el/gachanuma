@@ -81,6 +81,135 @@ describe('calculateTrialCountForMultipleSuccess', () => {
       expect(result._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
     })
   })
+
+  // exact-threshold（P(X≥target|k) = c ちょうど）で数学的に正しい最小 k を返す（AC2）。
+  // 二分探索の述語比較に EPS_THRESHOLD=1e-12 を乗せて不完全ベータの sub-ULP undershoot を吸収する経路の回帰。
+  // spike で確認された不一致 4 件（p=0.5, c=0.5, target ∈ {2, 5, 10, 25}）を全て回帰として固定。
+  describe('exact-threshold（dyadic、p=0.5, c=0.5）', () => {
+    it('NB11a: target=2 → k=3（P(X≥2|3,0.5) = 4/8 = 0.5 厳密）', () => {
+      expect(calculateTrialCountForMultipleSuccess(prob(0.5), target(2), conf(0.5))._unsafeUnwrap()).toBe(3)
+    })
+
+    it('NB9a: target=5 → k=9（P(X≥5|9,0.5) = 256/512 = 0.5 厳密）', () => {
+      expect(calculateTrialCountForMultipleSuccess(prob(0.5), target(5), conf(0.5))._unsafeUnwrap()).toBe(9)
+    })
+
+    it('NB11b: target=10 → k=19（Bin(19,0.5) の対称性で P(X≥10) = 0.5 厳密）', () => {
+      expect(calculateTrialCountForMultipleSuccess(prob(0.5), target(10), conf(0.5))._unsafeUnwrap()).toBe(19)
+    })
+
+    it('NB9b: target=25 → k=49（Bin(49,0.5) の対称性で P(X≥25) = 0.5 厳密）', () => {
+      expect(calculateTrialCountForMultipleSuccess(prob(0.5), target(25), conf(0.5))._unsafeUnwrap()).toBe(49)
+    })
+  })
+
+  // NB10: targetCount=1 委譲の追加代表値（既存 NB1 5 件と非重複の p∈{0.001, 0.05, 0.5}）。AC3。
+  describe('targetCount=1 委譲拡張（NB1 と非重複代表値）', () => {
+    const cases: Array<[number, number]> = [
+      [0.001, 0.9],
+      [0.001, 0.99],
+      [0.05, 0.95],
+      [0.5, 0.5],
+    ]
+    for (const [p, c] of cases) {
+      it(`p=${p}, c=${c}: calculateTrialCount と完全同値`, () => {
+        const multi = calculateTrialCountForMultipleSuccess(prob(p), target(1), conf(c))._unsafeUnwrap()
+        const single = calculateTrialCount(prob(p), conf(c))._unsafeUnwrap()
+        expect(multi).toBe(single)
+      })
+    }
+  })
+
+  // NB12/NB13: 極小 p で IterationLimitExceeded を返す回帰（AC4）。
+  describe('反復上限超過（追加異常系）', () => {
+    it('NB12a: p=1e-17, target=2, c=0.99 → IterationLimitExceeded', () => {
+      const r = calculateTrialCountForMultipleSuccess(prob(1e-17), target(2), conf(0.99))
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+    })
+
+    it('NB12b: p=1e-17, target=100, c=0.9 → IterationLimitExceeded', () => {
+      const r = calculateTrialCountForMultipleSuccess(prob(1e-17), target(100), conf(0.9))
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+    })
+
+    it('NB13: p=1e-15, target=50, c=0.99 → IterationLimitExceeded（極限近傍）', () => {
+      const r = calculateTrialCountForMultipleSuccess(prob(1e-15), target(50), conf(0.99))
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+    })
+  })
+
+  // NB16: dynamicLimit 上下バンド検証。上=収束不能で err、下=実用域で ok（AC4）。
+  describe('dynamicLimit 上下バンド', () => {
+    it('NB16_upper: p=1e-12, target=100, c=0.99 は dynamicLimit を超え IterationLimitExceeded', () => {
+      const r = calculateTrialCountForMultipleSuccess(prob(1e-12), target(100), conf(0.99))
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+    })
+
+    it('NB16_lower: p=0.001, target=10, c=0.99 は dynamicLimit (= ceil(target/p × 50)) の十分内側で ok を返す', () => {
+      const r = calculateTrialCountForMultipleSuccess(prob(0.001), target(10), conf(0.99))
+      expect(r.isOk()).toBe(true)
+    })
+  })
+
+  // NB14/NB15: 性能 budget。AC1「メインスレッドをブロックしない」の定量保証。
+  // budget 値の根拠（NB17 注記相当）: 50ms は React 1 frame (16.7ms) の 3 倍。spike 実測の
+  // 最悪 0.02ms に対し 2500 倍のマージン。CI jitter を考慮して 16ms ではなく 50ms を採用。
+  describe('性能 budget（AC1）', () => {
+    it('NB14: 最悪入力 (p=1e-5, target=100, c=0.99) が 50ms 以下で完了', () => {
+      // ウォームアップ（JIT/キャッシュの揺らぎを排除）
+      calculateTrialCountForMultipleSuccess(prob(1e-5), target(100), conf(0.99))
+      const t0 = performance.now()
+      const r = calculateTrialCountForMultipleSuccess(prob(1e-5), target(100), conf(0.99))
+      const elapsed = performance.now() - t0
+      // この入力は dynamicLimit が MAX_ITERATIONS にクランプされ、その k でも P ≪ c のため必ず
+      // IterationLimitExceeded（meetsThreshold(dynamicLimit) 即時棄却）を通る。計測対象は性能のみ。
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+      expect(elapsed).toBeLessThan(50)
+    })
+
+    it('NB15: 重い実用入力 (p=0.001, target=10, c=0.99) が 10ms 以下で完了', () => {
+      calculateTrialCountForMultipleSuccess(prob(0.001), target(10), conf(0.99))
+      const t0 = performance.now()
+      const r = calculateTrialCountForMultipleSuccess(prob(0.001), target(10), conf(0.99))
+      const elapsed = performance.now() - t0
+      expect(r.isOk()).toBe(true)
+      expect(elapsed).toBeLessThan(10)
+    })
+  })
+
+  // NB6: 数値一致グリッド (p × target × c = 4 × 5 × 3 = 60 ケース)。AC2「既存値一致」を網羅的に検証。
+  // 期待値は本実装で算出した fixture（spike で旧実装と 100% 一致を確認した p ≤ 0.1 帯のみ採用、
+  // exact-threshold dyadic は別 describe で扱う）。
+  describe('数値一致グリッド（NB6, p×target×c 60 ケース）', () => {
+    type GridCase = [number, number, number, number]
+    const grid: GridCase[] = [
+      [0.1, 2, 0.9, 38], [0.1, 2, 0.95, 46], [0.1, 2, 0.99, 64],
+      [0.1, 5, 0.9, 78], [0.1, 5, 0.95, 89], [0.1, 5, 0.99, 113],
+      [0.1, 10, 0.9, 140], [0.1, 10, 0.95, 154], [0.1, 10, 0.99, 183],
+      [0.1, 50, 0.9, 588], [0.1, 50, 0.95, 615], [0.1, 50, 0.99, 670],
+      [0.1, 100, 0.9, 1123], [0.1, 100, 0.95, 1161], [0.1, 100, 0.99, 1235],
+      [0.05, 2, 0.9, 77], [0.05, 2, 0.95, 93], [0.05, 2, 0.99, 130],
+      [0.05, 5, 0.9, 158], [0.05, 5, 0.95, 181], [0.05, 5, 0.99, 229],
+      [0.05, 10, 0.9, 282], [0.05, 10, 0.95, 311], [0.05, 10, 0.99, 371],
+      [0.05, 50, 0.9, 1180], [0.05, 50, 0.95, 1237], [0.05, 50, 0.99, 1349],
+      [0.05, 100, 0.9, 2254], [0.05, 100, 0.95, 2331], [0.05, 100, 0.99, 2482],
+      [0.01, 2, 0.9, 388], [0.01, 2, 0.95, 473], [0.01, 2, 0.99, 662],
+      [0.01, 5, 0.9, 798], [0.01, 5, 0.95, 913], [0.01, 5, 0.99, 1157],
+      [0.01, 10, 0.9, 1418], [0.01, 10, 0.95, 1568], [0.01, 10, 0.99, 1874],
+      [0.01, 50, 0.9, 5920], [0.01, 50, 0.95, 6211], [0.01, 50, 0.99, 6781],
+      [0.01, 100, 0.9, 11295], [0.01, 100, 0.95, 11691], [0.01, 100, 0.99, 12460],
+      [0.001, 2, 0.9, 3889], [0.001, 2, 0.95, 4742], [0.001, 2, 0.99, 6636],
+      [0.001, 5, 0.9, 7992], [0.001, 5, 0.95, 9151], [0.001, 5, 0.99, 11601],
+      [0.001, 10, 0.9, 14204], [0.001, 10, 0.95, 15702], [0.001, 10, 0.99, 18779],
+      [0.001, 50, 0.9, 59244], [0.001, 50, 0.95, 62165], [0.001, 50, 0.99, 67894],
+      [0.001, 100, 0.9, 113004], [0.001, 100, 0.95, 116989], [0.001, 100, 0.99, 124710],
+    ]
+    for (const [p, t, c, expected] of grid) {
+      it(`p=${p}, target=${t}, c=${c} → ${expected}`, () => {
+        expect(calculateTrialCountForMultipleSuccess(prob(p), target(t), conf(c))._unsafeUnwrap()).toBe(expected)
+      })
+    }
+  })
 })
 
 describe('validTargetCountSchema', () => {
