@@ -145,7 +145,7 @@ describe('calculateTrialCountForMultipleSuccess', () => {
       expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
     })
 
-    it('NB16_lower: p=0.001, target=10, c=0.99 は dynamicLimit (=500000) の十分内側で ok を返す', () => {
+    it('NB16_lower: p=0.001, target=10, c=0.99 は dynamicLimit (= ceil(target/p × 50)) の十分内側で ok を返す', () => {
       const r = calculateTrialCountForMultipleSuccess(prob(0.001), target(10), conf(0.99))
       expect(r.isOk()).toBe(true)
     })
@@ -161,8 +161,9 @@ describe('calculateTrialCountForMultipleSuccess', () => {
       const t0 = performance.now()
       const r = calculateTrialCountForMultipleSuccess(prob(1e-5), target(100), conf(0.99))
       const elapsed = performance.now() - t0
-      // ok / err は問わず（dynamicLimit 内で収束しなければ IterationLimitExceeded だがそれも許容）
-      expect(r.isOk() || r._unsafeUnwrapErr().kind === 'IterationLimitExceeded').toBe(true)
+      // この入力は dynamicLimit が MAX_ITERATIONS にクランプされ、その k でも P ≪ c のため必ず
+      // IterationLimitExceeded（meetsThreshold(dynamicLimit) 即時棄却）を通る。計測対象は性能のみ。
+      expect(r._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
       expect(elapsed).toBeLessThan(50)
     })
 

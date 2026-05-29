@@ -3,13 +3,20 @@
  *
  * 二項分布 CDF との恒等式 `P(X ≥ k | n, p) = I_p(k, n − k + 1)`（X ~ Binomial(n, p)）を介して
  * `calculateTrialCountForMultipleSuccess` の二分探索における各 k の確率評価に使われる。
- * 実装は Numerical Recipes §6.4 の連続分数展開（Lentz 法）で、x の値域に応じて収束領域を
- * 切り替え、`gammln`（対数ガンマ）でオーバーフローを回避する。
  *
- * `gammln` は Lanczos g=7・係数 9 項の高精度版。NR2 の 6 項版は exact-threshold
- * （`I_0.5(a,a)=0.5`）での誤差が a=10 で 4e-12、a=100 で 3e-11 に達し、本モジュールの
- * 呼び出し側が採用する ε=1e-12 の閾値許容誤差を超える。9 項版は a=100 でも誤差 ~1e-13 で
- * 余裕を持って吸収できる。
+ * アルゴリズム構成（出典別）:
+ * - 連続分数展開 `betacf` は Numerical Recipes 2nd ed. §6.4（Lentz 法）。`betai` が x の値域に
+ *   応じて収束の速い側の連続分数を選んで呼ぶ。
+ * - 対数ガンマ `gammln` は Lanczos 近似（g=7・係数 9 項、GSL 等で使われる係数列）。
+ *   NR2 §6.1 掲載の `gammln`（6 項 series ＋ `tmp = x + 5.5`）とは別系統で、係数も異なる。
+ *
+ * `gammln` に 9 項 Lanczos を採用する理由（exact-threshold での精度要件）:
+ * - 呼び出し側は二項確率がちょうど信頼度に等しい dyadic 入力での sub-ULP undershoot を
+ *   `EPS_THRESHOLD = 1e-12` で吸収する。この吸収が成立するには `betai` 全体の数値誤差が
+ *   1e-12 を十分下回る必要がある。
+ * - 基準 `I_0.5(a, a) = 0.5`（厳密値）での実測誤差は、9 項版が a=10 で 5e-15・a=100 で 7e-14。
+ *   NR2 の 6 項版では a=10 で 4.6e-12・a=100 で 3.4e-11 に達し、a が大きいほど 1e-12 を超えて
+ *   undershoot 吸収マージンを侵す。9 項版はこれを 1 桁以上の余裕で下回る。
  */
 
 const MAXIT = 300
@@ -31,6 +38,14 @@ function gammln(z: number): number {
   return 0.5 * Math.log(2 * Math.PI) + (zm + 0.5) * Math.log(t) - t + Math.log(x)
 }
 
+/**
+ * 連続分数展開による B(a, b, x) の評価（NR2 §6.4、Lentz 法）。
+ *
+ * 収束保証: `betai` の分岐ガード `x < (a+1)/(a+b+2)` により常に収束の速い側で呼ばれる。
+ * 本モジュールの入力域（a = targetCount ≤ 100、b = k − targetCount + 1、x = p）では最悪 28 反復、
+ * 汎用 export として極端な a=b=1000 でも 56 反復で収束し、`MAXIT = 300` に到達する経路は存在しない。
+ * MAXIT 到達時は収束フラグを持たず最後の `h` を返す（NR2 原典の nrerror は省略）が、上記より到達不能。
+ */
 function betacf(a: number, b: number, x: number): number {
   const qab = a + b
   const qap = a + 1
@@ -72,6 +87,13 @@ function betacf(a: number, b: number, x: number): number {
  * - 対称恒等式 I_x(a, b) + I_{1-x}(b, a) = 1
  *
  * 二項 CDF との同等性: `P(Bin(n, p) ≥ k) = I_p(k, n − k + 1)`。
+ *
+ * 不変条件（呼び出し側の非有限検査省略の根拠）:
+ * - a > 0・b > 0・0 ≤ x ≤ 1 の入力域で常に有限値を返す。`x ≤ 0 → 0` / `x ≥ 1 → 1` の早期 return が
+ *   `Math.log(x)` / `Math.log(1 − x)` の -Infinity 入力を遮断し、`gammln` は対数領域で計算するため
+ *   オーバーフローしない。`calculateTrialCountForMultipleSuccess` の二分探索述語はこの不変条件に依拠して
+ *   毎反復の `Number.isFinite` 検査を省いている。この早期 return を将来変更する場合は、呼び出し側の
+ *   非有限検査の要否を再評価すること。
  *
  * @param a - 第一形状パラメタ（> 0）
  * @param b - 第二形状パラメタ（> 0）
