@@ -284,7 +284,7 @@ describe('useCalculation', () => {
       expect(result.current.status).toBe('error')
       if (result.current.status === 'error') {
         expect(result.current.error).toBe(
-          '反復上限を超えても累積確率が信頼度に達しませんでした。値を見直してください。',
+          '反復上限を超えても累積確率が信頼度に達しませんでした。成功率が極端に小さい可能性があります。値を見直してください。',
         )
       }
     })

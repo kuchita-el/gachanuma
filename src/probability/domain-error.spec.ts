@@ -62,7 +62,7 @@ describe('formatDomainError', () => {
         kind: 'IterationLimitExceeded',
         source: 'calculateTrialCountForMultipleSuccess',
       }),
-    ).toBe('反復上限を超えても累積確率が信頼度に達しませんでした。値を見直してください。')
+    ).toBe('反復上限を超えても累積確率が信頼度に達しませんでした。成功率が極端に小さい可能性があります。値を見直してください。')
   })
 })
 
