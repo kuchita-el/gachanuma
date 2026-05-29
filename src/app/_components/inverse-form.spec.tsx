@@ -3,12 +3,12 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { InverseForm } from './inverse-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
-import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
+import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
 
-vi.mock('@/probability/calculator', async (importOriginal) => {
+vi.mock('@/probability/cumulative-probability', async (importOriginal) => {
   const actual
-    = await importOriginal<typeof import('@/probability/calculator')>()
+    = await importOriginal<typeof import('@/probability/cumulative-probability')>()
   return {
     ...actual,
     calculateCumulativeSuccessProbability: vi.fn(

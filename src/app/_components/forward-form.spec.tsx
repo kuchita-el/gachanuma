@@ -3,13 +3,13 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './forward-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
-import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { calculateTrialCountWithPity } from '@/probability/pity'
+import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
+import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
 
-vi.mock('@/probability/negative-binomial', async (importOriginal) => {
+vi.mock('@/probability/required-trials', async (importOriginal) => {
   const actual
-    = await importOriginal<typeof import('@/probability/negative-binomial')>()
+    = await importOriginal<typeof import('@/probability/required-trials')>()
   return {
     ...actual,
     calculateTrialCountForMultipleSuccess: vi.fn(
@@ -18,8 +18,8 @@ vi.mock('@/probability/negative-binomial', async (importOriginal) => {
   }
 })
 
-vi.mock('@/probability/pity', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/probability/pity')>()
+vi.mock('@/probability/required-trials-with-pity', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/probability/required-trials-with-pity')>()
   return {
     ...actual,
     calculateTrialCountWithPity: vi.fn(actual.calculateTrialCountWithPity),

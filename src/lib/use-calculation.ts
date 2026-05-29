@@ -2,8 +2,9 @@
 
 import { useCallback, useState } from 'react'
 import type { FieldValues, UseFormSubscribe } from 'react-hook-form'
-import type { CalcResult } from '@/probability/calculator'
-import { formatDomainError } from '@/probability/domain-error'
+import type { Result } from 'neverthrow'
+import type { DomainError } from '@/probability/domain-error'
+import { formatDomainError } from '@/lib/format-domain-error'
 import { useFormValueChange } from './use-form-error-message'
 import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
 
@@ -38,7 +39,7 @@ export type CalculationState<TResult>
  * `success` / `idle` は no-op（成功結果は次の計算実行まで表示継続）。`setState` の更新関数は
  * 非 error 時に同一参照を返すため不要な再レンダを起こさない。
  *
- * `run` は計算実行サンク（`() => CalcResult<TResult>`）を毎回受け取る方式。
+ * `run` は計算実行サンク（`() => Result<TResult, DomainError>`）を毎回受け取る方式。
  * 計算関数の呼び出しは呼び出し側（form）に残るため、form 単体 spec の
  * モジュールモック（`vi.mock` + `vi.fn`）がそのまま機能する。`number → 表示用
  * オブジェクト` の整形が必要な場合はサンクの戻り Result を `.map` して渡す。
@@ -59,7 +60,7 @@ export type CalculationState<TResult>
  * if (calc.status === 'success') { ... calc.result ... }
  */
 export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
-  run: (calc: () => CalcResult<TResult>) => void
+  run: (calc: () => Result<TResult, DomainError>) => void
 }
 
 export function useCalculation<
@@ -76,8 +77,8 @@ export function useCalculation<
   }, [])
   useFormValueChange(subscribe, handleFormValueChange)
 
-  const run = (calc: () => CalcResult<TResult>): void => {
-    let calcResult: CalcResult<TResult>
+  const run = (calc: () => Result<TResult, DomainError>): void => {
+    let calcResult: Result<TResult, DomainError>
     try {
       calcResult = calc()
     }
