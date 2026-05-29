@@ -4,8 +4,8 @@ import {
   computeXAxisUpperBound,
   sampleTrialCounts,
 } from './chart-range'
-import { formatDomainError } from './domain-error'
-import { validProbabilityRatioSchema, validTrialCountSchema } from './probability'
+import { formatDomainError } from '@/lib/format-domain-error'
+import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/value-types'
 
 // 計算層は検証済みブランド値を受領する。spec では生数値を v.parse でブランド化して渡す。
 const prob = (r: number) => v.parse(validProbabilityRatioSchema, r)

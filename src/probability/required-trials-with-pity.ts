@@ -22,9 +22,9 @@
  *   無効化されるほどの極小 p なので NonFiniteResult を透過させる。InvalidInput や IterationLimitExceeded
  *   は救済対象外（透過）。
  */
-import { err, ok } from 'neverthrow'
-import { calculateTrialCount, type CalcResult } from './calculator'
-import { domainErr, validateOrNonFinite } from './domain-error'
+import { err, ok, type Result } from 'neverthrow'
+import { calculateTrialCount } from './required-trials'
+import { type DomainError, domainErr, validateOrNonFinite } from './domain-error'
 import {
   type ConfidenceRatio,
   type PityCount,
@@ -32,7 +32,7 @@ import {
   type SlipRateRatio,
   type TrialCount,
   validTrialCountSchema,
-} from './probability'
+} from './value-types'
 
 /**
  * 天井込みでの累積成功確率が信頼度以上となる最小の試行回数を返す。
@@ -48,10 +48,10 @@ export function calculateTrialCountWithPity(
   pityCount: PityCount,
   slipRate: SlipRateRatio,
   confidence: ConfidenceRatio,
-): CalcResult<TrialCount> {
+): Result<TrialCount, DomainError> {
   // 天井回数 N を「試行回数の答え」として返す際は、概念が PityCount → TrialCount へ転じるため
   // ブランドを付け替える（数値は不変、1以上整数なので必ず妥当）。答えが N に確定する分岐でのみ生成する。
-  const pityAsTrialCount = (): CalcResult<TrialCount> =>
+  const pityAsTrialCount = (): Result<TrialCount, DomainError> =>
     validateOrNonFinite(validTrialCountSchema, pityCount, 'calculateTrialCountWithPity')
 
   return calculateTrialCount(successRate, confidence)
