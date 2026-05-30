@@ -61,7 +61,10 @@ export const probabilityPercentageSchema = v.pipe(
  */
 export const confidencePercentageSchema = v.pipe(
   // 数値性は string→decimal / number の union で担保し、非数値・空文字は単一の
-  // 「数値を指定してください。」を返す。文字列分岐末尾の恒等 transform（string→string）は
+  // 「数値を指定してください。」を返す。この union は numericInputSchema と同一の数値受理仕様を
+  // 意図的に複製したもの（整数チェックを挟むため numericInputSchema をそのまま使えない）。
+  // numericInputSchema 側の数値受理仕様（v.decimal）を変更する際は本スキーマも追従させること。
+  // 文字列分岐末尾の恒等 transform（string→string）は
   // 2 つの役割を持つ:
   //   1. valibot union が分岐内ステップ（v.decimal）の既定メッセージではなく union メッセージを
   //      採用する条件を満たす（transform を持たないと "Invalid decimal" が漏れる）。
