@@ -1,7 +1,7 @@
 /**
  * 累積成功確率が信頼度以上となるために必要な試行回数を求めるユースケース。
  *
- * 数学的背景は負の二項分布（k 回試行のうち目的事象が targetCount 個以上発生する確率）。
+ * 数学的背景は負の二項分布相当（k 回試行のうち目的事象が targetCount 個以上発生する確率）。
  * X ~ Binomial(k, p) として `P(X ≥ targetCount | k) = I_p(targetCount, k − targetCount + 1)`
  * （正則化不完全ベータ）で評価する。
  *
