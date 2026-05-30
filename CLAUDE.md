@@ -71,20 +71,22 @@ This project uses Dev Containers for development. Open the repository in VS Code
 
 ## UI 検証ツール
 
-devcontainer には [Playwright MCP](https://github.com/microsoft/playwright-mcp) サーバ（`@playwright/mcp@0.0.75`）が `.mcp.json` で定義済みであり、Claude Code から直接ブラウザ操作で UI を検証できる。`npm run dev` で開発サーバを起動した状態で、以下のような MCP ツールを使用可能。
+devcontainer では [Playwright MCP](https://github.com/microsoft/playwright-mcp) を公式マーケットプレイスのプラグイン（`playwright@claude-plugins-official`）として導入しており、`.claude/settings.json` の `enabledPlugins` で有効化される。Claude Code から直接ブラウザ操作で UI を検証できる。`npm run dev` で開発サーバを起動した状態で、以下のような MCP ツールを使用可能。
 
 - `browser_navigate` で `http://localhost:3000` 等の URL を開く
 - `browser_snapshot` で現在ページのアクセシビリティスナップショットを取得
 - `browser_click` / `browser_type` で要素操作
 - `browser_take_screenshot` でスクリーンショット取得
 
-起動コマンド（参考、通常は Claude Code が自動起動するため手動実行不要）:
+devcontainer は GUI を持たないため headless 起動が必須。プラグイン版は起動引数を取らないため、`.claude/settings.json` の `env` で以下を指定して headless / chromium / isolated を維持する。
 
-```bash
-npx -y @playwright/mcp@0.0.75 --isolated --headless --browser chromium
-```
+- `PLAYWRIGHT_MCP_HEADLESS=true`
+- `PLAYWRIGHT_MCP_BROWSER=chromium`
+- `PLAYWRIGHT_MCP_ISOLATED=true`
 
 接続状態は `claude mcp list` で確認できる（`playwright` が `Connected` 表示）。
+
+なお、ドキュメント参照用に [context7](https://github.com/upstash/context7) MCP も `context7@claude-plugins-official` プラグインで導入済み。valibot / neverthrow / recharts 等の最新 API・コード例をライブ参照できる。`claude-plugins-official` は組み込みの既知マーケットプレイスのため、両プラグインとも `enabledPlugins` への登録のみで有効化され、`extraKnownMarketplaces` への追加は不要。
 
 ## Worktree
 
