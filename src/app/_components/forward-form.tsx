@@ -4,7 +4,6 @@ import {
   confidencePercentageSchema,
   pityCountInputSchema,
   probabilityPercentageSchema,
-  ratioToPercent,
   slipRatePercentageSchema,
   targetCountInputSchema,
 } from './form-schemas'
@@ -61,6 +60,7 @@ export function ForwardForm() {
   const {
     handleSubmit,
     control,
+    getValues,
     setValue,
     clearErrors,
     subscribe,
@@ -79,8 +79,14 @@ export function ForwardForm() {
   const pityEnabledId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    // schema が branded ratio/count を出力するため onSubmit での再 parse は不要（Issue #114: 所有モデル(b)）。
+    // 計算は schema の branded ratio/count（Output）を直接消費する（Issue #114: 所有モデル(b)、再 parse 廃止）。
     // 計算呼び出しはサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
+    //
+    // 表示用 percent は getValues() の生入力（Input）から取得する。schema が branded ratio を出力する
+    // ため form（Output）側は ratio になっており、ratio→percent の逆変換（×100）は浮動小数点ドリフトを
+    // 生む（例: 信頼度 7 → 7.000000000000001）。生入力 percent は厳密なため表示はこちらを使う。
+    // 責務分離: 計算 = Output(branded ratio) / 表示 = Input(生 percent)。浮動小数点の全廃は別 Issue で検討。
+    const input = getValues()
     calc.run(() => {
       const calcResult = form.pityEnabled
         ? calculateTrialCountWithPity(
@@ -97,16 +103,15 @@ export function ForwardForm() {
 
       // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
       // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
-      // 表示用 percent は schema 出力の branded ratio から ratioToPercent で復元する（Issue #114: 案B）。
       return calcResult.map(value => ({
         trialCount: value,
-        confidencePercent: ratioToPercent(form.confidence),
-        targetCount: form.pityEnabled ? 1 : form.targetCount,
-        successRatePercent: ratioToPercent(form.successRate),
+        confidencePercent: Number(input.confidence),
+        targetCount: form.pityEnabled ? 1 : Number(input.targetCount),
+        successRatePercent: Number(input.successRate),
         pity: form.pityEnabled
           ? {
-            pityCount: form.pityCount,
-            slipRatePercent: ratioToPercent(form.slipRatePercent),
+            pityCount: Number(input.pityCount),
+            slipRatePercent: Number(input.slipRatePercent),
           }
           : undefined,
       }))
