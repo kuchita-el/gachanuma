@@ -4,7 +4,7 @@
  *
  * - `InvalidInput`: valibot の `safeParse` 失敗を正規化したエラー。`issues` は `{ message }` のみ。
  * - `NonFiniteResult`: 浮動小数点境界（log(1-p)=0、ratio が 0 に丸まる等）で結果が有限値にならない。
- * - `IterationLimitExceeded`: 反復計算で上限まで収束しない（負の二項分布アキュムレータ）。
+ * - `IterationLimitExceeded`: 反復計算で上限まで収束しない（試行回数の二分探索が上限に到達）。
  *
  * ユーザー向け文言への変換は表示の関心のため `@/lib/format-domain-error`（表示層）が担う。
  * 本モジュールは `DomainError` 型と、valibot 境界を Result へ正規化するヘルパに純化する。
