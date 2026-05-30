@@ -51,6 +51,16 @@
             "command": "npm ci --no-audit --no-fund 1>&2 || exit 2"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in *.ts|*.tsx) node_modules/.bin/eslint --fix \"$f\";; esac; } 2>/dev/null || true",
+            "statusMessage": "eslint --fix 実行中"
+          }
+        ]
       }
     ]
   }
