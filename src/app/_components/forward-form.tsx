@@ -2,21 +2,14 @@
 
 import {
   confidencePercentageSchema,
-  percentToRatio,
   pityCountInputSchema,
   probabilityPercentageSchema,
+  ratioToPercent,
   slipRatePercentageSchema,
   targetCountInputSchema,
 } from './form-schemas'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
 import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
-import {
-  validConfidenceSchema,
-  validPityCountSchema,
-  validProbabilityRatioSchema,
-  validSlipRateRatioSchema,
-  validTargetCountSchema,
-} from '@/probability/value-types'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -86,35 +79,34 @@ export function ForwardForm() {
   const pityEnabledId = useId()
 
   const onSubmit = handleSubmit((form) => {
-    // 計算呼び出し（v.parse のブランド化含む）はサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
+    // schema が branded ratio/count を出力するため onSubmit での再 parse は不要（Issue #114: 所有モデル(b)）。
+    // 計算呼び出しはサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
     calc.run(() => {
-      const successRateRatio = v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate)))
-      const confidenceRatio = v.parse(validConfidenceSchema, percentToRatio(Number(form.confidence)))
-
       const calcResult = form.pityEnabled
         ? calculateTrialCountWithPity(
-          successRateRatio,
-          v.parse(validPityCountSchema, Number(form.pityCount)),
-          v.parse(validSlipRateRatioSchema, percentToRatio(Number(form.slipRatePercent))),
-          confidenceRatio,
+          form.successRate,
+          form.pityCount,
+          form.slipRatePercent,
+          form.confidence,
         )
         : calculateTrialCountForMultipleSuccess(
-          successRateRatio,
-          v.parse(validTargetCountSchema, Number(form.targetCount)),
-          confidenceRatio,
+          form.successRate,
+          form.targetCount,
+          form.confidence,
         )
 
       // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
       // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+      // 表示用 percent は schema 出力の branded ratio から ratioToPercent で復元する（Issue #114: 案B）。
       return calcResult.map(value => ({
         trialCount: value,
-        confidencePercent: Number(form.confidence),
-        targetCount: form.pityEnabled ? 1 : Number(form.targetCount),
-        successRatePercent: Number(form.successRate),
+        confidencePercent: ratioToPercent(form.confidence),
+        targetCount: form.pityEnabled ? 1 : form.targetCount,
+        successRatePercent: ratioToPercent(form.successRate),
         pity: form.pityEnabled
           ? {
-            pityCount: Number(form.pityCount),
-            slipRatePercent: Number(form.slipRatePercent),
+            pityCount: form.pityCount,
+            slipRatePercent: ratioToPercent(form.slipRatePercent),
           }
           : undefined,
       }))
