@@ -32,49 +32,56 @@ export const numericInputSchema = v.union(
 )
 
 /**
- * 確率パーセンテージ（数値、0より大きく100未満）の値域検証スキーマ。
- * probabilityPercentageSchema から値域検証の責務を移送したもの。
- * ratio 系 validProbabilityRatioSchema の percent 版（両端排除条件は同一思想）。
- * percent⇔ratio の値域定義統合はスコープ外のため ratio 系から独立に定義する。
- */
-export const validProbabilityPercentageSchema = v.pipe(
-  v.number('数値を指定してください。'),
-  v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
-  v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
-)
-
-/**
- * 確率をパーセンテージ（0-100）で表すフォーム入力用スキーマ。
- * 文字列→数値（numericInputSchema）＋数値→valid（validProbabilityPercentageSchema）の
- * 2 段合成。値域検証は valid 側に集約。
+ * 確率をパーセンテージ（0より大きく100未満）で受け取り、計算層の比率（ProbabilityRatio）へ
+ * 変換するフォーム入力用スキーマ。
+ *
+ * 値域の単一定義は ratio 側（0 < r < 1）に置く（Issue #114: 所有モデル(b)）。入力 percent を
+ * numericInputSchema で数値化 → percentToRatio で ratio 化 → ratio 値域検証 → ProbabilityRatio
+ * へブランド化。onSubmit 側は再 parse せず本スキーマの branded 出力を直接消費する。
+ * FormMessage 表示は percent 文言（「0より大きく100未満の数値を指定してください。」）を維持するため、
+ * 値域メッセージは percent 系を割り当てる（値域判定は ratio、文言は percent の責務分離）。
  */
 export const probabilityPercentageSchema = v.pipe(
   numericInputSchema,
-  validProbabilityPercentageSchema,
-)
-
-/**
- * 信頼度パーセンテージ（整数、0より大きく100未満）の値域検証スキーマ。
- * confidencePercentageSchema から値域・整数検証の責務を移送したもの。
- * 整数縛りは Percentage 側のみに持たせる（ratio 系 validConfidenceSchema には追加しない）。
- * アクション順序は移送元と完全一致（integer を gtValue/ltValue の前に置く）。
- * 順序を変えると範囲外かつ非整数の入力（例 150.5）でエラーメッセージが変わる。
- */
-export const validConfidencePercentageSchema = v.pipe(
-  v.number('数値を指定してください。'),
-  v.integer('整数を指定してください。'),
+  v.transform(percentToRatio),
   v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
-  v.ltValue(100, '0より大きく100未満の数値を指定してください。'),
+  v.ltValue(1, '0より大きく100未満の数値を指定してください。'),
+  v.brand('ProbabilityRatio'),
 )
 
 /**
- * 信頼度をパーセンテージ（整数、0より大きく100未満）で表すフォーム入力用スキーマ。
- * 文字列→数値（numericInputSchema）＋数値→valid（validConfidencePercentageSchema）の
- * 2 段合成。整数・値域検証は valid 側に集約。
+ * 信頼度をパーセンテージ（整数、0より大きく100未満）で受け取り、計算層の比率（ConfidenceRatio）へ
+ * 変換するフォーム入力用スキーマ。
+ *
+ * 整数性は「入力文字列の小数桁数=0」として検証する（Issue #114: 案B）。数値ドメインの v.integer は
+ * 廃し、percent/ratio いずれにも整数縛りを二重に持たせない。小数点を含む表記（"90.5" / "90.0" 等）は
+ * 「整数を指定してください。」で弾く。非数値・空文字は union が「数値を指定してください。」を返す。
+ * アクション順序は「数値 → 整数 → 値域」を維持（順序を変えると 150.5 等で先頭メッセージが変わる）。
+ * 値域検証・ブランド化は probabilityPercentageSchema と同思想（ratio 単一定義 + percent 文言維持）。
  */
 export const confidencePercentageSchema = v.pipe(
-  numericInputSchema,
-  validConfidencePercentageSchema,
+  // 数値性は string→decimal / number の union で担保し、非数値・空文字は単一の
+  // 「数値を指定してください。」を返す。文字列分岐末尾の恒等 transform（string→string）は
+  // 2 つの役割を持つ:
+  //   1. valibot union が分岐内ステップ（v.decimal）の既定メッセージではなく union メッセージを
+  //      採用する条件を満たす（transform を持たないと "Invalid decimal" が漏れる）。
+  //   2. 検証後も生文字列を保持し、後続の整数チェックで小数点の有無を判定できるようにする。
+  // 整数チェックは union の外に置く。union 内に置くと整数違反まで union メッセージに飲み込まれ
+  // 「整数を指定してください。」を返せないため。Input 型は string|number を維持し、branded ratio
+  // 出力がフォーム値（Input）へ代入可能な状態（Control 型整合）を保つ。
+  v.union(
+    [v.pipe(v.string(), v.decimal(), v.transform(s => s)), v.number()],
+    '数値を指定してください。',
+  ),
+  v.check(
+    input => (typeof input === 'number' ? Number.isInteger(input) : !input.includes('.')),
+    '整数を指定してください。',
+  ),
+  v.transform(Number),
+  v.transform(percentToRatio),
+  v.gtValue(0, '0より大きく100未満の数値を指定してください。'),
+  v.ltValue(1, '0より大きく100未満の数値を指定してください。'),
+  v.brand('ConfidenceRatio'),
 )
 
 /**
@@ -88,25 +95,19 @@ export const targetCountInputSchema = v.pipe(
 )
 
 /**
- * 天井すり抜け率パーセンテージ（数値、0以上100以下）の値域検証スキーマ。
- * slipRatePercentageSchema から値域検証の責務を移送したもの。
- * 0% = 天井で目的キャラ確定、100% = 天井無効。両端を許容する点が
- * validProbabilityPercentageSchema との差（ratio 系 validSlipRateRatioSchema の percent 版）。
- */
-export const validSlipRatePercentageSchema = v.pipe(
-  v.number('数値を指定してください。'),
-  v.minValue(0, '0以上100以下の数値を指定してください。'),
-  v.maxValue(100, '0以上100以下の数値を指定してください。'),
-)
-
-/**
- * 天井すり抜け率（percent、0以上100以下）のフォーム入力用スキーマ。
- * 文字列→数値（numericInputSchema）＋数値→valid（validSlipRatePercentageSchema）の
- * 2 段合成。値域検証は valid 側に集約。
+ * 天井すり抜け率をパーセンテージ（0以上100以下）で受け取り、計算層の比率（SlipRateRatio）へ
+ * 変換するフォーム入力用スキーマ。
+ *
+ * 0% = 天井で目的キャラ確定、100% = 天井無効。両端を許容する点が probabilityPercentageSchema との差。
+ * 値域の単一定義は ratio 側（0 ≦ r ≦ 1）。FormMessage 表示は percent 文言（「0以上100以下の数値を
+ * 指定してください。」）を維持する。onSubmit 側は再 parse せず branded 出力を直接消費する。
  */
 export const slipRatePercentageSchema = v.pipe(
   numericInputSchema,
-  validSlipRatePercentageSchema,
+  v.transform(percentToRatio),
+  v.minValue(0, '0以上100以下の数値を指定してください。'),
+  v.maxValue(1, '0以上100以下の数値を指定してください。'),
+  v.brand('SlipRateRatio'),
 )
 
 /**
