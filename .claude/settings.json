@@ -37,10 +37,15 @@
       "mcp__playwright__browser_close"
     ]
   },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "playwright"
-  ],
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "context7@claude-plugins-official": true
+  },
+  "env": {
+    "PLAYWRIGHT_MCP_HEADLESS": "true",
+    "PLAYWRIGHT_MCP_BROWSER": "chromium",
+    "PLAYWRIGHT_MCP_ISOLATED": "true"
+  },
   "hooks": {
     "PostToolUse": [
       {
