@@ -28,7 +28,7 @@ describe('computeXAxisUpperBound', () => {
     expect(computeXAxisUpperBound(prob(0.01))._unsafeUnwrap()).toBe(689)
   })
 
-  it('p 極小（1e-17）は NonFiniteResult を err 返却（calculator 経由）', () => {
+  it('p 極小（1e-17）は NonFiniteResult を err 返却（required-trials 経由）', () => {
     expect(computeXAxisUpperBound(prob(1e-17))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
   })
 })
