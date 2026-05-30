@@ -1,20 +1,21 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as v from 'valibot'
 import { err } from 'neverthrow'
-import { calculateTrialCountWithPity } from './pity'
-import * as calculator from './calculator'
-import { calculateTrialCount } from './calculator'
+import { calculateTrialCountWithPity } from './required-trials-with-pity'
+import * as requiredTrials from './required-trials'
+import { calculateTrialCount } from './required-trials'
 import {
   validConfidenceSchema,
   validPityCountSchema,
   validProbabilityRatioSchema,
   validSlipRateRatioSchema,
-} from './probability'
+} from './value-types'
 
 // 救済路の kind 判別を直接検証するため、`calculateTrialCount` 自体を spy 化して
-// 任意の DomainError を注入できるようにする。
-vi.mock('./calculator', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./calculator')>()
+// 任意の DomainError を注入できるようにする。モジュール境界をまたぐ spy のため、対象モジュール
+// （required-trials）ごとモックして calculateTrialCount を差し替える。
+vi.mock('./required-trials', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./required-trials')>()
   return { ...actual, calculateTrialCount: vi.fn(actual.calculateTrialCount) }
 })
 
@@ -122,7 +123,7 @@ describe('calculateTrialCountWithPity', () => {
     it('救済路は NonFiniteResult 限定（InvalidInput は救済されず err 透過）', () => {
       // `calculateTrialCount` 自体を mock して InvalidInput を返させる。
       // 救済路の条件 m=0 ≤ 1-c を満たしても、kind が NonFiniteResult でなければ救済しない。
-      vi.mocked(calculator.calculateTrialCount).mockReturnValueOnce(
+      vi.mocked(requiredTrials.calculateTrialCount).mockReturnValueOnce(
         err({ kind: 'InvalidInput', issues: [{ message: 'forced invalid input' }] }),
       )
       const result = calculateTrialCountWithPity(prob(0.5), pity(100), slip(0), conf(0.9))

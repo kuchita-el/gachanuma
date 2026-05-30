@@ -5,8 +5,8 @@ import {
   probabilityPercentageSchema,
   trialCountInputSchema,
 } from './form-schemas'
-import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/probability'
+import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
+import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/value-types'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'

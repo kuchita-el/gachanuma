@@ -2,18 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Component, type ReactNode } from 'react'
 import { act, render, renderHook, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { ok } from 'neverthrow'
+import { ok, type Result } from 'neverthrow'
 import * as v from 'valibot'
 import type { UseFormSubscribe } from 'react-hook-form'
 import { useCalculation } from './use-calculation'
-import { calculateTrialCount, type CalcResult } from '@/probability/calculator'
-import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { domainErr } from '@/probability/domain-error'
+import { calculateTrialCount, calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
+import { type DomainError, domainErr } from '@/probability/domain-error'
 import {
   validConfidenceSchema,
   validProbabilityRatioSchema,
   validTargetCountSchema,
-} from '@/probability/probability'
+} from '@/probability/value-types'
 import { Button } from '@/components/ui/button'
 
 type SubscribeFn = UseFormSubscribe<Record<string, unknown>>
@@ -207,7 +206,7 @@ describe('useCalculation', () => {
     // フックを使い、ボタンクリックでサンクを run に渡す最小コンポーネント。union を保持し
     // status 判別で result/error を DOM 出力する（分割代入で判別子を切り離さない）。伝播時に
     // status が未遷移＝success/error の DOM が描画されないことを検証可能にする。
-    function Harness({ thunk }: { thunk: () => CalcResult<number> }) {
+    function Harness({ thunk }: { thunk: () => Result<number, DomainError> }) {
       const harness = createSubscribeHarness()
       const calc = useCalculation<number>(harness.subscribe)
       return (
@@ -225,7 +224,7 @@ describe('useCalculation', () => {
       const user = userEvent.setup()
       const original = new TypeError('想定外')
       const captured: Error[] = []
-      const thunk = (): CalcResult<number> => {
+      const thunk = (): Result<number, DomainError> => {
         throw original
       }
       render(

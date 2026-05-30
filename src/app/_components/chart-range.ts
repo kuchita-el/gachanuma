@@ -7,14 +7,14 @@
  */
 import * as v from 'valibot'
 import { Result } from 'neverthrow'
-import { calculateTrialCount, type CalcResult } from './calculator'
-import { type DomainError, parseInputOrErr, validateOrNonFinite } from './domain-error'
+import { calculateTrialCount } from '@/probability/required-trials'
+import { type DomainError, parseInputOrErr, validateOrNonFinite } from '@/probability/domain-error'
 import {
   type ProbabilityRatio,
   type TrialCount,
   validConfidenceSchema,
   validTrialCountSchema,
-} from './probability'
+} from '@/probability/value-types'
 
 const DEFAULT_MAX_POINTS = 200
 const N99_CONFIDENCE = v.parse(validConfidenceSchema, 0.99)
@@ -26,7 +26,7 @@ const X_AXIS_EXTRA_RATIO = 1.5
  * @param successRateRatio - 単発成功率（検証済みブランド値、0 < x < 1）
  * @returns ok(X 軸上限の整数、1 以上) または err(NonFiniteResult、calculateTrialCount 経由または上限値の再検証で)
  */
-export function computeXAxisUpperBound(successRateRatio: ProbabilityRatio): CalcResult<TrialCount> {
+export function computeXAxisUpperBound(successRateRatio: ProbabilityRatio): Result<TrialCount, DomainError> {
   return calculateTrialCount(successRateRatio, N99_CONFIDENCE).andThen(n99 =>
     validateOrNonFinite(
       validTrialCountSchema,

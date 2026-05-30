@@ -14,10 +14,10 @@ import {
   type SlipRateRatio,
   type TargetCount,
   type TrialCount,
-} from './probability'
-import { calculateCumulativeSuccessProbability, calculateTrialCount } from './calculator'
-import { calculateTrialCountWithPity } from './pity'
-import { calculateTrialCountForMultipleSuccess } from './negative-binomial'
+} from './value-types'
+import { calculateCumulativeSuccessProbability } from './cumulative-probability'
+import { calculateTrialCount, calculateTrialCountForMultipleSuccess } from './required-trials'
+import { calculateTrialCountWithPity } from './required-trials-with-pity'
 
 /**
  * ブランド型の nominal 性を tsc で検証する型テスト（実行コードを持たない）。

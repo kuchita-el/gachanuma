@@ -3,7 +3,7 @@ import {
   validPityCountSchema,
   validTargetCountSchema,
   validTrialCountSchema,
-} from '@/probability/probability'
+} from '@/probability/value-types'
 
 /**
  * 信頼度のフォーム既定値（percent）。
