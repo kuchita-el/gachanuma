@@ -8,15 +8,15 @@ import {
   slipRatePercentageSchema,
   targetCountInputSchema,
 } from './form-schemas'
-import { calculateTrialCountForMultipleSuccess } from '@/probability/negative-binomial'
-import { calculateTrialCountWithPity } from '@/probability/pity'
+import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
+import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
 import {
   validConfidenceSchema,
   validPityCountSchema,
   validProbabilityRatioSchema,
   validSlipRateRatioSchema,
   validTargetCountSchema,
-} from '@/probability/probability'
+} from '@/probability/value-types'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'

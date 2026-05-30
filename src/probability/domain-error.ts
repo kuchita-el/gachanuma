@@ -4,14 +4,13 @@
  *
  * - `InvalidInput`: valibot の `safeParse` 失敗を正規化したエラー。`issues` は `{ message }` のみ。
  * - `NonFiniteResult`: 浮動小数点境界（log(1-p)=0、ratio が 0 に丸まる等）で結果が有限値にならない。
- * - `IterationLimitExceeded`: 反復計算で上限まで収束しない（負の二項分布アキュムレータ）。
+ * - `IterationLimitExceeded`: 反復計算で上限まで収束しない（試行回数の二分探索が上限に到達）。
  *
- * 文言は source（呼び出し関数）と kind の組で完全一致するよう `formatDomainError` で復元する。
- * 旧 `CalculationError.message` のリテラル文言を維持し、画面側 spec の `findByText` を変更しないため。
+ * ユーザー向け文言への変換は表示の関心のため `@/lib/format-domain-error`（表示層）が担う。
+ * 本モジュールは `DomainError` 型と、valibot 境界を Result へ正規化するヘルパに純化する。
  */
 import * as v from 'valibot'
 import { err, ok, type Result } from 'neverthrow'
-import { assertNever } from '@/lib/assert-never'
 
 /**
  * `InvalidInput.issues` の要素型。実利用は `message` のみのため、valibot 内部構造
@@ -22,7 +21,7 @@ export type DomainErrorIssue = { message: string }
 
 /**
  * NonFiniteResult を発生させ得る計算関数の識別子。
- * `formatDomainError` が文言を完全一致で復元するための文脈情報。
+ * 表示層が文言を完全一致で復元するための文脈情報。
  */
 export type NonFiniteSource
   = | 'calculateTrialCount'
@@ -49,46 +48,6 @@ export type DomainError
  */
 export function domainErr(error: DomainError): Result<never, DomainError> {
   return err(error)
-}
-
-/**
- * DomainError をユーザー向け文言に変換する。
- *
- * - `InvalidInput`: `issues[].message` を改行結合（旧 toCalcResult の挙動を維持）。
- * - `NonFiniteResult`: source ごとに固有文言。calculateTrialCount / calculateTrialCountWithPity は
- *   旧 CalculationError 文言と同一の「成功率が極端に小さいため試行回数を計算できません。」を返す。
- * - `IterationLimitExceeded`: 反復上限超過の固定文言。
- *
- * 新 `kind` 追加時は `default: assertNever(error)` が型エラーで検出する。
- */
-export function formatDomainError(error: DomainError): string {
-  switch (error.kind) {
-    case 'InvalidInput':
-      return error.issues.map(i => i.message).join('\n')
-    case 'NonFiniteResult':
-      return formatNonFiniteResult(error.source)
-    case 'IterationLimitExceeded':
-      return '反復上限を超えても累積確率が信頼度に達しませんでした。成功率が極端に小さい可能性があります。値を見直してください。'
-    default:
-      return assertNever(error)
-  }
-}
-
-function formatNonFiniteResult(source: NonFiniteSource): string {
-  switch (source) {
-    case 'calculateTrialCount':
-    case 'calculateTrialCountWithPity':
-      return '成功率が極端に小さいため試行回数を計算できません。値を見直してください。'
-    case 'calculateCumulativeSuccessProbability':
-      return '成功率が極端に小さいため累積成功確率を計算できません。値を見直してください。'
-    case 'calculateTrialCountForMultipleSuccess':
-      return '計算結果が数値として表現できません。値を見直してください。'
-    case 'computeXAxisUpperBound':
-    case 'sampleTrialCounts':
-      return 'グラフの試行回数範囲を計算できません。値を見直してください。'
-    default:
-      return assertNever(source)
-  }
 }
 
 /**

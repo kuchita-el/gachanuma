@@ -10,10 +10,11 @@ import {
   YAxis,
 } from 'recharts'
 import { Result } from 'neverthrow'
-import { calculateCumulativeSuccessProbability } from '@/probability/calculator'
-import { computeXAxisUpperBound, sampleTrialCounts } from '@/probability/chart-range'
-import { formatDomainError, parseInputOrErr } from '@/probability/domain-error'
-import { validProbabilityRatioSchema } from '@/probability/probability'
+import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
+import { computeXAxisUpperBound, sampleTrialCounts } from './chart-range'
+import { parseInputOrErr } from '@/probability/domain-error'
+import { formatDomainError } from '@/lib/format-domain-error'
+import { validProbabilityRatioSchema } from '@/probability/value-types'
 import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
 const CHART_WIDTH = 600

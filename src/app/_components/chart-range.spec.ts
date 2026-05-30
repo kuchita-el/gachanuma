@@ -4,8 +4,8 @@ import {
   computeXAxisUpperBound,
   sampleTrialCounts,
 } from './chart-range'
-import { formatDomainError } from './domain-error'
-import { validProbabilityRatioSchema, validTrialCountSchema } from './probability'
+import { formatDomainError } from '@/lib/format-domain-error'
+import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/value-types'
 
 // 計算層は検証済みブランド値を受領する。spec では生数値を v.parse でブランド化して渡す。
 const prob = (r: number) => v.parse(validProbabilityRatioSchema, r)
@@ -28,7 +28,7 @@ describe('computeXAxisUpperBound', () => {
     expect(computeXAxisUpperBound(prob(0.01))._unsafeUnwrap()).toBe(689)
   })
 
-  it('p 極小（1e-17）は NonFiniteResult を err 返却（calculator 経由）', () => {
+  it('p 極小（1e-17）は NonFiniteResult を err 返却（required-trials 経由）', () => {
     expect(computeXAxisUpperBound(prob(1e-17))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
   })
 })
