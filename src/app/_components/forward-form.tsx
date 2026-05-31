@@ -38,8 +38,11 @@ const schema = v.object({
   targetCount: targetCountInputSchema,
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
-  pityCount: pityCountInputSchema,
-  slipRatePercent: slipRatePercentageSchema,
+  // 天井2フィールドは pityEnabled=true のときのみマウントされ、OFF 時は
+  // field-level shouldUnregister（NumberInputField 経由）で form state から除去される。
+  // 除去後に schema が missing で落ちないよう v.optional() で省略可能にする（Issue #80 / D案）。
+  pityCount: v.optional(pityCountInputSchema),
+  slipRatePercent: v.optional(slipRatePercentageSchema),
 })
 
 const CONFIDENCE_PRESETS = [50, 75, 90, 95, 99] as const
@@ -62,7 +65,6 @@ export function ForwardForm() {
     control,
     getValues,
     setValue,
-    clearErrors,
     subscribe,
     formState: { errors },
   } = form
@@ -88,18 +90,29 @@ export function ForwardForm() {
     // 責務分離: 計算 = Output(branded ratio) / 表示 = Input(生 percent)。浮動小数点の全廃は別 Issue で検討。
     const input = getValues()
     calc.run(() => {
-      const calcResult = form.pityEnabled
-        ? calculateTrialCountWithPity(
+      let calcResult
+      if (form.pityEnabled) {
+        // v.optional() 化で pityCount/slipRatePercent は branded|undefined になる（Issue #80）。
+        // pityEnabled=true 時は天井フィールドが register され値が存在する不変条件のため、ここで
+        // narrowing する。万一欠落していれば想定外の異常として投げ、calc.run の catch で error
+        // 状態へ変換する（ドメイン上の失敗は Result、例外は想定外の異常のみ。useCalculation の JSDoc 参照）。
+        if (form.pityCount === undefined || form.slipRatePercent === undefined) {
+          throw new Error('天井有効時に天井フィールドの値が存在しません')
+        }
+        calcResult = calculateTrialCountWithPity(
           form.successRate,
           form.pityCount,
           form.slipRatePercent,
           form.confidence,
         )
-        : calculateTrialCountForMultipleSuccess(
+      }
+      else {
+        calcResult = calculateTrialCountForMultipleSuccess(
           form.successRate,
           form.targetCount,
           form.confidence,
         )
+      }
 
       // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
       // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
@@ -203,17 +216,7 @@ export function ForwardForm() {
                 <Switch
                   id={pityEnabledId}
                   checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked)
-                    // OFF に切り替える際は天井フィールドの値とエラーをデフォルトに戻す。
-                    // 隠れたエラー（schema が pityCount/slipRatePercent を常時検証するため）が
-                    // submit を阻害するのを防ぐ。
-                    if (!checked) {
-                      setValue('pityCount', '100')
-                      setValue('slipRatePercent', '0')
-                      clearErrors(['pityCount', 'slipRatePercent'])
-                    }
-                  }}
+                  onCheckedChange={field.onChange}
                 />
                 <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
               </div>
@@ -233,6 +236,8 @@ export function ForwardForm() {
                 step="1"
                 min="1"
                 className="mt-4"
+                // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
+                shouldUnregister
               />
 
               <NumberInputField
@@ -245,6 +250,8 @@ export function ForwardForm() {
                 type="number"
                 step="any"
                 className="mt-4"
+                // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
+                shouldUnregister
               />
             </>
           )}
