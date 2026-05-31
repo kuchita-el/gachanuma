@@ -184,6 +184,21 @@ describe('ForwardForm', () => {
       expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
     })
 
+    it('信頼度 7（ratio 往復で誤差が出る値）でも結果文言は「7%」が厳密表示される（浮動小数点ドリフト回帰）', async () => {
+      // 7/100*100 は 7.000000000000001 になるため、ratio 逆変換だと「7.000000000000001%」と崩れる。
+      // 表示 percent は生入力から取得するため厳密な「7%」になることを担保する。
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const confidence = screen.getByLabelText('信頼度')
+      await user.clear(confidence)
+      await user.type(confidence, '7')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('7%の確率で成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('7.000000000000001')
+    })
+
     it('信頼度 0 でフォーカスアウトするとエラー文言と aria-invalid と計算ボタン disabled', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
