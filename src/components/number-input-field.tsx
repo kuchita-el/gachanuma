@@ -23,6 +23,9 @@ type NumberInputFieldProps<
   label: string
   suffix: string
   helperText: string
+  // 条件付きレンダリング箇所でアンマウント時に form state から該当フィールドを除去するための
+  // field-level 設定。内部の FormField（Controller ラッパ）へ passthrough する（Issue #80 / D案）。
+  shouldUnregister?: boolean
 } & Omit<React.ComponentProps<'input'>, 'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref'>
 
 function NumberInputField<
@@ -35,12 +38,14 @@ function NumberInputField<
   suffix,
   helperText,
   className,
+  shouldUnregister,
   ...inputProps
 }: NumberInputFieldProps<TFieldValues, TName>) {
   return (
     <FormField
       control={control}
       name={name}
+      shouldUnregister={shouldUnregister}
       render={({ field }) => (
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
