@@ -1,12 +1,10 @@
 'use client'
 
 import {
-  percentToRatio,
   probabilityPercentageSchema,
   trialCountInputSchema,
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
-import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/value-types'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
@@ -39,15 +37,15 @@ export function InverseForm() {
   }>(subscribe)
 
   const onSubmit = handleSubmit((form) => {
-    const trialCount = Number(form.trialCount)
-    // 計算呼び出し（v.parse のブランド化含む）はサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
+    // schema が branded ratio/count を出力するため onSubmit での再 parse は不要（Issue #114: 所有モデル(b)）。
+    // 計算呼び出しはサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
     calc.run(() =>
       calculateCumulativeSuccessProbability(
-        v.parse(validProbabilityRatioSchema, percentToRatio(Number(form.successRate))),
-        v.parse(validTrialCountSchema, trialCount),
+        form.successRate,
+        form.trialCount,
       ).map(value => ({
         cumulativeProbabilityRatio: value,
-        trialCount,
+        trialCount: form.trialCount,
       })),
     )
   })
