@@ -1,4 +1,9 @@
 {
+  "env": {
+    "PLAYWRIGHT_MCP_HEADLESS": "true",
+    "PLAYWRIGHT_MCP_BROWSER": "chromium",
+    "PLAYWRIGHT_MCP_ISOLATED": "true"
+  },
   "permissions": {
     "allow": [
       "Bash(npm view *)",
@@ -37,15 +42,6 @@
       "mcp__playwright__browser_close"
     ]
   },
-  "enabledPlugins": {
-    "playwright@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
-  },
-  "env": {
-    "PLAYWRIGHT_MCP_HEADLESS": "true",
-    "PLAYWRIGHT_MCP_BROWSER": "chromium",
-    "PLAYWRIGHT_MCP_ISOLATED": "true"
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -68,5 +64,10 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
   }
 }

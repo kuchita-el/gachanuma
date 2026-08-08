@@ -85,12 +85,12 @@ CI 上で失敗した場合は GitHub Actions の `e2e` ジョブの artifact `p
 
 ## Playwright MCP（AI アシスタント用ブラウザ操作）
 
-Claude Code 等の AI アシスタントから本アプリをブラウザ操作で検証するため、[Playwright MCP サーバ](https://github.com/microsoft/playwright-mcp)（`@playwright/mcp`）を `.mcp.json` で定義しています。devcontainer 内の Claude Code で標準利用できます。
+Claude Code 等の AI アシスタントから本アプリをブラウザ操作で検証するため、[Playwright MCP サーバ](https://github.com/microsoft/playwright-mcp)（`@playwright/mcp`）を公式マーケットプレイス（`claude-plugins-official`）のプラグイン `playwright@claude-plugins-official` として導入しています。`.claude/settings.json` の `enabledPlugins` で有効化されるため、devcontainer 内の Claude Code で標準利用できます。
 
 ### 有効化方法
 
-1. devcontainer を再構築する（`postCreateCommand.sh` で E2E 用 Chromium バイナリと MCP 用 `chrome-for-testing` バイナリが自動取得される）。
-2. Claude Code を起動し、`.mcp.json` の MCP サーバ承認プロンプトに同意する。
+1. devcontainer を再構築する（`postCreateCommand.sh` で E2E 用 Chromium バイナリと MCP 用 Chromium バイナリが自動取得される）。
+2. Claude Code を起動する（`enabledPlugins` への登録のみで有効化されるため、追加操作は不要）。
 3. 接続確認:
 
     ```bash
@@ -108,7 +108,7 @@ Claude Code 等の AI アシスタントから本アプリをブラウザ操作�
 - `browser_click` / `browser_type`: 要素クリック・テキスト入力
 - `browser_take_screenshot`: スクリーンショットを取得
 
-> Note: MCP サーバは `--isolated --headless --browser chromium` で起動するため、プロファイルは永続化されず GUI も不要です。E2E テスト（`@playwright/test`、`tests/e2e/`）とは独立に動作し、それぞれ別バージョンのブラウザバイナリ（E2E: `chromium`、MCP: `chrome-for-testing`）を使用します。
+> Note: プラグイン版の MCP サーバは起動引数を取らないため、`.claude/settings.json` の `env` で `PLAYWRIGHT_MCP_ISOLATED` / `PLAYWRIGHT_MCP_HEADLESS` / `PLAYWRIGHT_MCP_BROWSER` を指定して isolated / headless / chromium を維持しています。プロファイルは永続化されず GUI も不要です。E2E テスト（`@playwright/test`、`tests/e2e/`）とは独立に動作し、どちらも `chromium` を使いますが、`@playwright/test` と `@playwright/mcp` で playwright-core のバージョンが異なるため、別リビジョンのバイナリが取得されます。
 
 ## 開発環境
 
