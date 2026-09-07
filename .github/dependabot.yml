@@ -27,6 +27,9 @@ updates:
       testing:
         patterns:
           - "vitest"
+          # @vitest/* は peer で vitest のバージョンを完全一致で固定するため、
+          # vitest と必ず同一 PR で上げる必要がある（別 PR だと npm ci が ERESOLVE で落ちる）
+          - "@vitest/*"
           - "@vitejs/plugin-react"
           - "@testing-library/*"
           - "jsdom"
