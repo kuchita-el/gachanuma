@@ -57,7 +57,7 @@
     "lefthook": "^2.1.12",
     "postcss": "^8.5.28",
     "serve": "^14.2.6",
-    "shadcn": "^4.20.1",
+    "shadcn": "^4.21.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vitest": "^5.0.0"
