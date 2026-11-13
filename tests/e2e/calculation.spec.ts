@@ -44,14 +44,15 @@ test.describe('確率計算 E2E', () => {
     await expect(page.getByRole('status')).toContainText('（2個獲得）')
   })
 
-  test('目標成功回数 0 を入力するとフィールドエラーが表示され結果は出ない', async ({ page }) => {
+  test('目標成功回数 0 で計算ボタンを押すと、目標成功回数にフォーカスが移り結果は出ない', async ({ page }) => {
     const target = page.getByLabel('目標成功回数')
     await target.fill('0')
     await page.getByLabel('成功率').fill('50')
-    await target.blur()
+    await page.getByRole('button', { name: '計算' }).click()
     await expect(target).toHaveAttribute('aria-invalid', 'true')
+    await expect(target).toBeFocused()
     await expect(page.getByText('目標成功回数は1以上を指定してください。')).toBeVisible()
-    await expect(page.getByRole('button', { name: '計算' })).toBeDisabled()
+    await expect(page.getByRole('status')).toHaveCount(0)
   })
 
   test('目標成功回数 101 を入力するとエラー「100以下」が表示される', async ({ page }) => {
@@ -127,14 +128,24 @@ test.describe('天井UI E2E', () => {
     await expect(page.getByRole('status')).toContainText('天井 100 回・すり抜け率 0% 込み')
   })
 
-  test('Switch ON + すり抜け率 -1 でエラー文言が表示され計算ボタン disabled', async ({ page }) => {
+  test('Switch ON + すり抜け率 -1 で計算ボタンを押すと、すり抜け率にフォーカスが移りエラー文言が表示される', async ({ page }) => {
     await page.getByRole('switch', { name: '天井を考慮する' }).click()
+    await page.getByLabel('成功率').fill('1')
     const slip = page.getByLabel('天井すり抜け率')
     await slip.fill('-1')
-    await slip.blur()
+    await page.getByRole('button', { name: '計算' }).click()
     await expect(slip).toHaveAttribute('aria-invalid', 'true')
+    await expect(slip).toBeFocused()
     await expect(page.getByText('0以上100以下の数値を指定してください。')).toBeVisible()
-    await expect(page.getByRole('button', { name: '計算' })).toBeDisabled()
+    await expect(page.getByRole('status')).toHaveCount(0)
+  })
+
+  test('Switch ON で目標成功回数が disabled になり、補足文が切り替わる（Issue #12）', async ({ page }) => {
+    const target = page.getByLabel('目標成功回数')
+    await expect(target).toBeEnabled()
+    await page.getByRole('switch', { name: '天井を考慮する' }).click()
+    await expect(target).toBeDisabled()
+    await expect(page.getByText('天井を考慮する場合は、目標成功回数は1回で計算します')).toBeVisible()
   })
 })
 
