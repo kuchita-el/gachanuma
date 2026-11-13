@@ -12,10 +12,14 @@ export default function Home() {
           <TabsTrigger value="forward">順算</TabsTrigger>
           <TabsTrigger value="inverse">逆算</TabsTrigger>
         </TabsList>
-        <TabsContent value="forward">
+        {/*
+          タブを往復しても入力値と結果を保持するため、非アクティブ側もマウントしたまま CSS で隠す（Issue #10）。
+          forceMount 時は Radix が hidden 属性を付けないため、data-state=inactive で display:none にする。
+        */}
+        <TabsContent value="forward" forceMount className="data-[state=inactive]:hidden">
           <ForwardForm />
         </TabsContent>
-        <TabsContent value="inverse">
+        <TabsContent value="inverse" forceMount className="data-[state=inactive]:hidden">
           <InverseForm />
         </TabsContent>
       </Tabs>
