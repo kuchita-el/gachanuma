@@ -130,16 +130,24 @@ describe('ProbabilityChart', () => {
 
   it('successRatePercent が極小（schema 不通過の理論値 1e-15）はエラー文言を inline 表示', () => {
     // Result チェーン経路により NonFiniteResult が err 透過し、match の err 分岐で
-    // formatDomainError 経由の文言が role="img" aria-label="グラフエラー" の div に表示される。
+    // formatDomainError 経由の文言がテキストとして表示される。
     const { container } = render(
       <ProbabilityChart {...FIXED_SIZE} successRatePercent={1e-15} confidencePercent={90} />,
     )
     expect(container.querySelector('svg')).toBeNull()
     expect(container.querySelector('[data-testid="probability-chart"]')).toBeNull()
-    const errorView = screen.getByRole('img', { name: 'グラフエラー' })
+    const errorView = screen.getByTestId('probability-chart-error')
     expect(errorView).toBeInTheDocument()
     expect(errorView).toHaveTextContent(/グラフを描画できません/)
     expect(errorView).toHaveTextContent(/極端に小さい/)
+  })
+
+  it('エラー表示は role="img" を持たず、文言がテキストとして読み上げ対象になる（Issue #25）', () => {
+    render(
+      <ProbabilityChart {...FIXED_SIZE} successRatePercent={0} confidencePercent={90} />,
+    )
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.getByText(/グラフを描画できません/)).toBeInTheDocument()
   })
 
   it('successRatePercent が値域外（schema 不通過の 0）でも throw せず inline エラー表示', () => {
@@ -150,7 +158,7 @@ describe('ProbabilityChart', () => {
       <ProbabilityChart {...FIXED_SIZE} successRatePercent={0} confidencePercent={90} />,
     )
     expect(container.querySelector('svg')).toBeNull()
-    const errorView = screen.getByRole('img', { name: 'グラフエラー' })
+    const errorView = screen.getByTestId('probability-chart-error')
     expect(errorView).toBeInTheDocument()
     expect(errorView).toHaveTextContent(/グラフを描画できません/)
     expect(errorView).toHaveTextContent(/成功率は0より大きい値を指定してください/)

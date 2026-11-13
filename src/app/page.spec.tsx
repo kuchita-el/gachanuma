@@ -17,16 +17,35 @@ function activePanel() {
 }
 
 describe('Home (タブUI)', () => {
-  it('タブ「順算」「逆算」が role=tab で描画される', () => {
+  it('タブ「必要な回数」「成功する確率」が role=tab で描画される（Issue #18）', () => {
     render(<Home />)
-    expect(screen.getByRole('tab', { name: '順算' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '逆算' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '必要な回数' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '成功する確率' })).toBeInTheDocument()
+  })
+
+  it('ページ冒頭に、何を計算するアプリかを説明するリード文がある（Issue #18）', () => {
+    render(<Home />)
+    expect(
+      screen.getByText('ガチャなどの成功率から、目標の確率で成功するまでに必要な回数や、決まった回数で成功する確率を計算します。'),
+    ).toBeInTheDocument()
+  })
+
+  it('「計算の前提」は折りたたまれた状態で表示され、開くと試行の独立性と天井の扱いが読める（Issue #18）', async () => {
+    const user = userEvent.setup()
+    render(<Home />)
+    const summary = screen.getByText('計算の前提')
+    const details = summary.closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    await user.click(summary)
+    expect(details).toHaveAttribute('open')
+    expect(within(details).getByText('各試行は互いに独立で、成功率は毎回同じとして計算します。')).toBeInTheDocument()
+    expect(within(details).getByText(/天井すり抜け率 0% は天井で必ず成功、100% は天井がないのと同じです。/)).toBeInTheDocument()
   })
 
   it('初期表示では順算タブが選択状態（aria-selected=true）', () => {
     render(<Home />)
-    expect(screen.getByRole('tab', { name: '順算' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '逆算' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: '必要な回数' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '成功する確率' })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('初期表示で順算側の成功率ラベルが見える', () => {
@@ -38,15 +57,15 @@ describe('Home (タブUI)', () => {
   it('逆算タブをクリックすると aria-selected が逆算側に切替わる', async () => {
     const user = userEvent.setup()
     render(<Home />)
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
-    expect(screen.getByRole('tab', { name: '逆算' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '順算' })).toHaveAttribute('aria-selected', 'false')
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
+    expect(screen.getByRole('tab', { name: '成功する確率' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '必要な回数' })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('逆算タブを選択すると表示中のパネルに試行回数フィールドが描画される', async () => {
     const user = userEvent.setup()
     render(<Home />)
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
     expect(activePanel().getByLabelText('試行回数')).toBeInTheDocument()
   })
 
@@ -66,8 +85,8 @@ describe('Home (タブUI)', () => {
     await user.click(activePanel().getByRole('button', { name: '計算' }))
     expect(await activePanel().findByRole('status', { name: '計算結果' })).toHaveTextContent('4回')
 
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
-    await user.click(screen.getByRole('tab', { name: '順算' }))
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
+    await user.click(screen.getByRole('tab', { name: '必要な回数' }))
 
     expect(activePanel().getByRole('status', { name: '計算結果' })).toHaveTextContent('4回')
     expect((activePanel().getByLabelText('成功率') as HTMLInputElement).value).toBe('50')
@@ -76,14 +95,14 @@ describe('Home (タブUI)', () => {
   it('逆算の入力値と結果も、タブを往復（順算→逆算）しても保持される（Issue #10）', async () => {
     const user = userEvent.setup()
     render(<Home />)
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
     await user.type(activePanel().getByLabelText('成功率'), '50')
     await user.type(activePanel().getByLabelText('試行回数'), '4')
     await user.click(activePanel().getByRole('button', { name: '計算' }))
     expect(await activePanel().findByRole('status', { name: '計算結果' })).toHaveTextContent('93.75%')
 
-    await user.click(screen.getByRole('tab', { name: '順算' }))
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
+    await user.click(screen.getByRole('tab', { name: '必要な回数' }))
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
 
     expect(activePanel().getByRole('status', { name: '計算結果' })).toHaveTextContent('93.75%')
     expect((activePanel().getByLabelText('試行回数') as HTMLInputElement).value).toBe('4')
@@ -93,7 +112,7 @@ describe('Home (タブUI)', () => {
     const user = userEvent.setup()
     render(<Home />)
     await user.type(activePanel().getByLabelText('成功率'), '50')
-    await user.click(screen.getByRole('tab', { name: '逆算' }))
+    await user.click(screen.getByRole('tab', { name: '成功する確率' }))
     expect((activePanel().getByLabelText('成功率') as HTMLInputElement).value).toBe('')
   })
 })

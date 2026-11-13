@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './forward-form'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
@@ -161,6 +161,22 @@ describe('ForwardForm', () => {
       for (const preset of [50, 75, 90, 95, 99]) {
         expect(screen.getByRole('button', { name: `${preset}%` })).toBeInTheDocument()
       }
+    })
+
+    it('プリセットのボタン群が「信頼度のプリセット」という名前の group になる（Issue #25）', () => {
+      render(<ForwardForm />)
+      const group = screen.getByRole('group', { name: '信頼度のプリセット' })
+      for (const preset of [50, 75, 90, 95, 99]) {
+        expect(within(group).getByRole('button', { name: `${preset}%` })).toBeInTheDocument()
+      }
+    })
+
+    it('信頼度の説明文に、意味（求めた回数以内に目標を達成できる確率）と入力規則が表示される（Issue #18）', () => {
+      render(<ForwardForm />)
+      const input = screen.getByLabelText('信頼度')
+      const helper = document.getElementById(input.getAttribute('aria-describedby')!.split(' ')[0]!)
+      expect(helper).toHaveTextContent('求めた回数以内に目標を達成できる確率です。')
+      expect(helper).toHaveTextContent('0より大きく100未満の整数を入力してください')
     })
 
     it('初期表示時、プリセット 90 が aria-pressed=true で選択状態', () => {
@@ -693,12 +709,12 @@ describe('ForwardForm', () => {
       render(<ForwardForm />)
       const target = screen.getByLabelText('目標成功回数')
       expect(target).not.toBeDisabled()
-      expect(screen.getByText('1〜100 の整数を入力してください')).toBeInTheDocument()
+      expect(screen.getByText('何回成功したいかです。1〜100 の整数を入力してください')).toBeInTheDocument()
 
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
       expect(target).toBeDisabled()
       expect(screen.getByText('天井を考慮する場合は、目標成功回数は1回で計算します')).toBeInTheDocument()
-      expect(screen.queryByText('1〜100 の整数を入力してください')).not.toBeInTheDocument()
+      expect(screen.queryByText(/1〜100 の整数を入力してください/)).not.toBeInTheDocument()
     })
 
     it('目標成功回数が不正値のまま Switch ON にすると、エラー表示が消え天井計算ができる（Issue #12）', async () => {
@@ -903,6 +919,17 @@ describe('ForwardForm', () => {
       const alert = await screen.findByRole('alert')
       expect(scrollIntoView).toHaveBeenCalledTimes(1)
       expect(scrollIntoView.mock.contexts[0]).toContainElement(alert)
+    })
+
+    it('エラー Alert は role="alert" のみで、冗長な aria-live を併記しない（Issue #25）', async () => {
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('ドメインエラー（テスト用）'),
+      )
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('alert')).not.toHaveAttribute('aria-live')
     })
 
     it('入力エラーで計算されなかったときはスクロールしない', async () => {
