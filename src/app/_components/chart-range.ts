@@ -1,10 +1,4 @@
-/**
- * 累積成功確率グラフの X 軸範囲・プロット点列を計算するユーティリティ。
- *
- * - X 軸上限: `N99 × 1.5` を切り上げ。N99 は信頼度 99% で必要な試行回数（`calculateTrialCount(p, 0.99)`）。
- *   p=0.5 で N99=7 → 上限 11 のように、信頼度 99% に届くポイントから少し余裕を持って描画範囲を決める。
- * - プロット点列: X 軸範囲の整数点を 200 点上限で等間隔サンプリング。先頭は必ず 1、末尾は upperBound。
- */
+/** 累積成功確率グラフの X 軸の範囲と、描画する点の列を求める */
 import * as v from 'valibot'
 import { Result } from 'neverthrow'
 import { calculateTrialCount } from '@/probability/required-trials'
@@ -21,7 +15,8 @@ const N99_CONFIDENCE = v.parse(validConfidenceSchema, 0.99)
 const X_AXIS_EXTRA_RATIO = 1.5
 
 /**
- * 成功率 ratio に対する X 軸上限を返す。N99 = calculateTrialCount(p, 0.99) の 1.5 倍を切り上げ。
+ * X 軸の上限を返す。信頼度 99% に必要な試行回数の 1.5 倍（切り上げ）とし、
+ * 曲線が 99% に届くところまで余裕を持って描く（例: 成功率 50% → 7回 → 上限 11）。
  *
  * @param successRateRatio - 単発成功率（検証済みブランド値、0 < x < 1）
  * @returns ok(X 軸上限の整数、1 以上) または err(NonFiniteResult、calculateTrialCount 経由または上限値の再検証で)
@@ -36,8 +31,7 @@ export function computeXAxisUpperBound(successRateRatio: ProbabilityRatio): Resu
   )
 }
 
-// maxPoints は描画設定値のためブランド対象外（方針A）。upperBound は TrialCount で受領済みのため
-// 値域 parse は不要で、ここでは maxPoints の値域のみを検証する。
+// maxPoints は確率・回数の意味を持たない描画の設定値なので、ブランド型にしない
 const maxPointsSchema = v.pipe(
   v.number('maxPoints は2以上の整数を指定してください'),
   v.integer('maxPoints は2以上の整数を指定してください'),
@@ -45,10 +39,8 @@ const maxPointsSchema = v.pipe(
 )
 
 /**
- * X 軸上限までの試行回数列を最大 maxPoints 個サンプリングする。
- *
- * - upperBound <= maxPoints のときは [1, 2, ..., upperBound] の全整数を返す
- * - 超過時は等間隔サンプリング（重複除去・先頭 1 強制注入・末尾 upperBound 保証）
+ * 1 から upperBound までの試行回数を、最大 maxPoints 個まで等間隔に選ぶ。
+ * 1 と upperBound は必ず含む。upperBound が maxPoints 以下なら全整数を返す。
  *
  * @param upperBound - X 軸上限（検証済みブランド値、整数、1 以上）
  * @param maxPoints - サンプル点数上限（デフォルト 200）
@@ -60,15 +52,13 @@ export function sampleTrialCounts(
 ): Result<TrialCount[], DomainError> {
   return parseInputOrErr(maxPointsSchema, maxPoints).andThen((mp) => {
     const ub = upperBound
-    // 各点を validateOrNonFinite でブランド化（throw せず Result へ正規化）して Result.combine で束ねる。
-    // 値は常に 1 以上 upperBound 以下の整数のため失敗は到達不能だが、計算層の throw 撲滅契約に揃える。
+    // 値は必ず 1 以上の整数なので失敗しないが、v.parse は throw するため使わない
     const brand = (n: number) =>
       validateOrNonFinite(validTrialCountSchema, n, 'sampleTrialCounts')
     if (ub <= mp) {
       return Result.combine(Array.from({ length: ub }, (_, i) => brand(i + 1)))
     }
     const set = new Set<number>([1, ub])
-    // i=1..maxPoints-1 の等間隔点を追加
     for (let i = 1; i < mp; i++) {
       set.add(Math.round((i * (ub - 1)) / (mp - 1)) + 1)
     }

@@ -23,17 +23,16 @@ type NumberInputFieldProps<
   label: string
   suffix: string
   helperText: string
-  // 条件付きレンダリング箇所でアンマウント時に form state から該当フィールドを除去するための
-  // field-level 設定。内部の FormField（Controller ラッパ）へ passthrough する（Issue #80 / D案）。
+  // true にすると、アンマウント時に form state から値が除かれ、検証の対象外になる（Issue #80）
   shouldUnregister?: boolean
   // react-hook-form にフィールドの無効状態を伝えるため、Input ではなく FormField（Controller）へ渡す。
   // field オブジェクト経由で Input の disabled 属性にも反映される（Issue #12）。
   disabled?: boolean
-  // モバイルで表示する仮想キーボードの種類。type="text" 固定のため、数値キーボードはこれで指定する（Issue #13）。
+  // モバイルで表示する仮想キーボードの種類（Issue #13）
   inputMode: 'decimal' | 'numeric'
 } & Omit<
   React.ComponentProps<'input'>,
-  // type は "text" 固定。step / min / max は type="text" では効かないため受け付けない（値域は Valibot スキーマが担う）。
+  // step / min / max は type="text" では効かないため受け付けない（値域はスキーマで検証する）
   'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref' | 'type' | 'step' | 'min' | 'max' | 'inputMode' | 'disabled'
 >
 
@@ -63,8 +62,8 @@ function NumberInputField<
           <InputAffix suffix={suffix}>
             <FormControl>
               {/*
-                type="number" はホイール操作で値が変わる・スピナーが単位表示と重なる等の問題があるため
-                type="text" + inputMode で数値入力を表現する（Issue #13）。全角数字はスキーマ側で正規化する。
+                type="number" を使わないのは、ホイール操作で値が変わる、スピナーが単位表示と重なるなどの
+                問題があるため（Issue #13）
               */}
               <Input type="text" autoComplete="off" className="pr-8" {...inputProps} {...field} />
             </FormControl>

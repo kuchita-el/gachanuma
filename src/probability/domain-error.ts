@@ -1,28 +1,23 @@
 /**
- * 計算層のドメインエラーを表す discriminated union と、ユーザー向けメッセージ生成・
- * valibot 境界正規化ヘルパを集約する。
+ * 計算層のエラー型と、valibot の検証結果を Result に変換するヘルパ。
  *
- * - `InvalidInput`: valibot の `safeParse` 失敗を正規化したエラー。`issues` は `{ message }` のみ。
- * - `NonFiniteResult`: 浮動小数点境界（log(1-p)=0、ratio が 0 に丸まる等）で結果が有限値にならない。
- * - `IterationLimitExceeded`: 反復計算で上限まで収束しない（試行回数の二分探索が上限に到達）。
+ * - `InvalidInput`: 入力がスキーマの検証を通らなかった
+ * - `NonFiniteResult`: 浮動小数点の限界（log(1-p) が 0 になる、比率が 0 に丸まる等）で結果が有限値にならない
+ * - `IterationLimitExceeded`: 試行回数の二分探索が上限に達しても信頼度に届かない
  *
- * ユーザー向け文言への変換は表示の関心のため `@/lib/format-domain-error`（表示層）が担う。
- * 本モジュールは `DomainError` 型と、valibot 境界を Result へ正規化するヘルパに純化する。
+ * 計算層では例外を投げず、失敗はすべて Result で返す。
+ * ユーザー向けの文言への変換は `@/lib/format-domain-error` が行う。
  */
 import * as v from 'valibot'
 import { err, ok, type Result } from 'neverthrow'
 
 /**
- * `InvalidInput.issues` の要素型。実利用は `message` のみのため、valibot 内部構造
- * (`v.BaseIssue<unknown>`) を露出させずに最小情報のみ保持する。これにより `parseInputOrErr`
- * 以外の場所で valibot 型に依存せず、テストヘルパでも素のオブジェクトを渡せる。
+ * `InvalidInput.issues` の要素型。valibot の `BaseIssue` を使わないのは、
+ * 使うのは `message` だけで、テストでも素のオブジェクトで作れるようにするため。
  */
 export type DomainErrorIssue = { message: string }
 
-/**
- * NonFiniteResult を発生させ得る計算関数の識別子。
- * 表示層が文言を完全一致で復元するための文脈情報。
- */
+/** NonFiniteResult を返しうる計算関数。表示層が計算ごとに文言を変えるために使う */
 export type NonFiniteSource
   = | 'calculateTrialCount'
     | 'calculateCumulativeSuccessProbability'
@@ -31,9 +26,7 @@ export type NonFiniteSource
     | 'computeXAxisUpperBound'
     | 'sampleTrialCounts'
 
-/**
- * IterationLimitExceeded を発生させ得る計算関数の識別子（現状は負の二項分布のみ）。
- */
+/** IterationLimitExceeded を返しうる計算関数 */
 export type IterationLimitSource = 'calculateTrialCountForMultipleSuccess'
 
 export type DomainError
@@ -42,19 +35,14 @@ export type DomainError
     | { kind: 'IterationLimitExceeded', source: IterationLimitSource }
 
 /**
- * `DomainError` の err Result を生成するヘルパ。`err({ kind: 'NonFiniteResult', ... })` の
- * 戻り型推論が `kind: string` に widening されるのを防ぐため、引数型を `DomainError` に
- * 固定して contextual typing で literal kind を解決させる。`err<T, E>()` の冗長な型引数を省略可能。
+ * `DomainError` の err を作る。`err({ kind: 'NonFiniteResult', ... })` と直接書くと
+ * `kind` が `string` と推論されて型が合わないため、引数の型を `DomainError` に固定する。
  */
 export function domainErr(error: DomainError): Result<never, DomainError> {
   return err(error)
 }
 
-/**
- * valibot スキーマで入力を検証し、失敗時は `err({ kind: 'InvalidInput', issues })` を返す。
- * 計算関数の入口で `v.parse` の代替として使用し、`ValiError` の throw を境界に閉じ込める。
- * valibot の `BaseIssue<unknown>[]` は `message` のみ抽出して `DomainErrorIssue[]` に正規化する。
- */
+/** 入力をスキーマで検証し、失敗したら `InvalidInput` の err を返す（`v.parse` は throw するため使わない） */
 export function parseInputOrErr<
   TSchema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,
 >(schema: TSchema, input: unknown): Result<v.InferOutput<TSchema>, DomainError> {
@@ -69,12 +57,8 @@ export function parseInputOrErr<
 }
 
 /**
- * 計算結果を出力スキーマで再検証してブランド化する。`v.parse` と異なり失敗時に throw せず
- * `NonFiniteResult` の err を返すため、計算層の throw 撲滅契約（結果は Result で表現）を保ったまま
- * 戻り値の値域を実行時にも担保できる。Result チェーン（描画中の chart 等）を貫通する throw を防ぐ。
- *
- * 入力値域違反は `parseInputOrErr`（`InvalidInput`）が担う。本関数は検証済み入力から算出した
- * 結果の不変条件違反（通常は到達不能）を Result 経路へ正規化する用途に限る。
+ * 計算結果をスキーマで検証してブランド型にする。失敗したら `NonFiniteResult` の err を返す。
+ * 検証済みの入力から計算した結果に使うもので、通常は失敗しない。
  */
 export function validateOrNonFinite<
   TSchema extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,

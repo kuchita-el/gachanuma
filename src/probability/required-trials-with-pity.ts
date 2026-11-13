@@ -1,5 +1,5 @@
 /**
- * 天井（保証排出）の考慮を入れた「目的キャラ1個を1回以上引くために必要な試行回数」を求める。
+ * 天井（一定回数で成功が保証される仕組み）を考慮して、少なくとも1回成功するために必要な試行回数を求める。
  *
  * 計算式（k は試行回数、p は実効排出率、N は天井回数、m は天井すり抜け率）:
  * - k < N: P(k) = 1 - (1-p)^k （通常抽選のみ）
@@ -7,20 +7,12 @@
  *
  * 信頼度 c に対し P(k) ≥ c を満たす最小の k を返す。
  *
- * 計算方針: 閉形解（O(1)）。指数関数の単調性を利用してケース分析:
- * 1. kNoPity = calculateTrialCount(p, c) を取得
- *    - kNoPity < N なら k<N 領域で解、kNoPity を返す
- *    - kNoPity ≥ N なら k≥N 領域でケース分析
- * 2. k≥N 領域のケース分析:
- *    - m = 0: P(N) = 1 で確定。k = N
- *    - 0 < m ≤ 1-c: P(N) ≥ c が k=N で成立。k = N
- *    - m > 1-c: k = max(N, ceil(log((1-c)/m) / log(1-p)) + 1)
+ * 解は次の場合分けで閉形式に求まる（kNoPity は天井なしで必要な試行回数）。
+ * - kNoPity < N: 天井に届く前に信頼度に達するので kNoPity
+ * - m ≤ 1-c（m = 0 を含む）: k = N で P(N) ≥ c となるので N
+ * - m > 1-c: k = max(N, ceil(log((1-c)/m) / log(1-p)) + 1)
  *
- * 早期 short-circuit（p 極小ガード）:
- * - p 極小で calculateTrialCount が `NonFiniteResult` を返す境界では、m=0 なら天井で確定するため N を返す。
- *   一般化して m ≤ 1-c の場合も k=N で P(N) ≥ c が成立するため N を返す。m > 1-c の場合は通常抽選が
- *   無効化されるほどの極小 p なので NonFiniteResult を透過させる。InvalidInput や IterationLimitExceeded
- *   は救済対象外（透過）。
+ * p が極小で天井なしの計算が `NonFiniteResult` になっても、m ≤ 1-c なら天井で信頼度に届くので N を返す。
  */
 import { err, ok, type Result } from 'neverthrow'
 import { calculateTrialCount } from './required-trials'
@@ -49,17 +41,13 @@ export function calculateTrialCountWithPity(
   slipRate: SlipRateRatio,
   confidence: ConfidenceRatio,
 ): Result<TrialCount, DomainError> {
-  // 天井回数 N を「試行回数の答え」として返す際は、概念が PityCount → TrialCount へ転じるため
-  // ブランドを付け替える（数値は不変、1以上整数なので必ず妥当）。答えが N に確定する分岐でのみ生成する。
+  // 天井回数を試行回数として返すため、ブランドを PityCount から TrialCount に付け替える
   const pityAsTrialCount = (): Result<TrialCount, DomainError> =>
     validateOrNonFinite(validTrialCountSchema, pityCount, 'calculateTrialCountWithPity')
 
   return calculateTrialCount(successRate, confidence)
     .orElse((error) => {
-      // 救済路: NonFiniteResult のみ、かつ m ≤ 1-c のとき P(N) ≥ c が必ず成立するため N を返す。
-      // （`(1-p)^(N-1) × m ≤ m ≤ 1-c` ⇒ `P(N) = 1 - (1-p)^(N-1) × m ≥ c`）
-      // m=0 を含む一般化として N を返す。InvalidInput は救済対象外（このパスでは発生しないが、
-      // 将来の DomainError 拡張に備えて kind で明示判別）。
+      // m ≤ 1-c なら `(1-p)^(N-1) × m ≤ m ≤ 1-c` より P(N) ≥ c。それ以外のエラーは救えない
       if (error.kind === 'NonFiniteResult' && slipRate <= 1 - confidence) {
         return pityAsTrialCount()
       }
@@ -70,7 +58,7 @@ export function calculateTrialCountWithPity(
         return ok(kNoPity)
       }
 
-      // k ≥ N 領域: m=0 または m ≤ 1-c なら k=N で P(N) ≥ c が成立
+      // m ≤ 1-c なら k = N で P(N) ≥ c が成り立つ
       if (slipRate === 0 || slipRate <= 1 - confidence) {
         return pityAsTrialCount()
       }

@@ -1,22 +1,13 @@
 /**
- * 計算層の `DomainError` をユーザー向け表示文言へ変換する（表示の関心）。
- *
- * 文言は source（呼び出し関数）と kind の組で完全一致するよう復元する。
- * 旧 `CalculationError.message` のリテラル文言を維持し、画面側 spec の `findByText` を変更しないため。
- * `DomainError` 型・`NonFiniteSource` 型は計算層の `@/probability/domain-error` から import する。
+ * 計算層の `DomainError` を、ユーザー向けの文言に変換する。
+ * 文言は表示の関心なので、計算層（`@/probability/`）ではなくここに置く。
  */
 import { type DomainError, type NonFiniteSource } from '@/probability/domain-error'
 import { assertNever } from '@/lib/assert-never'
 
 /**
- * DomainError をユーザー向け文言に変換する。
- *
- * - `InvalidInput`: `issues[].message` を改行結合（旧変換ヘルパの挙動を維持）。
- * - `NonFiniteResult`: source ごとに固有文言。calculateTrialCount / calculateTrialCountWithPity は
- *   旧 CalculationError 文言と同一の「成功率が極端に小さいため試行回数を計算できません。」を返す。
- * - `IterationLimitExceeded`: 反復上限超過の固定文言。
- *
- * 新 `kind` 追加時は `default: assertNever(error)` が型エラーで検出する。
+ * DomainError をユーザー向けの文言に変換する。
+ * `InvalidInput` は検証メッセージを改行でつなぎ、`NonFiniteResult` は発生した計算ごとに文言を変える。
  */
 export function formatDomainError(error: DomainError): string {
   switch (error.kind) {

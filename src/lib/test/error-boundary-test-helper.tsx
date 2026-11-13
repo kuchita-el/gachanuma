@@ -11,15 +11,10 @@ type State = {
 }
 
 /**
- * テスト専用の Error Boundary。Next.js App Router の `app/error.tsx` 規約に従う
- * `ErrorComponent` をフォールバック UI として描画する。
+ * テスト専用の Error Boundary。フォールバックに `app/error.tsx` の `ErrorComponent` を使う。
  *
- * `reset` が呼ばれたとき `renderKey` をインクリメントして `<Fragment key>` で子要素を
- * 強制的に再 mount し、Next.js ランタイムが route segment を再構築する挙動を模す。
- * このため再 mount による form state クリアまでを spec で検証できる。
- *
- * Next.js 本番側の `reset` が同等の再構築を行うことを前提に依存しているため、
- * フレームワーク仕様変更時はここを追従する必要がある。
+ * `reset` で子要素をマウントし直し、Next.js が route segment を作り直す挙動をまねる。
+ * Next.js の `reset` の挙動が変わったら、ここも合わせる必要がある。
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { renderKey: 0 }

@@ -3,15 +3,9 @@
 import { useState } from 'react'
 
 /**
- * イベントハンドラ内で発生した想定外 throw を React Error Boundary に橋渡しするフック。
- *
- * React の Error Boundary は render / lifecycle / constructor 内の throw しか捕捉しない。
- * イベントハンドラ内の throw は捕捉対象外のため、useState にエラーを保持し、
- * 次回 render 時に同期 throw する。Error Boundary が getDerivedStateFromError で捕捉する。
- *
- * 非 Error 値は Error にラップし、元値を `cause` に保持してデバッグ情報を残す。
- * message は `string` の場合は元値を転記、それ以外は `String(e)` で文字列化する
- * （例: `null` → `"null"`、`{ code: 42 }` → `"[object Object]"`）。
+ * イベントハンドラ内で起きた想定外の例外を、React の Error Boundary に渡すフック。
+ * Error Boundary はレンダー中の例外しか捕捉しないため、エラーを state に保持して次のレンダーで投げ直す。
+ * Error 以外の値は Error で包み、元の値を `cause` に残す。
  *
  * 制約:
  * - 同一 render サイクル内で返り値を複数回呼ばないこと。React の state バッチにより

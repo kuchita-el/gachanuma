@@ -9,53 +9,37 @@ import { useFormValueChange } from './use-form-error-message'
 import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
 
 /**
- * 計算実行〜結果/エラーのライフサイクルを表す判別共用体。
+ * 計算の状態。
+ * - `idle`: 未計算。またはエラーの表示中に入力が変わった
+ * - `success`: 計算に成功した。`stale` は、計算後に入力が変わり、表示中の結果が今の入力と一致しないこと（Issue #9）
+ * - `error`: ドメインエラー（ユーザー向けの文言）
  *
- * `idle`（初期・フォーム値変更後のリセット）/ `success`（計算成功）/ `error`（ドメインエラー）の
- * 3 状態を `status` で弁別する。`result` は `success` のみ、`error` は `error` のみが持つ必須
- * プロパティであり、「両方を同時に持つ」「非 idle で両方を持たない」状態を型で排除する（Issue #108）。
- *
- * `success` の `stale` は「計算後にフォーム値が変更され、表示中の結果が現在の入力と一致しない」ことを表す
- * （Issue #9）。`run` 成功で `false`、その後のフォーム値変更で `true` になる。
+ * `result` と `error` を同時に持つ状態や、どちらも持たない `success` / `error` は型の上で作れない（Issue #108）。
  */
 export type CalculationState<TResult>
   = | { status: 'idle' }
     | { status: 'success', result: TResult, stale: boolean }
     | { status: 'error', error: string }
 
+export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
+  run: (calc: () => Result<TResult, DomainError>) => void
+  /** 計算を実行した回数（成功・ドメインエラーとも数え、入力の変更では増えない）。結果へのスクロールに使う（Issue #19） */
+  runCount: number
+}
+
 /**
- * 計算実行〜結果/エラーのライフサイクルを集約するフック。
+ * 計算の実行と、その結果・エラーの状態を管理するフック。
  *
- * `forward-form` / `inverse-form` の `onSubmit` 内で対称的に重複していた
- * 「計算 Result の成功/失敗分岐 → result/error の排他 setter → 想定外例外の
- * Error Boundary パススルー」を 1 箇所に集約する。状態は単一の
- * `CalculationState<TResult>` atom で所有し、`useFormValueChange(subscribe)` を内包して
- * フォーム値変更時の遷移（`error` → `idle`）を引き継ぐ。
+ * - ドメイン上の失敗（Result の err）はエラーの状態にし、想定外の例外は Error Boundary に渡す
+ * - 入力が変わったら、エラーは消し（`idle`）、結果は残したまま `stale` にする（Issue #9）
  *
- * 戻り値は `CalculationState<TResult>` を spread した判別共用体 + `run`。`result` と `error` の
- * 排他不変条件は型で保証される（成功は `result` のみ、ドメインエラーは `error` のみ）。
- * **注意**: 判別子 `status` を分割代入で切り離すと narrowing が崩れる。call site は
- * `const calc = useCalculation(...)` のように union オブジェクトを保持したまま
- * `calc.status === 'success'` で判別し、ブランチ内で `calc.result` を参照すること。
+ * 戻り値を分割代入しないこと。`status` を切り離すと、`result` / `error` の型の絞り込みが効かなくなる。
  *
- * フォーム値変更時の遷移は status 別に非対称: `error` のときは `idle` へ遷移し（Alert 消滅）、
- * `success` のときは結果を保持したまま `stale: true` にする（古い結果として薄く表示する。Issue #9）。
- * `idle` と、すでに `stale` な `success` は no-op。`setState` の更新関数は no-op 時に同一参照を
- * 返すため不要な再レンダを起こさない。
+ * `run` が計算関数ではなく、計算を呼び出すサンクを受け取るのは、計算関数の呼び出しをフォーム側に残し、
+ * フォームの spec でモジュールモック（`vi.mock`）を効かせるため。
  *
- * `run` は計算実行サンク（`() => Result<TResult, DomainError>`）を毎回受け取る方式。
- * 計算関数の呼び出しは呼び出し側（form）に残るため、form 単体 spec の
- * モジュールモック（`vi.mock` + `vi.fn`）がそのまま機能する。`number → 表示用
- * オブジェクト` の整形が必要な場合はサンクの戻り Result を `.map` して渡す。
- *
- * `run` の try は計算呼び出し（サンク実行）の最小範囲のみを包む。React の state
- * setter（`setState`）は Hooks API の不変条件により同期 throw しないため、`match` の
- * コールバック内 setter を try で囲う必要がない。これにより想定外例外の Boundary 委譲経路に
- * setter を巻き込まない（Issue #91 / PR #93 レビュー S-1）。
- *
- * `run` は 1 イベント内で複数回同期呼びしないこと。内包する `useThrowToErrorBoundary`
- * は同一 render サイクルで複数回呼ぶと先行の想定外例外を取りこぼす制約があるため
- * （現状の両 form は単一呼びのため実害なし）。
+ * `run` を1つのイベント内で複数回呼ばないこと。内部の `useThrowToErrorBoundary` は、同じレンダー内で
+ * 複数回呼ばれると先の例外を取りこぼす。
  *
  * @example
  * const { subscribe } = useForm()
@@ -63,15 +47,6 @@ export type CalculationState<TResult>
  * calc.run(() => calculateXxx(...).map(value => ({ ... })))
  * if (calc.status === 'success') { ... calc.result ... }
  */
-export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
-  run: (calc: () => Result<TResult, DomainError>) => void
-  /**
-   * `run` が成功またはドメインエラーに遷移した回数。計算を実行するたびに増える。
-   * 計算後に結果へスクロールするトリガとして使う（Issue #19）。入力変更では増えない。
-   */
-  runCount: number
-}
-
 export function useCalculation<
   TResult,
   TFieldValues extends FieldValues = FieldValues,
@@ -91,6 +66,7 @@ export function useCalculation<
 
   const run = (calc: () => Result<TResult, DomainError>): void => {
     let calcResult: Result<TResult, DomainError>
+    // setState は throw しないため、try で囲むのは計算の呼び出しだけでよい（Issue #91）
     try {
       calcResult = calc()
     }

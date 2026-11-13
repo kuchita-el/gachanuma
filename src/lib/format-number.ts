@@ -1,15 +1,8 @@
-/**
- * 表示用の数値整形関数群（計算結果・グラフ目盛り等で共有する）。
- */
+/** 表示用の数値整形（計算結果とグラフの目盛りで共有する） */
 
-// 回数・個数用の桁区切りフォーマッタ（モジュールスコープで1回だけ生成する）
 const countFormatter = new Intl.NumberFormat('ja-JP')
 
-/**
- * 回数・個数を桁区切り付きの文字列に整形する（例: 46050 → 「46,050」）。
- *
- * 万単位の補助表記（「約4.6万回」等）はスコープ外（Issue #14）。
- */
+/** 回数を桁区切り付きの文字列にする（例: 46050 → 「46,050」） */
 export function formatCount(n: number): string {
   return countFormatter.format(n)
 }
@@ -25,20 +18,19 @@ const LOWER_PERCENT_THRESHOLD = 0.005
  */
 const MIN_DISPLAY_PERCENT = 0.000001
 
-// 極小値は有効数字2桁で表示する（末尾の 0 は出さない）
 const smallPercentFormatter = new Intl.NumberFormat('ja-JP', {
   maximumSignificantDigits: 2,
 })
 
 /**
- * 確率（ratio: 0〜1）をパーセント表記の文字列に整形する。
+ * 確率（比率 0〜1）をパーセント表記の文字列にする。
  *
- * - 99.995% 以上（`toFixed(2)` で 100.00 になる範囲。浮動小数点で ratio が 1 に丸まったケースを含む）は「99.99%超」
+ * - 99.995% 以上は「99.99%超」（浮動小数点で比率が 1 に丸まった場合を含む）
  * - 0.005% 以上 99.995% 未満は小数2桁（例: 「63.40%」）
  * - 0.000001% 以上 0.005% 未満は有効数字2桁（例: 「0.0001%」）
  * - 0.000001% 未満は「0.000001%未満」
  *
- * 真値が 100% 未満なのに「100%」、0 より大きいのに「0%」と誤読される表示を避ける（Issue #11）。
+ * 100% 未満なのに「100%」、0 より大きいのに「0%」と表示して誤解させないため（Issue #11）。
  */
 export function formatProbabilityPercent(ratio: number): string {
   const percent = ratio * 100
@@ -51,7 +43,6 @@ export function formatProbabilityPercent(ratio: number): string {
   if (percent >= MIN_DISPLAY_PERCENT) {
     return `${smallPercentFormatter.format(percent)}%`
   }
-  // 0 以下もここに含む。calculateCumulativeSuccessProbability は 0 を err で返すため
-  // 現状 0 は渡らないが、防御的に「0%」と表示しないようにしている
+  // 0 以下も含む。計算層は 0 を err にするので渡らないはずだが、「0%」とは表示しない
   return '0.000001%未満'
 }
