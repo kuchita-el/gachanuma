@@ -53,7 +53,17 @@ describe('formatProbabilityPercent', () => {
     expect(formatProbabilityPercent(1e-6)).toBe('0.0001%')
   })
 
-  it('0（アンダーフロー）は「0.01%未満」（0% と表示しない）', () => {
-    expect(formatProbabilityPercent(0)).toBe('0.01%未満')
+  it('0.000001% ちょうどは有効数字表示', () => {
+    expect(formatProbabilityPercent(1e-8)).toBe('0.000001%')
+  })
+
+  it('0.000001% 未満は桁落ちを避けて「0.000001%未満」', () => {
+    expect(formatProbabilityPercent(9.9e-9)).toBe('0.000001%未満')
+    // 1 - (1 - 1e-15)^1 は桁落ちで 1.11e-15 になるケース
+    expect(formatProbabilityPercent(1.11e-15)).toBe('0.000001%未満')
+  })
+
+  it('0（アンダーフロー）は「0.000001%未満」（0% と表示しない）', () => {
+    expect(formatProbabilityPercent(0)).toBe('0.000001%未満')
   })
 })

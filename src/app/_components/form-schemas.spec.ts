@@ -74,6 +74,11 @@ describe('numericInputSchema', () => {
       expect(() => v.parse(numericInputSchema, '１ｅ２')).toThrow(/数値を指定してください。/)
     })
 
+    it('丸数字 "①" や上付き数字 "²" は数値として受け付けない', () => {
+      expect(() => v.parse(numericInputSchema, '①')).toThrow(/数値を指定してください/)
+      expect(() => v.parse(numericInputSchema, '²')).toThrow(/数値を指定してください/)
+    })
+
     it('中間の空白 "5 0" は trim 対象外でエラー', () => {
       expect(() => v.parse(numericInputSchema, '5 0')).toThrow(/数値を指定してください。/)
     })
@@ -288,6 +293,17 @@ describe('normalizeNumericInput', () => {
 
   it('半角のみの文字列はそのまま返す', () => {
     expect(normalizeNumericInput('3.14')).toBe('3.14')
+  })
+
+  it('全角マイナス・プラスを半角にする', () => {
+    expect(normalizeNumericInput('－１')).toBe('-1')
+    expect(normalizeNumericInput('＋１')).toBe('+1')
+  })
+
+  it('丸数字・上付き数字などの互換文字は変換しない（NFKC を使わない）', () => {
+    expect(normalizeNumericInput('①')).toBe('①')
+    expect(normalizeNumericInput('⑩')).toBe('⑩')
+    expect(normalizeNumericInput('²')).toBe('²')
   })
 })
 

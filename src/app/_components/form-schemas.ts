@@ -15,11 +15,15 @@ export const DEFAULT_CONFIDENCE_PERCENT = 90
  * 数値入力欄の生文字列を検証前に正規化する純関数（Issue #13）。
  *
  * 入力欄は type="text" のため、IME の全角数字（"１０" / "０．５"）がそのまま入る。
- * NFKC 正規化で全角数字・全角ピリオド・全角マイナス・全角空白を半角化し、前後の空白を trim する。
+ * 全角の数字・ピリオド・マイナス・プラス（`０-９．－＋`）だけを半角に置き換え、前後の空白（全角空白を含む）を trim する。
+ * NFKC は互換文字も展開し "①" → "1"、"²" → "2" まで数値として通してしまうため使わない。
  * 正規化は表記ゆれの吸収のみに留め、数値としての妥当性は呼び出し側（v.decimal() 等）が全体一致で判定する。
  */
 export function normalizeNumericInput(input: string): string {
-  return input.normalize('NFKC').trim()
+  // 全角英数記号（U+FF01〜U+FF5E）は対応する ASCII と 0xFEE0 ずれている
+  return input
+    .replace(/[０-９．－＋]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .trim()
 }
 
 /**
