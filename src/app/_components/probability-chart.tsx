@@ -1,5 +1,6 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import {
   CartesianGrid,
   Label,
@@ -18,27 +19,81 @@ import { formatCount } from '@/lib/format-number'
 import { validProbabilityRatioSchema } from '@/probability/value-types'
 import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
-const CHART_WIDTH = 600
-const CHART_HEIGHT = 320
 const Y_TICKS = [0, 25, 50, 75, 100]
+
+/** 通常幅でのグラフ高さ（px） */
+const CHART_HEIGHT = 320
+/** 狭い幅（ビューポート 400px 未満）でのグラフ高さ（px） */
+const NARROW_CHART_HEIGHT = 260
+/** 通常幅での右マージン。参照線の右端ラベル（例: `90%`）の描画領域を確保する */
+const CHART_MARGIN_RIGHT = 48
+/** 狭い幅での右マージン。参照線ラベル（最大 `100%` 相当）が切れない最小値まで詰める */
+const NARROW_CHART_MARGIN_RIGHT = 40
+/** 狭い幅と判定するメディアクエリ */
+const NARROW_MEDIA_QUERY = '(max-width: 399.98px)'
+
+/**
+ * ビューポートが狭い幅（< 400px）かを購読する。
+ * SSR / 静的エクスポート時や `matchMedia` 非対応環境（jsdom）では false（通常幅）を返す。
+ */
+function subscribeNarrowViewport(onChange: () => void) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => {}
+  }
+  const mql = window.matchMedia(NARROW_MEDIA_QUERY)
+  mql.addEventListener('change', onChange)
+  return () => mql.removeEventListener('change', onChange)
+}
+
+function getNarrowViewportSnapshot() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false
+  }
+  return window.matchMedia(NARROW_MEDIA_QUERY).matches
+}
+
+function getNarrowViewportServerSnapshot() {
+  return false
+}
+
+function useIsNarrowViewport() {
+  return useSyncExternalStore(
+    subscribeNarrowViewport,
+    getNarrowViewportSnapshot,
+    getNarrowViewportServerSnapshot,
+  )
+}
 
 interface ProbabilityChartProps {
   successRatePercent: number
   confidencePercent: number
+  /**
+   * テスト用の固定幅（px）。`width` / `height` の両方を指定した場合のみ固定サイズで描画する。
+   * 未指定時は親要素の幅に追従するレスポンシブ描画（jsdom では親幅が 0 のため描画されない）。
+   */
+  width?: number
+  /** テスト用の固定高さ（px）。`width` と併せて指定する */
+  height?: number
 }
 
 /**
  * 試行回数 N に対する累積成功確率 1-(1-p)^N の折れ線グラフ。
  * 信頼度 c の水平破線（右端ラベル）と、c≠90 の場合は 90% デフォルト線を併記。
  *
- * jsdom 互換のため `ResponsiveContainer` は使わず固定サイズで描画する（recharts issue #1423）。
+ * 通常は recharts 3 の `responsive` prop で親要素の幅に追従させる（モバイル幅での横スクロール回避）。
+ * jsdom では要素幅が 0 になり描画されないため、テストでは `width` / `height` props で固定サイズを渡す
+ * （recharts issue #1423。ResizeObserver モックは recharts 内部実装への依存になるため採用しない）。
  * 計算層エラー（InvalidInput / NonFiniteResult）は Result チェーンで受け、err なら inline で
  * `formatDomainError` 経由のエラー文言を表示する（silent failure 回避）。
  */
 export function ProbabilityChart({
   successRatePercent,
   confidencePercent,
+  width,
+  height,
 }: ProbabilityChartProps) {
+  const isNarrow = useIsNarrowViewport()
+  const isFixedSize = width !== undefined && height !== undefined
   // rate のブランド化 → upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
   // どこかで err が出れば全体を err として match の err 分岐でインラインエラー表示にフォールバックする。
   // ブランド化境界の parse も safeParse ベース（parseInputOrErr）で受け、計算層と同じ throw なし契約に揃える。
@@ -72,10 +127,20 @@ export function ProbabilityChart({
         className="mt-4"
       >
         <LineChart
-          width={CHART_WIDTH}
-          height={CHART_HEIGHT}
+          {...(isFixedSize
+            ? { width, height }
+            : {
+              responsive: true,
+              width: '100%',
+              height: isNarrow ? NARROW_CHART_HEIGHT : CHART_HEIGHT,
+            })}
           data={data}
-          margin={{ top: 16, right: 48, bottom: 32, left: 16 }}
+          margin={{
+            top: 16,
+            right: isNarrow ? NARROW_CHART_MARGIN_RIGHT : CHART_MARGIN_RIGHT,
+            bottom: 32,
+            left: 16,
+          }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis
