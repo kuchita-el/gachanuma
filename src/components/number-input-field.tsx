@@ -26,7 +26,13 @@ type NumberInputFieldProps<
   // 条件付きレンダリング箇所でアンマウント時に form state から該当フィールドを除去するための
   // field-level 設定。内部の FormField（Controller ラッパ）へ passthrough する（Issue #80 / D案）。
   shouldUnregister?: boolean
-} & Omit<React.ComponentProps<'input'>, 'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref'>
+  // モバイルで表示する仮想キーボードの種類。type="text" 固定のため、数値キーボードはこれで指定する（Issue #13）。
+  inputMode: 'decimal' | 'numeric'
+} & Omit<
+  React.ComponentProps<'input'>,
+  // type は "text" 固定。step / min / max は type="text" では効かないため受け付けない（値域は Valibot スキーマが担う）。
+  'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref' | 'type' | 'step' | 'min' | 'max' | 'inputMode'
+>
 
 function NumberInputField<
   TFieldValues extends FieldValues,
@@ -51,7 +57,11 @@ function NumberInputField<
           <FormLabel>{label}</FormLabel>
           <InputAffix suffix={suffix}>
             <FormControl>
-              <Input className="pr-8" {...inputProps} {...field} />
+              {/*
+                type="number" はホイール操作で値が変わる・スピナーが単位表示と重なる等の問題があるため
+                type="text" + inputMode で数値入力を表現する（Issue #13）。全角数字はスキーマ側で正規化する。
+              */}
+              <Input type="text" autoComplete="off" className="pr-8" {...inputProps} {...field} />
             </FormControl>
           </InputAffix>
           <FormDescription>{helperText}</FormDescription>

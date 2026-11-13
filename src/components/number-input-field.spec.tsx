@@ -31,8 +31,6 @@ function Harness({ defaultValue = '' }: { defaultValue?: string }) {
         suffix="%"
         helperText="0より大きく100未満の数値を入力してください"
         inputMode="decimal"
-        type="number"
-        step="any"
       />
     </Form>
   )
@@ -46,41 +44,24 @@ describe('NumberInputField', () => {
     expect(screen.getByText('0より大きく100未満の数値を入力してください')).toBeInTheDocument()
   })
 
-  it('inputMode / type / step の DOM 属性が Input に付与される', () => {
+  it('type="text" 固定で inputMode / autocomplete=off が Input に付与される（Issue #13）', () => {
     render(<Harness />)
     const input = screen.getByLabelText('成功率')
+    expect(input).toHaveAttribute('type', 'text')
     expect(input).toHaveAttribute('inputmode', 'decimal')
-    expect(input).toHaveAttribute('type', 'number')
-    expect(input).toHaveAttribute('step', 'any')
+    expect(input).toHaveAttribute('autocomplete', 'off')
+    // type="text" では無意味なため step / min / max は付与しない（値域は Valibot スキーマが担う）
+    expect(input).not.toHaveAttribute('step')
+    expect(input).not.toHaveAttribute('min')
+    expect(input).not.toHaveAttribute('max')
   })
 
-  it('min / max / step の境界系属性が Input に付与される', () => {
-    function MinMaxHarness() {
-      const form = useForm({
-        defaultValues: { count: '1' },
-      })
-      return (
-        <Form {...form}>
-          <NumberInputField
-            name="count"
-            control={form.control}
-            label="目標成功回数"
-            suffix="回"
-            helperText="1〜100 の整数を入力してください"
-            inputMode="numeric"
-            type="number"
-            step="1"
-            min="1"
-            max="100"
-          />
-        </Form>
-      )
-    }
-    render(<MinMaxHarness />)
-    const input = screen.getByLabelText('目標成功回数')
-    expect(input).toHaveAttribute('min', '1')
-    expect(input).toHaveAttribute('max', '100')
-    expect(input).toHaveAttribute('step', '1')
+  it('全角数字や記号もそのまま入力値として保持される（正規化はスキーマ側の責務）', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const input = screen.getByLabelText('成功率') as HTMLInputElement
+    await user.type(input, '１２．５')
+    expect(input.value).toBe('１２．５')
   })
 
   it('初期描画では aria-invalid=false で helperText のみが aria-describedby に紐づく', () => {
@@ -131,8 +112,6 @@ describe('NumberInputField', () => {
             suffix="%"
             helperText="0より大きく100未満の数値を入力してください"
             inputMode="decimal"
-            type="number"
-            step="any"
           />
           <NumberInputField
             name="trial.count"
@@ -141,7 +120,6 @@ describe('NumberInputField', () => {
             suffix="回"
             helperText="1以上の整数を入力してください"
             inputMode="numeric"
-            type="number"
           />
         </Form>
       )
@@ -162,6 +140,7 @@ describe('NumberInputField', () => {
           label="成功率"
           suffix="%"
           helperText="0より大きく100未満の数値を入力してください"
+          inputMode="decimal"
         />
       )
     }

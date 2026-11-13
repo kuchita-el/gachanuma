@@ -2,6 +2,7 @@
 
 import {
   confidencePercentageSchema,
+  normalizeNumericInput,
   pityCountInputSchema,
   probabilityPercentageSchema,
   slipRatePercentageSchema,
@@ -32,6 +33,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useCalculation } from '@/lib/use-calculation'
+import { formatCount } from '@/lib/format-number'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -88,7 +90,17 @@ export function ForwardForm() {
     // ため form（Output）側は ratio になっており、ratio→percent の逆変換（×100）は浮動小数点ドリフトを
     // 生む（例: 信頼度 7 → 7.000000000000001）。生入力 percent は厳密なため表示はこちらを使う。
     // 責務分離: 計算 = Output(branded ratio) / 表示 = Input(生 percent)。浮動小数点の全廃は別 Issue で検討。
-    const input = getValues()
+    // 生入力は全角数字・前後空白を含み得る（type="text"、Issue #13）ため、スキーマと同じ正規化を経て数値化する。
+    const raw = getValues()
+    const normalize = (value: string | number | undefined) =>
+      typeof value === 'string' ? normalizeNumericInput(value) : value
+    const input = {
+      confidence: normalize(raw.confidence),
+      targetCount: normalize(raw.targetCount),
+      successRate: normalize(raw.successRate),
+      pityCount: normalize(raw.pityCount),
+      slipRatePercent: normalize(raw.slipRatePercent),
+    }
     calc.run(() => {
       let calcResult
       if (form.pityEnabled) {
@@ -150,8 +162,6 @@ export function ForwardForm() {
             suffix="%"
             helperText="0より大きく100未満の数値を入力してください"
             inputMode="decimal"
-            type="number"
-            step="any"
           />
 
           <NumberInputField
@@ -161,10 +171,6 @@ export function ForwardForm() {
             suffix="回"
             helperText="1〜100 の整数を入力してください"
             inputMode="numeric"
-            type="number"
-            step="1"
-            min="1"
-            max="100"
             className="mt-4"
           />
 
@@ -176,7 +182,8 @@ export function ForwardForm() {
                 <FormLabel>信頼度</FormLabel>
                 <div className="flex flex-wrap gap-2">
                   {CONFIDENCE_PRESETS.map((preset) => {
-                    const selected = field.value === String(preset)
+                    // 全角入力（"９０"）でも該当プリセットを選択状態にするため正規化して比較する（Issue #13）
+                    const selected = normalizeNumericInput(String(field.value)) === String(preset)
                     return (
                       <Button
                         key={preset}
@@ -194,9 +201,11 @@ export function ForwardForm() {
                 </div>
                 <InputAffix suffix="%">
                   <FormControl>
+                    {/* NumberInputField と同様に type="text" + inputMode で数値入力を表現する（Issue #13） */}
                     <Input
+                      type="text"
                       inputMode="numeric"
-                      type="number"
+                      autoComplete="off"
                       className="pr-8"
                       {...field}
                     />
@@ -232,9 +241,6 @@ export function ForwardForm() {
                 suffix="回"
                 helperText="1以上の整数を入力してください"
                 inputMode="numeric"
-                type="number"
-                step="1"
-                min="1"
                 className="mt-4"
                 // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
                 shouldUnregister
@@ -247,8 +253,6 @@ export function ForwardForm() {
                 suffix="%"
                 helperText="0以上100以下の数値を入力してください"
                 inputMode="decimal"
-                type="number"
-                step="any"
                 className="mt-4"
                 // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
                 shouldUnregister
@@ -270,12 +274,12 @@ export function ForwardForm() {
       {calc.status === 'success' && (
         <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
-            {calc.result.trialCount}
+            {formatCount(calc.result.trialCount)}
             回
             {calc.result.targetCount >= 2 && (
               <span className="text-muted-foreground ml-2 text-base font-normal">
                 （
-                {calc.result.targetCount}
+                {formatCount(calc.result.targetCount)}
                 個獲得）
               </span>
             )}
@@ -288,7 +292,7 @@ export function ForwardForm() {
             <p className="text-muted-foreground mt-1 text-sm">
               天井
               {' '}
-              {calc.result.pity.pityCount}
+              {formatCount(calc.result.pity.pityCount)}
               {' '}
               回・すり抜け率
               {' '}

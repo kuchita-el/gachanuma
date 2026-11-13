@@ -14,6 +14,7 @@ import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
 import { useCalculation } from '@/lib/use-calculation'
+import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -61,8 +62,6 @@ export function InverseForm() {
             suffix="%"
             helperText="0より大きく100未満の数値を入力してください"
             inputMode="decimal"
-            type="number"
-            step="any"
           />
 
           <NumberInputField
@@ -72,7 +71,6 @@ export function InverseForm() {
             suffix="回"
             helperText="1以上の整数を入力してください"
             inputMode="numeric"
-            type="number"
             className="mt-4"
           />
 
@@ -85,11 +83,10 @@ export function InverseForm() {
       {calc.status === 'success' && (
         <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
-            {(calc.result.cumulativeProbabilityRatio * 100).toFixed(2)}
-            %
+            {formatProbabilityPercent(calc.result.cumulativeProbabilityRatio)}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {calc.result.trialCount}
+            {formatCount(calc.result.trialCount)}
             回試行したとき少なくとも1回成功する確率
           </p>
         </ResultPanel>

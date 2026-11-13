@@ -112,12 +112,12 @@ describe('ForwardForm', () => {
     expect(status).toHaveAttribute('aria-live', 'polite')
   })
 
-  it('Input に inputmode=decimal / type=number / step=any / aria-describedby が付与される', () => {
+  it('Input に inputmode=decimal / type=text / aria-describedby が付与される', () => {
     render(<ForwardForm />)
     const input = screen.getByLabelText('成功率')
     expect(input).toHaveAttribute('inputmode', 'decimal')
-    expect(input).toHaveAttribute('type', 'number')
-    expect(input).toHaveAttribute('step', 'any')
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).not.toHaveAttribute('step')
     expect(input).toHaveAttribute('aria-describedby')
   })
 
@@ -173,6 +173,16 @@ describe('ForwardForm', () => {
       expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
     })
 
+    it('成功率 0.01 + 信頼度 99 で計算すると 1,000 以上の回数が桁区切りで「46,050回」と表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '0.01')
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('46,050回')
+    })
+
     it('成功率 10 + 信頼度 99 で計算すると 44回 と 99%文言が表示される', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
@@ -197,6 +207,20 @@ describe('ForwardForm', () => {
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7%の確率で成功するために必要な試行回数')
       expect(status).not.toHaveTextContent('7.000000000000001')
+    })
+
+    it('全角数字（成功率 "５０" / 信頼度 "９９"）でも半角と同じ結果が表示される（Issue #13: type="text" 化の全角正規化）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '５０')
+      const confidence = screen.getByLabelText('信頼度')
+      await user.clear(confidence)
+      await user.type(confidence, '９９')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('7回')
+      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('NaN')
     })
 
     it('信頼度 0 でフォーカスアウトするとエラー文言と aria-invalid と計算ボタン disabled', async () => {
@@ -296,6 +320,15 @@ describe('ForwardForm', () => {
       expect(screen.getByRole('button', { name: '90%' })).toHaveAttribute('aria-pressed', 'false')
     })
 
+    it('信頼度フィールドに全角 "７５" を入力してもプリセット 75 の aria-pressed が true になる（Issue #13）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const input = screen.getByLabelText('信頼度')
+      await user.clear(input)
+      await user.type(input, '７５')
+      expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
     it('aria-describedby は初期描画で 1 id、エラー時は description + message の 2 id 連結', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
@@ -323,14 +356,14 @@ describe('ForwardForm', () => {
       expect(input.value).toBe('1')
     })
 
-    it('目標成功回数 input に inputmode=numeric / type=number / step=1 / min=1 / max=100 が付与される', () => {
+    it('目標成功回数 input に inputmode=numeric / type=text が付与され step / min / max は付与されない', () => {
       render(<ForwardForm />)
       const input = screen.getByLabelText('目標成功回数')
       expect(input).toHaveAttribute('inputmode', 'numeric')
-      expect(input).toHaveAttribute('type', 'number')
-      expect(input).toHaveAttribute('step', '1')
-      expect(input).toHaveAttribute('min', '1')
-      expect(input).toHaveAttribute('max', '100')
+      expect(input).toHaveAttribute('type', 'text')
+      expect(input).not.toHaveAttribute('step')
+      expect(input).not.toHaveAttribute('min')
+      expect(input).not.toHaveAttribute('max')
     })
 
     it('目標成功回数 1（既定）+ 成功率 50 で「4回」「90%文言」（既存挙動の回帰）', async () => {
@@ -474,6 +507,20 @@ describe('ForwardForm', () => {
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('100回')
       expect(status).toHaveTextContent('天井 100 回・すり抜け率 0% 込み')
+    })
+
+    it('Switch ON + 成功率 0.01 + 天井 1000 で試行回数・天井回数が桁区切りで表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '0.01')
+      const pityCount = screen.getByLabelText('天井回数')
+      await user.clear(pityCount)
+      await user.type(pityCount, '1000')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('1,000回')
+      expect(status).toHaveTextContent('天井 1,000 回・すり抜け率 0% 込み')
     })
 
     it('Switch OFF で計算しても補助文言「天井 N 回・すり抜け率 M% 込み」は表示されない', async () => {
@@ -741,7 +788,7 @@ describe('ForwardForm', () => {
       expect(
         screen.queryByText(/予期しないエラーが発生しました/),
       ).not.toBeInTheDocument()
-      expect(await screen.findByLabelText('成功率')).toHaveValue(null)
+      expect(await screen.findByLabelText('成功率')).toHaveValue('')
       await user.type(screen.getByLabelText('成功率'), '50')
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })

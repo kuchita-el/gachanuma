@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
 import {
+  normalizeNumericInput,
   numericInputSchema,
   probabilityPercentageSchema,
   confidencePercentageSchema,
@@ -35,6 +36,54 @@ describe('numericInputSchema', () => {
     })
   })
 
+  // type="text" 化に伴い、IME の全角数字がそのまま入力されるため検証前に正規化する（Issue #13）。
+  describe('全角数字・前後空白の正規化', () => {
+    it('全角数字 "１０" は 10 に変換される', () => {
+      expect(v.parse(numericInputSchema, '１０')).toBe(10)
+    })
+
+    it('全角小数 "０．５" は 0.5 に変換される', () => {
+      expect(v.parse(numericInputSchema, '０．５')).toBe(0.5)
+    })
+
+    it('全角マイナス "－１２．５" は -12.5 に変換される', () => {
+      expect(v.parse(numericInputSchema, '－１２．５')).toBe(-12.5)
+    })
+
+    it('前空白付き " 50" は trim されて 50 になる', () => {
+      expect(v.parse(numericInputSchema, ' 50')).toBe(50)
+    })
+
+    it('後空白付き "50 " は trim されて 50 になる', () => {
+      expect(v.parse(numericInputSchema, '50 ')).toBe(50)
+    })
+
+    it('全角空白付き "　５０　" は trim されて 50 になる', () => {
+      expect(v.parse(numericInputSchema, '　５０　')).toBe(50)
+    })
+
+    it('空白のみ "  " は空文字列扱いでエラー', () => {
+      expect(() => v.parse(numericInputSchema, '  ')).toThrow(/数値を指定してください。/)
+    })
+
+    it('全角でも全体一致は維持され "１２ａｂｃ" はエラー', () => {
+      expect(() => v.parse(numericInputSchema, '１２ａｂｃ')).toThrow(/数値を指定してください。/)
+    })
+
+    it('全角でも指数表記 "１ｅ２" はエラー', () => {
+      expect(() => v.parse(numericInputSchema, '１ｅ２')).toThrow(/数値を指定してください。/)
+    })
+
+    it('丸数字 "①" や上付き数字 "²" は数値として受け付けない', () => {
+      expect(() => v.parse(numericInputSchema, '①')).toThrow(/数値を指定してください/)
+      expect(() => v.parse(numericInputSchema, '²')).toThrow(/数値を指定してください/)
+    })
+
+    it('中間の空白 "5 0" は trim 対象外でエラー', () => {
+      expect(() => v.parse(numericInputSchema, '5 0')).toThrow(/数値を指定してください。/)
+    })
+  })
+
   describe('異常系（parseFloat 貪欲解釈の厳格化）', () => {
     it('NaN になる文字列 "abc" は「数値を指定してください。」エラーになる', () => {
       expect(() => v.parse(numericInputSchema, 'abc')).toThrow(/数値を指定してください。/)
@@ -62,14 +111,6 @@ describe('numericInputSchema', () => {
 
     it('空文字列 "" はエラー', () => {
       expect(() => v.parse(numericInputSchema, '')).toThrow(/数値を指定してください。/)
-    })
-
-    it('前後空白付き " 50" は 50 として通過せずエラー', () => {
-      expect(() => v.parse(numericInputSchema, ' 50')).toThrow(/数値を指定してください。/)
-    })
-
-    it('後空白付き "50 " はエラー', () => {
-      expect(() => v.parse(numericInputSchema, '50 ')).toThrow(/数値を指定してください。/)
     })
   })
 })
@@ -147,6 +188,16 @@ describe('confidencePercentageSchema（整数文字列 → branded ratio 出力�
   it('非数値文字列 "abc" は「数値を指定してください。」', () => {
     expect(() => v.parse(confidencePercentageSchema, 'abc')).toThrow(
       /数値を指定してください/,
+    )
+  })
+
+  it('全角整数 "９０" は ratio 0.9 へ変換される（Issue #13: 正規化）', () => {
+    expect(v.parse(confidencePercentageSchema, '９０')).toBeCloseTo(0.9)
+  })
+
+  it('全角小数 "９９．５" は正規化後に「整数を指定してください。」', () => {
+    expect(() => v.parse(confidencePercentageSchema, '９９．５')).toThrow(
+      /整数を指定してください/,
     )
   })
 })
@@ -228,6 +279,31 @@ describe('pityCountInputSchema（合成後の回帰）', () => {
 
   it('非数値文字列 "abc" は「数値を指定してください。」', () => {
     expect(() => v.parse(pityCountInputSchema, 'abc')).toThrow(/数値を指定してください/)
+  })
+})
+
+describe('normalizeNumericInput', () => {
+  it('全角数字・全角ピリオドを半角にする', () => {
+    expect(normalizeNumericInput('１２３．４５')).toBe('123.45')
+  })
+
+  it('前後の半角・全角空白を除去する', () => {
+    expect(normalizeNumericInput(' 　10　 ')).toBe('10')
+  })
+
+  it('半角のみの文字列はそのまま返す', () => {
+    expect(normalizeNumericInput('3.14')).toBe('3.14')
+  })
+
+  it('全角マイナス・プラスを半角にする', () => {
+    expect(normalizeNumericInput('－１')).toBe('-1')
+    expect(normalizeNumericInput('＋１')).toBe('+1')
+  })
+
+  it('丸数字・上付き数字などの互換文字は変換しない（NFKC を使わない）', () => {
+    expect(normalizeNumericInput('①')).toBe('①')
+    expect(normalizeNumericInput('⑩')).toBe('⑩')
+    expect(normalizeNumericInput('²')).toBe('²')
   })
 })
 

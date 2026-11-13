@@ -163,3 +163,59 @@ test.describe('累積確率グラフ E2E', () => {
     await expect(page.locator('[data-testid="probability-chart"]')).toHaveCount(0)
   })
 })
+
+test.describe('グラフのレスポンシブ表示 E2E', () => {
+  // chromium プロジェクトはデスクトップ設定のみのため、テスト内で viewport を切り替えて検証する
+  for (const viewportWidth of [320, 375, 640]) {
+    test(`幅 ${viewportWidth}px でグラフ描画後も横スクロールが発生しない`, async ({ page }) => {
+      await page.setViewportSize({ width: viewportWidth, height: 800 })
+      await page.goto('/')
+      await page.getByLabel('成功率').fill('50')
+      await page.getByRole('button', { name: '計算' }).click()
+      await expect(page.locator('[data-testid="probability-chart"] svg')).toBeVisible()
+
+      const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      }))
+      expect(scrollWidth).toBe(innerWidth)
+
+      // グラフがコンテンツ幅いっぱいに描画され、参照線ラベルが SVG 内に収まる
+      const chartBox = await page.locator('[data-testid="probability-chart"]').boundingBox()
+      const svgBox = await page.locator('[data-testid="probability-chart"] svg').first().boundingBox()
+      expect(chartBox).not.toBeNull()
+      expect(svgBox).not.toBeNull()
+      expect(Math.abs(svgBox!.width - chartBox!.width)).toBeLessThanOrEqual(1)
+      const labelBox = await page
+        .locator('[data-testid="probability-chart"] text')
+        .filter({ hasText: '90%' })
+        .first()
+        .boundingBox()
+      expect(labelBox).not.toBeNull()
+      expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(svgBox!.x + svgBox!.width)
+    })
+  }
+})
+
+// Issue #13: 数値入力欄は type="text" + inputMode で実装し、ホイール操作による値の増減を防ぐ。
+test.describe('数値入力欄 E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+  })
+
+  test('フォーカス中にマウスホイールを操作しても入力値が変わらない', async ({ page }) => {
+    const target = page.getByLabel('目標成功回数')
+    await target.fill('10')
+    await target.hover()
+    await page.mouse.wheel(0, 100)
+    await page.mouse.wheel(0, -100)
+    await expect(target).toBeFocused()
+    await expect(target).toHaveValue('10')
+  })
+
+  test('全角数字で入力しても半角と同じ結果が表示される', async ({ page }) => {
+    await page.getByLabel('成功率').fill('５０')
+    await page.getByRole('button', { name: '計算' }).click()
+    await expect(page.getByRole('status')).toContainText('4回')
+  })
+})
