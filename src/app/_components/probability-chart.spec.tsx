@@ -34,6 +34,21 @@ describe('ProbabilityChart', () => {
     expect(screen.getAllByText('100').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('X 軸目盛りの 1,000 以上の値は桁区切りで描画される', () => {
+    const { container } = render(
+      <ProbabilityChart successRatePercent={0.01} confidencePercent={90} />,
+    )
+    // Y 軸目盛りは 0〜100 のため、1,000 以上の目盛りはすべて X 軸のもの
+    const tickTexts = Array.from(
+      container.querySelectorAll('.recharts-cartesian-axis-tick-value'),
+    ).map(el => el.textContent ?? '')
+    const largeTicks = tickTexts.filter(t => Number(t.replaceAll(',', '')) >= 1000)
+    expect(largeTicks.length).toBeGreaterThanOrEqual(1)
+    for (const t of largeTicks) {
+      expect(t).toMatch(/^\d{1,3}(,\d{3})+$/)
+    }
+  })
+
   it('信頼度 90 のとき、Y=90 の破線が 1 本描画される（デフォルト90と重複なし）', () => {
     const { container } = render(
       <ProbabilityChart successRatePercent={50} confidencePercent={90} />,

@@ -2,6 +2,18 @@
  * 表示用の数値整形関数群（計算結果・グラフ目盛り等で共有する）。
  */
 
+// 回数・個数用の桁区切りフォーマッタ（モジュールスコープで1回だけ生成する）
+const countFormatter = new Intl.NumberFormat('ja-JP')
+
+/**
+ * 回数・個数を桁区切り付きの文字列に整形する（例: 46050 → 「46,050」）。
+ *
+ * 万単位の補助表記（「約4.6万回」等）はスコープ外（Issue #14）。
+ */
+export function formatCount(n: number): string {
+  return countFormatter.format(n)
+}
+
 /** `toFixed(2)` で「100.00」に丸まる下限（percent 換算） */
 const UPPER_PERCENT_THRESHOLD = 99.995
 /** 小数2桁で表示する下限（percent 換算）。これ未満は `toFixed(2)` で「0.00」に潰れる */

@@ -173,6 +173,16 @@ describe('ForwardForm', () => {
       expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
     })
 
+    it('成功率 0.01 + 信頼度 99 で計算すると 1,000 以上の回数が桁区切りで「46,050回」と表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '0.01')
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('46,050回')
+    })
+
     it('成功率 10 + 信頼度 99 で計算すると 44回 と 99%文言が表示される', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
@@ -474,6 +484,20 @@ describe('ForwardForm', () => {
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('100回')
       expect(status).toHaveTextContent('天井 100 回・すり抜け率 0% 込み')
+    })
+
+    it('Switch ON + 成功率 0.01 + 天井 1000 で試行回数・天井回数が桁区切りで表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.type(screen.getByLabelText('成功率'), '0.01')
+      const pityCount = screen.getByLabelText('天井回数')
+      await user.clear(pityCount)
+      await user.type(pityCount, '1000')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('1,000回')
+      expect(status).toHaveTextContent('天井 1,000 回・すり抜け率 0% 込み')
     })
 
     it('Switch OFF で計算しても補助文言「天井 N 回・すり抜け率 M% 込み」は表示されない', async () => {

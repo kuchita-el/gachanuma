@@ -14,6 +14,7 @@ import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-
 import { computeXAxisUpperBound, sampleTrialCounts } from './chart-range'
 import { parseInputOrErr } from '@/probability/domain-error'
 import { formatDomainError } from '@/lib/format-domain-error'
+import { formatCount } from '@/lib/format-number'
 import { validProbabilityRatioSchema } from '@/probability/value-types'
 import { DEFAULT_CONFIDENCE_PERCENT, percentToRatio } from './form-schemas'
 
@@ -81,6 +82,7 @@ export function ProbabilityChart({
             dataKey="trialCount"
             type="number"
             domain={[1, upperBound]}
+            tickFormatter={formatCount}
             stroke="var(--foreground)"
           >
             <Label value="試行回数" position="insideBottom" offset={-12} fill="var(--foreground)" />

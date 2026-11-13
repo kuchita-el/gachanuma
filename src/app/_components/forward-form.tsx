@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useCalculation } from '@/lib/use-calculation'
+import { formatCount } from '@/lib/format-number'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -270,12 +271,12 @@ export function ForwardForm() {
       {calc.status === 'success' && (
         <ResultPanel className="mt-8">
           <p className="text-3xl font-bold">
-            {calc.result.trialCount}
+            {formatCount(calc.result.trialCount)}
             回
             {calc.result.targetCount >= 2 && (
               <span className="text-muted-foreground ml-2 text-base font-normal">
                 （
-                {calc.result.targetCount}
+                {formatCount(calc.result.targetCount)}
                 個獲得）
               </span>
             )}
@@ -288,7 +289,7 @@ export function ForwardForm() {
             <p className="text-muted-foreground mt-1 text-sm">
               天井
               {' '}
-              {calc.result.pity.pityCount}
+              {formatCount(calc.result.pity.pityCount)}
               {' '}
               回・すり抜け率
               {' '}

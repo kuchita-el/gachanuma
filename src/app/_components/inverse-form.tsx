@@ -14,7 +14,7 @@ import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
 import { useCalculation } from '@/lib/use-calculation'
-import { formatProbabilityPercent } from '@/lib/format-number'
+import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -89,7 +89,7 @@ export function InverseForm() {
             {formatProbabilityPercent(calc.result.cumulativeProbabilityRatio)}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {calc.result.trialCount}
+            {formatCount(calc.result.trialCount)}
             回試行したとき少なくとも1回成功する確率
           </p>
         </ResultPanel>

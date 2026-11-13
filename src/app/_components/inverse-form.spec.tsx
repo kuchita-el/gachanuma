@@ -101,6 +101,16 @@ describe('InverseForm', () => {
     expect(status).not.toHaveTextContent('0.00%')
   })
 
+  it('試行回数 1000 以上は桁区切りで「1,000回試行したとき…」と表示される', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '0.01')
+    await user.type(screen.getByLabelText('試行回数'), '1000')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('1,000回試行したとき少なくとも1回成功する確率')
+  })
+
   it('成功率 0 でフォーカスアウトすると aria-invalid とエラー文言が表示される', async () => {
     const user = userEvent.setup()
     render(<InverseForm />)

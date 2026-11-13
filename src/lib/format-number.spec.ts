@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { formatProbabilityPercent } from './format-number'
+import { formatCount, formatProbabilityPercent } from './format-number'
+
+describe('formatCount', () => {
+  it('999 は桁区切りなし', () => {
+    expect(formatCount(999)).toBe('999')
+  })
+
+  it('1000 は「1,000」', () => {
+    expect(formatCount(1000)).toBe('1,000')
+  })
+
+  it('46050 は「46,050」', () => {
+    expect(formatCount(46050)).toBe('46,050')
+  })
+
+  it('123456789 は「123,456,789」', () => {
+    expect(formatCount(123456789)).toBe('123,456,789')
+  })
+})
 
 describe('formatProbabilityPercent', () => {
   it('99.994% は小数2桁で「99.99%」', () => {
