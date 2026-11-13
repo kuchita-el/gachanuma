@@ -79,6 +79,28 @@ describe('InverseForm', () => {
     expect(status).toHaveTextContent('1.00%')
   })
 
+  it('成功率 50 + 試行回数 100 で計算すると「100%」ではなく「99.99%超」が表示される', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '50')
+    await user.type(screen.getByLabelText('試行回数'), '100')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('99.99%超')
+    expect(status).not.toHaveTextContent('100.00%')
+  })
+
+  it('成功率 0.0001 + 試行回数 1 で計算すると「0.00%」ではなく「0.0001%」が表示される', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '0.0001')
+    await user.type(screen.getByLabelText('試行回数'), '1')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('0.0001%')
+    expect(status).not.toHaveTextContent('0.00%')
+  })
+
   it('成功率 0 でフォーカスアウトすると aria-invalid とエラー文言が表示される', async () => {
     const user = userEvent.setup()
     render(<InverseForm />)
