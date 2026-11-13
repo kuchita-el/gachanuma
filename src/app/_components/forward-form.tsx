@@ -44,9 +44,7 @@ const schema = v.object({
   targetCount: v.optional(targetCountInputSchema),
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
-  // 天井2フィールドは pityEnabled=true のときのみマウントされ、OFF 時は
-  // field-level shouldUnregister（NumberInputField 経由）で form state から除去される。
-  // 除去後に schema が missing で落ちないよう v.optional() で省略可能にする（Issue #80 / D案）。
+  // 天井 OFF 時はフィールドごと form state から除かれるため省略可能（Issue #80）
   pityCount: v.optional(pityCountInputSchema),
   slipRatePercent: v.optional(slipRatePercentageSchema),
 })
@@ -108,14 +106,8 @@ export function ForwardForm() {
   useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
 
   const onSubmit = handleSubmit((form) => {
-    // 計算は schema の branded ratio/count（Output）を直接消費する（Issue #114: 所有モデル(b)、再 parse 廃止）。
-    // 計算呼び出しはサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
-    //
-    // 表示用 percent は getValues() の生入力（Input）から取得する。schema が branded ratio を出力する
-    // ため form（Output）側は ratio になっており、ratio→percent の逆変換（×100）は浮動小数点ドリフトを
-    // 生む（例: 信頼度 7 → 7.000000000000001）。生入力 percent は厳密なため表示はこちらを使う。
-    // 責務分離: 計算 = Output(branded ratio) / 表示 = Input(生 percent)。浮動小数点の全廃は別 Issue で検討。
-    // 生入力は全角数字・前後空白を含み得る（type="text"、Issue #13）ため、スキーマと同じ正規化を経て数値化する。
+    // 表示用の % は、検証後の比率から戻さず入力値から作る。比率 ×100 は浮動小数点の誤差が出るため
+    // （例: 信頼度 7 → 7.000000000000001）。入力値は全角数字や空白を含みうるので正規化してから使う。
     const raw = getValues()
     const normalize = (value: string | number | undefined) =>
       typeof value === 'string' ? normalizeNumericInput(value) : value
@@ -129,10 +121,7 @@ export function ForwardForm() {
     calc.run(() => {
       let calcResult
       if (form.pityEnabled) {
-        // v.optional() 化で pityCount/slipRatePercent は branded|undefined になる（Issue #80）。
-        // pityEnabled=true 時は天井フィールドが register され値が存在する不変条件のため、ここで
-        // narrowing する。万一欠落していれば想定外の異常として投げ、calc.run の catch で error
-        // 状態へ変換する（ドメイン上の失敗は Result、例外は想定外の異常のみ。useCalculation の JSDoc 参照）。
+        // 天井 ON 時は天井フィールドが必ず登録されているため、ここに来ることはない
         if (form.pityCount === undefined || form.slipRatePercent === undefined) {
           throw new Error('天井有効時に天井フィールドの値が存在しません')
         }
@@ -155,8 +144,7 @@ export function ForwardForm() {
         )
       }
 
-      // 天井計算は「1回成功」固定（Issue #34）。targetCount は無視されるため、
-      // 結果表示の「N回以上成功」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+      // 天井計算は1回成功のみ対応（Issue #34）。入力された目標成功回数で「N回以上成功」と表示しないため
       return calcResult.map(value => ({
         trialCount: value,
         confidencePercent: Number(input.confidence),
@@ -210,7 +198,7 @@ export function ForwardForm() {
                 <FormLabel>信頼度</FormLabel>
                 <div className="flex flex-wrap gap-2">
                   {CONFIDENCE_PRESETS.map((preset) => {
-                    // 全角入力（"９０"）でも該当プリセットを選択状態にするため正規化して比較する（Issue #13）
+                    // 全角入力（"９０"）でもプリセットを選択状態にする（Issue #13）
                     const selected = normalizeNumericInput(String(field.value)) === String(preset)
                     return (
                       <Button
@@ -229,7 +217,7 @@ export function ForwardForm() {
                 </div>
                 <InputAffix suffix="%">
                   <FormControl>
-                    {/* NumberInputField と同様に type="text" + inputMode で数値入力を表現する（Issue #13） */}
+                    {/* type="number" を使わない理由は NumberInputField と同じ（Issue #13） */}
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -274,7 +262,7 @@ export function ForwardForm() {
                 helperText="1以上の整数を入力してください"
                 inputMode="numeric"
                 className="mt-4"
-                // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
+                // 天井 OFF 時に、非表示の天井フィールドの不正値で計算できなくなるのを防ぐ（Issue #80）
                 shouldUnregister
               />
 
@@ -286,16 +274,14 @@ export function ForwardForm() {
                 helperText="0以上100以下の数値を入力してください"
                 inputMode="decimal"
                 className="mt-4"
-                // OFF 切替によるアンマウント時に form state から除去し検証対象から外す（Issue #80 / D案）。
                 shouldUnregister
               />
             </>
           )}
 
           {/*
-            計算ボタンは常に押せる（Issue #21）。disabled のボタンはフォーカスできず理由が伝わらないため、
-            不正入力時は react-hook-form の既定動作（全フィールド検証・最初のエラーフィールドへフォーカス・
-            FormMessage 表示）で理由を伝える。
+            不正な入力があっても disabled にしない（Issue #21）。disabled のボタンはフォーカスできず、
+            押せない理由が伝わらないため。押すと react-hook-form が最初のエラーフィールドへフォーカスを移す。
           */}
           <Button
             type="submit"

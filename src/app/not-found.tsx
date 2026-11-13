@@ -6,9 +6,7 @@ export const metadata: Metadata = {
   title: 'ページが見つかりません | 確率の泥沼',
 }
 
-// 存在しないパスで表示される 404 ページ。
-// ヘッダーは layout.tsx 側で描画されるため、ここではメインコンテンツのみを返す。
-// トップへのリンクは next/link を使い、GitHub Pages の basePath（/gachanuma）を自動付与させる。
+// トップへのリンクに <a> ではなく next/link を使うのは、GitHub Pages の basePath（/gachanuma）を付けるため
 export default function NotFound() {
   return (
     <div className="mt-16">

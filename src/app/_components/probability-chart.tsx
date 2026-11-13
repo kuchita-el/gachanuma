@@ -78,13 +78,11 @@ interface ProbabilityChartProps {
 
 /**
  * 試行回数 N に対する累積成功確率 1-(1-p)^N の折れ線グラフ。
- * 信頼度 c の水平破線（右端ラベル）と、c≠90 の場合は 90% デフォルト線を併記。
+ * 信頼度の水平線と、信頼度が既定値（90%）でなければ 90% の線も描く。
+ * 計算できないときは、何も描かずに済ませず、エラー文言を表示する。
  *
- * 通常は recharts 3 の `responsive` prop で親要素の幅に追従させる（モバイル幅での横スクロール回避）。
- * jsdom では要素幅が 0 になり描画されないため、テストでは `width` / `height` props で固定サイズを渡す
- * （recharts issue #1423。ResizeObserver モックは recharts 内部実装への依存になるため採用しない）。
- * 計算層エラー（InvalidInput / NonFiniteResult）は Result チェーンで受け、err なら inline で
- * `formatDomainError` 経由のエラー文言を表示する（silent failure 回避）。
+ * テストで幅・高さを固定値で渡せるようにしているのは、jsdom では要素の幅が 0 になり描画されないため
+ * （recharts issue #1423）。ResizeObserver をモックする方法は、recharts の内部実装に依存するため採らない。
  */
 export function ProbabilityChart({
   successRatePercent,
@@ -94,9 +92,7 @@ export function ProbabilityChart({
 }: ProbabilityChartProps) {
   const isNarrow = useIsNarrowViewport()
   const isFixedSize = width !== undefined && height !== undefined
-  // rate のブランド化 → upperBound → サンプル点列 → 各点の累積確率を Result チェーンで連結し、
-  // どこかで err が出れば全体を err として match の err 分岐でインラインエラー表示にフォールバックする。
-  // ブランド化境界の parse も safeParse ベース（parseInputOrErr）で受け、計算層と同じ throw なし契約に揃える。
+  // v.parse は throw してレンダーごと落ちるため、変換も含めてすべて Result で扱う
   const chartResult = parseInputOrErr(
     validProbabilityRatioSchema,
     percentToRatio(successRatePercent),
@@ -115,7 +111,7 @@ export function ProbabilityChart({
     ),
   )
 
-  // 信頼度=90 のときはデフォルト90破線と重複するので主補助線のみ描画
+  // 信頼度が 90% のときは線が重なるため描かない
   const showDefaultGuide = confidencePercent !== DEFAULT_CONFIDENCE_PERCENT
 
   return chartResult.match(

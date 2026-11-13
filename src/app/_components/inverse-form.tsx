@@ -43,8 +43,6 @@ export function InverseForm() {
   useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
 
   const onSubmit = handleSubmit((form) => {
-    // schema が branded ratio/count を出力するため onSubmit での再 parse は不要（Issue #114: 所有モデル(b)）。
-    // 計算呼び出しはサンク内に置き run の try で捕捉させる（詳細は useCalculation の JSDoc）。
     calc.run(() =>
       calculateCumulativeSuccessProbability(
         form.successRate,
