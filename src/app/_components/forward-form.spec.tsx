@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
 import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
+import { STALE_RESULT_NOTICE } from './result-panel'
 
 vi.mock('@/probability/required-trials', async (importOriginal) => {
   const actual
@@ -743,6 +744,87 @@ describe('ForwardForm', () => {
     })
   })
 
+  describe('古い結果の表示（Issue #9）', () => {
+    async function calculateWithSuccessRate50(user: ReturnType<typeof userEvent.setup>) {
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('4回')
+      return status
+    }
+
+    it('計算直後は結果が薄表示されず、注記も表示されない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      expect(screen.getByTestId('result-panel-body')).not.toHaveClass('opacity-50')
+      expect(screen.queryByText(STALE_RESULT_NOTICE)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'この入力で再計算' })).not.toBeInTheDocument()
+    })
+
+    it('計算後に入力を変更すると、結果とグラフが薄表示になり、注記と「この入力で再計算」が表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.type(screen.getByLabelText('成功率'), '0')
+
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(status).toHaveTextContent('4回')
+      expect(screen.getByTestId('result-panel-body')).toHaveClass('opacity-50')
+      expect(screen.getByTestId('probability-chart-container')).toHaveClass('opacity-50')
+      expect(screen.getByRole('button', { name: 'この入力で再計算' })).toBeInTheDocument()
+    })
+
+    it('「この入力で再計算」を押すと新しい入力で計算され、薄表示と注記が消える', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '10')
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+
+      const status = screen.getByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('22回')
+      expect(status).not.toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(screen.getByTestId('result-panel-body')).not.toHaveClass('opacity-50')
+      expect(screen.getByTestId('probability-chart-container')).not.toHaveClass('opacity-50')
+    })
+
+    it('入力をエラー値にして「この入力で再計算」を押すと、エラーフィールドにフォーカスが移り、古い結果は薄表示のまま残る', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '100')
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+
+      expect(successRate).toHaveAttribute('aria-invalid', 'true')
+      expect(successRate).toHaveFocus()
+      const status = screen.getByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('4回')
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(screen.getByTestId('result-panel-body')).toHaveClass('opacity-50')
+    })
+
+    it('天井スイッチの ON/OFF でも古い結果として表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+
+    it('信頼度プリセットの変更でも古い結果として表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+  })
+
   describe('想定外エラー時のフォールバック表示', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
@@ -1030,9 +1112,9 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       await screen.findByRole('status', { name: '計算結果' })
       expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
-      // 結果領域(role=status) の直後の兄弟要素として probability-chart が存在
+      // 結果領域(role=status) の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
       const adjacent = container.querySelector(
-        '[role="status"] + [data-testid="probability-chart"]',
+        '[role="status"] + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
       )
       expect(adjacent).not.toBeNull()
     })

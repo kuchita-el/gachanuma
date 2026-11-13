@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useCalculation } from '@/lib/use-calculation'
 import { formatCount } from '@/lib/format-number'
+import { cn } from '@/lib/utils'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -298,7 +299,12 @@ export function ForwardForm() {
       </Form>
 
       {calc.status === 'success' && (
-        <ResultPanel className="mt-8">
+        <ResultPanel
+          className="mt-8"
+          stale={calc.stale}
+          // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
+          onRecalculate={() => void onSubmit()}
+        >
           <p className="text-3xl font-bold">
             {formatCount(calc.result.trialCount)}
             回
@@ -327,10 +333,16 @@ export function ForwardForm() {
       )}
 
       {calc.status === 'success' && (
-        <ProbabilityChart
-          successRatePercent={calc.result.successRatePercent}
-          confidencePercent={calc.result.confidencePercent}
-        />
+        // 入力変更後はグラフも結果パネルと同じく薄く表示する（Issue #9）
+        <div
+          data-testid="probability-chart-container"
+          className={cn('transition-opacity', calc.stale && 'opacity-50')}
+        >
+          <ProbabilityChart
+            successRatePercent={calc.result.successRatePercent}
+            confidencePercent={calc.result.confidencePercent}
+          />
+        </div>
       )}
 
       {calc.status === 'error' && (

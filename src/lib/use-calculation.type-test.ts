@@ -72,13 +72,13 @@ export const tt6Error: CalculationState<number> = { status: 'error' }
 
 // TT-7: result と error を同時に持つオブジェクトは余剰プロパティで代入不能（同時保持の排除）
 // @ts-expect-error success メンバに error を併記すると余剰プロパティで代入不能
-export const tt7: CalculationState<number> = { status: 'success', result: 1, error: 'x' }
+export const tt7: CalculationState<number> = { status: 'success', result: 1, stale: false, error: 'x' }
 
 // --- 正常系対照: 各正規メンバは型エラーなく構築可（過剰検出していないことの担保）---
 
 // TT-8: idle / success / error の各正規メンバは @ts-expect-error 無しでコンパイルできる
 export const tt8Idle: CalculationState<number> = { status: 'idle' }
-export const tt8Success: CalculationState<number> = { status: 'success', result: 1 }
+export const tt8Success: CalculationState<number> = { status: 'success', result: 1, stale: false }
 export const tt8Error: CalculationState<number> = { status: 'error', error: 'x' }
 
 // 戻り値型 `{ ...state, run }`（spread + run）が判別共用体として narrowing でき、success

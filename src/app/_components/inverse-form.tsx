@@ -81,7 +81,12 @@ export function InverseForm() {
       </Form>
 
       {calc.status === 'success' && (
-        <ResultPanel className="mt-8">
+        <ResultPanel
+          className="mt-8"
+          stale={calc.stale}
+          // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
+          onRecalculate={() => void onSubmit()}
+        >
           <p className="text-3xl font-bold">
             {formatProbabilityPercent(calc.result.cumulativeProbabilityRatio)}
           </p>
