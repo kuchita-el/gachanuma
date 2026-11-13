@@ -40,8 +40,7 @@ import { cn } from '@/lib/utils'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
-  // 天井 ON 時は目標成功回数を disabled にし、resolver へは undefined を渡す（Issue #12、下の resolver 参照）。
-  // 天井フィールドと同じく v.optional() で省略可能にし、onSubmit で narrowing する。
+  // 天井 ON 時は使わない値のため省略可能（Issue #12、下の resolver 参照）
   targetCount: v.optional(targetCountInputSchema),
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
@@ -59,10 +58,12 @@ const baseResolver = valibotResolver(schema)
 /**
  * 天井 ON 時に目標成功回数を検証対象から外す resolver（Issue #12）。
  *
- * react-hook-form は disabled フィールドの値も resolver に渡す（submit 値から除くのは検証後）。
- * そのため disabled にした目標成功回数が不正値のままだと、天井計算なのに検証エラーで送信できない。
- * 天井 ON 時は targetCount を undefined にしてから検証する。form state の値自体は保持されるため、
- * 天井 OFF に戻すと入力値が復元される。
+ * react-hook-form は disabled フィールドの値も resolver に渡す（submit 値から除くのは検証後）ため、
+ * disabled にするだけでは、目標成功回数が不正値のまま天井計算をしようとすると検証エラーで送信できない。
+ * form state の値は変えないので、天井 OFF に戻すと入力値が復元される。
+ *
+ * スキーマを v.variant('pityEnabled', ...) で分岐させる案は、フォーム値の型が union になり
+ * NumberInputField 等の型付けが複雑になるため採らない。
  */
 const resolver: typeof baseResolver = (values, context, options) =>
   baseResolver(
@@ -143,7 +144,7 @@ export function ForwardForm() {
         )
       }
       else {
-        // 天井 OFF 時は目標成功回数が有効で、resolver が検証済みの値を渡す不変条件のため narrowing する。
+        // 天井 OFF 時は resolver が目標成功回数を検証済みのため、ここに来ることはない
         if (form.targetCount === undefined) {
           throw new Error('天井無効時に目標成功回数の値が存在しません')
         }
@@ -254,7 +255,7 @@ export function ForwardForm() {
                   checked={field.value}
                   onCheckedChange={(checked) => {
                     field.onChange(checked)
-                    // 目標成功回数は disabled になり検証対象外となるため、残っているエラー表示を消す（Issue #12）
+                    // disabled 中は再検証されないため、ON にする前のエラー表示が残り続けてしまう（Issue #12）
                     if (checked) clearErrors('targetCount')
                   }}
                 />
@@ -299,7 +300,6 @@ export function ForwardForm() {
           <Button
             type="submit"
             className="mt-4"
-            // 押し下げで入力欄のフォーカスが外れると、検証エラーの表示でボタンがずれて1回目の押下が無視されるため
             onMouseDown={keepFocusOnMouseDown}
           >
             計算
@@ -307,13 +307,11 @@ export function ForwardForm() {
         </form>
       </Form>
 
-      {/* 計算ボタン・「この入力で再計算」による実行後、結果またはエラーを画面内へスクロールする（Issue #19） */}
       <div ref={resultAreaRef}>
         {calc.status === 'success' && (
           <ResultPanel
             className="mt-8"
             stale={calc.stale}
-            // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
             onRecalculate={() => void onSubmit()}
           >
             <p className="text-3xl font-bold">
@@ -355,7 +353,6 @@ export function ForwardForm() {
       </div>
 
       {calc.status === 'success' && (
-        // 入力変更後はグラフも結果パネルと同じく薄く表示する（Issue #9）
         <div
           data-testid="probability-chart-container"
           className={cn('transition-opacity', calc.stale && 'opacity-50')}

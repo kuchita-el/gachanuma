@@ -80,8 +80,6 @@ export function useCalculation<
   const [runCount, setRunCount] = useState(0)
   const throwToErrorBoundary = useThrowToErrorBoundary()
 
-  // フォーム値変更時は error なら idle へ戻し、success なら結果を保持したまま stale にする（Issue #9）。
-  // idle・stale 済みの success は同一参照を返して no-op（不要な再レンダ抑止）。
   const handleFormValueChange = useCallback(() => {
     setState((prev) => {
       if (prev.status === 'error') return { status: 'idle' }

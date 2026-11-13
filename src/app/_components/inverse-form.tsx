@@ -82,7 +82,6 @@ export function InverseForm() {
           <Button
             type="submit"
             className="mt-4"
-            // 押し下げで入力欄のフォーカスが外れると、検証エラーの表示でボタンがずれて1回目の押下が無視されるため
             onMouseDown={keepFocusOnMouseDown}
           >
             計算
@@ -90,13 +89,11 @@ export function InverseForm() {
         </form>
       </Form>
 
-      {/* 計算ボタン・「この入力で再計算」による実行後、結果またはエラーを画面内へスクロールする（Issue #19） */}
       <div ref={resultAreaRef}>
         {calc.status === 'success' && (
           <ResultPanel
             className="mt-8"
             stale={calc.stale}
-            // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
             onRecalculate={() => void onSubmit()}
           >
             <p className="text-3xl font-bold">

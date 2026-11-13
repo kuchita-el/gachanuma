@@ -22,10 +22,7 @@ type ResultPanelProps = {
 function ResultPanel({ children, className, stale = false, onRecalculate }: ResultPanelProps) {
   return (
     <div className={cn('bg-primary/10 rounded-lg p-6', className)}>
-      {/*
-        live region は見出し・結果・注記のみに限定する。再計算ボタンを含めると、結果が変わるたびに
-        ボタンのラベルまで読み上げられるため、ボタンは live region の外に置く。
-      */}
+      {/* 再計算ボタンを live region に含めると、結果が変わるたびにボタンのラベルまで読み上げられる */}
       <div role="status" aria-live="polite" aria-label="計算結果">
         <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
         <div
@@ -34,7 +31,7 @@ function ResultPanel({ children, className, stale = false, onRecalculate }: Resu
         >
           {children}
         </div>
-        {/* 注記は薄表示の対象外にし、はっきり見せる。live region 内なので出現時に1回読み上げられる */}
+        {/* 注記は薄くしない。結果が古いことを見落とさせないため */}
         {stale && (
           <p className="mt-4 text-sm font-medium">{STALE_RESULT_NOTICE}</p>
         )}
@@ -44,7 +41,6 @@ function ResultPanel({ children, className, stale = false, onRecalculate }: Resu
           type="button"
           variant="outline"
           className="mt-2 min-h-11"
-          // 計算ボタンと同じく、押し下げで入力欄の検証が走りボタンがずれて押下が無視されるのを防ぐ
           onMouseDown={keepFocusOnMouseDown}
           onClick={onRecalculate}
         >
