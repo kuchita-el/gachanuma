@@ -149,8 +149,8 @@ export function ForwardForm() {
         )
       }
 
-      // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
-      // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+      // 天井計算は「1回成功」固定（Issue #34）。targetCount は無視されるため、
+      // 結果表示の「N回以上成功」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
       return calcResult.map(value => ({
         trialCount: value,
         confidencePercent: Number(input.confidence),
@@ -302,17 +302,14 @@ export function ForwardForm() {
           <p className="text-3xl font-bold">
             {formatCount(calc.result.trialCount)}
             回
-            {calc.result.targetCount >= 2 && (
-              <span className="text-muted-foreground ml-2 text-base font-normal">
-                （
-                {formatCount(calc.result.targetCount)}
-                個獲得）
-              </span>
-            )}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
             {calc.result.confidencePercent}
-            %の確率で成功するために必要な試行回数
+            %の確率で
+            {calc.result.targetCount >= 2
+              ? `${formatCount(calc.result.targetCount)}回以上`
+              : '少なくとも1回'}
+            成功するために必要な試行回数
           </p>
           {calc.result.pity && (
             <p className="text-muted-foreground mt-1 text-sm">

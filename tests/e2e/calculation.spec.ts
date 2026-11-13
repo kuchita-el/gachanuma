@@ -35,13 +35,13 @@ test.describe('確率計算 E2E', () => {
     await expect(page.getByRole('status')).toHaveCount(0)
   })
 
-  test('目標成功回数 2 + 成功率 50 で 7回 と「（2個獲得）」が表示される', async ({ page }) => {
+  test('目標成功回数 2 + 成功率 50 で 7回 と「2回以上成功する」説明文が表示される', async ({ page }) => {
     await page.getByLabel('成功率').fill('50')
     const target = page.getByLabel('目標成功回数')
     await target.fill('2')
     await page.getByRole('button', { name: '計算' }).click()
     await expect(page.getByRole('status')).toContainText('7回')
-    await expect(page.getByRole('status')).toContainText('（2個獲得）')
+    await expect(page.getByRole('status')).toContainText('90%の確率で2回以上成功するために必要な試行回数')
   })
 
   test('目標成功回数 0 で計算ボタンを押すと、目標成功回数にフォーカスが移り結果は出ない', async ({ page }) => {

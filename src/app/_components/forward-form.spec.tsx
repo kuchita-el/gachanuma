@@ -69,7 +69,7 @@ describe('ForwardForm', () => {
     await user.click(screen.getByRole('button', { name: '計算' }))
     const status = await screen.findByRole('status', { name: '計算結果' })
     expect(status).toHaveTextContent('4回')
-    expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
+    expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
   })
 
   it('成功率 10 を入力して計算ボタンを押すと 22回 が表示される', async () => {
@@ -186,7 +186,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('50%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('成功率 0.01 + 信頼度 99 で計算すると 1,000 以上の回数が桁区切りで「46,050回」と表示される', async () => {
@@ -207,7 +207,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('44回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度 7（ratio 往復で誤差が出る値）でも結果文言は「7%」が厳密表示される（浮動小数点ドリフト回帰）', async () => {
@@ -221,7 +221,7 @@ describe('ForwardForm', () => {
       await user.type(confidence, '7')
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
-      expect(status).toHaveTextContent('7%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('7%の確率で少なくとも1回成功するために必要な試行回数')
       expect(status).not.toHaveTextContent('7.000000000000001')
     })
 
@@ -235,7 +235,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
       expect(status).not.toHaveTextContent('NaN')
     })
 
@@ -329,7 +329,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('22回')
-      expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度 50 で計算後、信頼度 99 に変更して再計算すると結果文言が 99% に更新される（状態遷移）', async () => {
@@ -340,13 +340,13 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       let status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('50%の確率で少なくとも1回成功するために必要な試行回数')
 
       await user.click(screen.getByRole('button', { name: '99%' }))
       await user.click(screen.getByRole('button', { name: '計算' }))
       status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('44回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度フィールドを直接 75 に編集するとプリセット 75 の aria-pressed が true になる（表示双方向）', async () => {
@@ -412,11 +412,11 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('4回')
-      expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
-      expect(status).not.toHaveTextContent('個獲得')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('回以上成功')
     })
 
-    it('目標成功回数 2 + 成功率 50 で「7回」「（2個獲得）」補助文言', async () => {
+    it('目標成功回数 2 + 成功率 50 で「7回」「2回以上成功する」説明文（Issue #26）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -426,7 +426,8 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('（2個獲得）')
+      expect(status).toHaveTextContent('90%の確率で2回以上成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('獲得')
     })
 
     it('目標成功回数 10 + 成功率 50 で計算結果が表示される', async () => {
@@ -439,7 +440,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent(/\d+回/)
-      expect(status).toHaveTextContent('（10個獲得）')
+      expect(status).toHaveTextContent('90%の確率で10回以上成功するために必要な試行回数')
     })
 
     it('目標成功回数 0 でフォーカスアウト → aria-invalid + エラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
@@ -661,7 +662,7 @@ describe('ForwardForm', () => {
       expect(await screen.findByRole('status', { name: '計算結果' })).toBeInTheDocument()
     })
 
-    it('Switch ON + 目標成功回数 3 で計算しても結果領域に「3個獲得」補助文言は表示されない（天井計算は1個前提）', async () => {
+    it('Switch ON + 目標成功回数 3 で計算しても説明文は「少なくとも1回成功」になる（天井計算は1回成功前提、Issue #26）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       const target = screen.getByLabelText('目標成功回数')
@@ -672,7 +673,8 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('100回')
-      expect(status).not.toHaveTextContent('個獲得')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('3回以上')
     })
 
     it('Switch ON で目標成功回数が disabled になり、補足文が天井用に切り替わる（Issue #12）', async () => {
