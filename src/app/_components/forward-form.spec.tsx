@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './forward-form'
@@ -825,6 +825,84 @@ describe('ForwardForm', () => {
     })
   })
 
+  describe('計算後の結果へのスクロール（Issue #19）', () => {
+    let scrollIntoView: MockInstance<Element['scrollIntoView']>
+
+    beforeEach(() => {
+      // jsdom の scrollIntoView は vitest.setup.ts で補った no-op。呼び出しを監視する
+      scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView')
+    })
+
+    afterEach(() => {
+      scrollIntoView.mockRestore()
+    })
+
+    it('初期表示ではスクロールしない', () => {
+      render(<ForwardForm />)
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+
+    it('計算すると結果パネルを含む領域へ block: nearest でスクロールする（フォーカスは移さない）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const submit = screen.getByRole('button', { name: '計算' })
+      await user.click(submit)
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }))
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(status)
+      expect(submit).toHaveFocus()
+    })
+
+    it('同じ入力で再計算しても毎回スクロールする', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    })
+
+    it('入力変更（古い結果の表示）ではスクロールせず、「この入力で再計算」ではスクロールする', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '10')
+      expect(await screen.findByText(STALE_RESULT_NOTICE)).toBeInTheDocument()
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    })
+
+    it('ドメインエラー時はエラー Alert を含む領域へスクロールする', async () => {
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('ドメインエラー（テスト用）'),
+      )
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const alert = await screen.findByRole('alert')
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(alert)
+    })
+
+    it('入力エラーで計算されなかったときはスクロールしない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '0')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+  })
+
   describe('想定外エラー時のフォールバック表示', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
@@ -1112,9 +1190,9 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       await screen.findByRole('status', { name: '計算結果' })
       expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
-      // 結果領域(role=status) の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
+      // 結果領域(role=status) を包む要素の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
       const adjacent = container.querySelector(
-        '[role="status"] + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
+        'div:has(> [role="status"]) + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
       )
       expect(adjacent).not.toBeNull()
     })

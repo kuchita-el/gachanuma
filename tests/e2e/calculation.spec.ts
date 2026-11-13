@@ -254,3 +254,37 @@ test.describe('数値入力欄 E2E', () => {
     await expect(page.getByRole('status')).toContainText('4回')
   })
 })
+
+// Issue #9: 入力変更後の古い結果の表示と、その場での再計算
+test.describe('古い結果の表示 E2E', () => {
+  test('計算後に入力を変更すると注記が表示され、「この入力で再計算」で新しい結果になる', async ({ page }) => {
+    await page.goto('/')
+    const successRate = panel(page).getByLabel('成功率')
+    await successRate.fill('50')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    const status = page.getByRole('status')
+    await expect(status).toContainText('4回')
+
+    await successRate.fill('10')
+    await expect(status).toContainText('入力が変わったため、この結果は変更前の入力のものです。')
+    await expect(status).toContainText('4回')
+
+    await status.getByRole('button', { name: 'この入力で再計算' }).click()
+    await expect(status).toContainText('22回')
+    await expect(status).not.toContainText('入力が変わったため')
+  })
+})
+
+// Issue #19: 計算後、結果パネルが画面外にあれば画面内へスクロールする
+test.describe('計算後のスクロール E2E', () => {
+  test('モバイル幅（375×667）で天井 ON の計算をすると、結果パネルが画面内に入る', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto('/')
+    await page.getByRole('switch', { name: '天井を考慮する' }).click()
+    await panel(page).getByLabel('成功率').fill('1')
+    const status = page.getByRole('status')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    await expect(status).toContainText('100回')
+    await expect(status).toBeInViewport()
+  })
+})

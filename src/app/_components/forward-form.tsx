@@ -13,7 +13,7 @@ import { calculateTrialCountWithPity } from '@/probability/required-trials-with-
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useCalculation } from '@/lib/use-calculation'
+import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount } from '@/lib/format-number'
 import { cn } from '@/lib/utils'
 
@@ -101,6 +102,8 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>(subscribe)
   const pityEnabledId = useId()
+  const resultAreaRef = useRef<HTMLDivElement>(null)
+  useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
 
   const onSubmit = handleSubmit((form) => {
     // 計算は schema の branded ratio/count（Output）を直接消費する（Issue #114: 所有モデル(b)、再 parse 廃止）。
@@ -298,39 +301,52 @@ export function ForwardForm() {
         </form>
       </Form>
 
-      {calc.status === 'success' && (
-        <ResultPanel
-          className="mt-8"
-          stale={calc.stale}
-          // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
-          onRecalculate={() => void onSubmit()}
-        >
-          <p className="text-3xl font-bold">
-            {formatCount(calc.result.trialCount)}
-            回
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {calc.result.confidencePercent}
-            %の確率で
-            {calc.result.targetCount >= 2
-              ? `${formatCount(calc.result.targetCount)}回以上`
-              : '少なくとも1回'}
-            成功するために必要な試行回数
-          </p>
-          {calc.result.pity && (
-            <p className="text-muted-foreground mt-1 text-sm">
-              天井
-              {' '}
-              {formatCount(calc.result.pity.pityCount)}
-              {' '}
-              回・すり抜け率
-              {' '}
-              {calc.result.pity.slipRatePercent}
-              % 込み
+      {/* 計算ボタン・「この入力で再計算」による実行後、結果またはエラーを画面内へスクロールする（Issue #19） */}
+      <div ref={resultAreaRef}>
+        {calc.status === 'success' && (
+          <ResultPanel
+            className="mt-8"
+            stale={calc.stale}
+            // フォームの計算ボタンと同じ処理（検証・最初のエラーフィールドへのフォーカスを含む）を呼ぶ
+            onRecalculate={() => void onSubmit()}
+          >
+            <p className="text-3xl font-bold">
+              {formatCount(calc.result.trialCount)}
+              回
             </p>
-          )}
-        </ResultPanel>
-      )}
+            <p className="text-muted-foreground mt-1 text-sm">
+              {calc.result.confidencePercent}
+              %の確率で
+              {calc.result.targetCount >= 2
+                ? `${formatCount(calc.result.targetCount)}回以上`
+                : '少なくとも1回'}
+              成功するために必要な試行回数
+            </p>
+            {calc.result.pity && (
+              <p className="text-muted-foreground mt-1 text-sm">
+                天井
+                {' '}
+                {formatCount(calc.result.pity.pityCount)}
+                {' '}
+                回・すり抜け率
+                {' '}
+                {calc.result.pity.slipRatePercent}
+                % 込み
+              </p>
+            )}
+          </ResultPanel>
+        )}
+        {calc.status === 'error' && (
+          <Alert
+            variant="destructive"
+            role="alert"
+            aria-live="assertive"
+            className="mt-4"
+          >
+            <AlertDescription>{calc.error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       {calc.status === 'success' && (
         // 入力変更後はグラフも結果パネルと同じく薄く表示する（Issue #9）
@@ -343,17 +359,6 @@ export function ForwardForm() {
             confidencePercent={calc.result.confidencePercent}
           />
         </div>
-      )}
-
-      {calc.status === 'error' && (
-        <Alert
-          variant="destructive"
-          role="alert"
-          aria-live="assertive"
-          className="mt-4"
-        >
-          <AlertDescription>{calc.error}</AlertDescription>
-        </Alert>
       )}
     </div>
   )

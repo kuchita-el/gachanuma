@@ -215,6 +215,27 @@ describe('useCalculation', () => {
     expect(result.current.status).toBe('idle')
   })
 
+  // UC-12: runCount は run が success / error に遷移するたびに増え、入力変更では増えない（Issue #19）
+  it('runCount は計算実行（成功・ドメインエラー）のたびに増え、フォーム値変更では増えない', () => {
+    const harness = createSubscribeHarness()
+    const { result } = renderHook(() =>
+      useCalculation<number>(harness.subscribe),
+    )
+    expect(result.current.runCount).toBe(0)
+    act(() => result.current.run(() => ok(1)))
+    expect(result.current.runCount).toBe(1)
+    act(() => result.current.run(() => ok(1)))
+    expect(result.current.runCount).toBe(2)
+    act(() => harness.fireCallback())
+    expect(result.current.runCount).toBe(2)
+    act(() =>
+      result.current.run(() =>
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
+      ),
+    )
+    expect(result.current.runCount).toBe(3)
+  })
+
   // UC-11: run は判別に関与せず、どの status でも常時アクセス可能（spread 構造の回帰）
   it('run は status に依らず常時アクセス可能', () => {
     const harness = createSubscribeHarness()

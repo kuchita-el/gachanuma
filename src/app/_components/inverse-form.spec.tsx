@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { InverseForm } from './inverse-form'
@@ -319,6 +319,34 @@ describe('InverseForm', () => {
       expect(trialCount).toHaveFocus()
       expect(status).toHaveTextContent('93.75%')
       expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+  })
+
+  describe('計算後の結果へのスクロール（Issue #19）', () => {
+    let scrollIntoView: MockInstance<Element['scrollIntoView']>
+
+    beforeEach(() => {
+      // jsdom の scrollIntoView は vitest.setup.ts で補った no-op。呼び出しを監視する
+      scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView')
+    })
+
+    afterEach(() => {
+      scrollIntoView.mockRestore()
+    })
+
+    it('計算すると結果パネルを含む領域へスクロールし、入力変更ではスクロールしない', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.type(screen.getByLabelText('試行回数'), '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }))
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(status)
+
+      await user.type(screen.getByLabelText('試行回数'), '0')
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
     })
   })
 

@@ -65,6 +65,11 @@ export type CalculationState<TResult>
  */
 export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
   run: (calc: () => Result<TResult, DomainError>) => void
+  /**
+   * `run` が成功またはドメインエラーに遷移した回数。計算を実行するたびに増える。
+   * 計算後に結果へスクロールするトリガとして使う（Issue #19）。入力変更では増えない。
+   */
+  runCount: number
 }
 
 export function useCalculation<
@@ -72,6 +77,7 @@ export function useCalculation<
   TFieldValues extends FieldValues = FieldValues,
 >(subscribe: UseFormSubscribe<TFieldValues>): UseCalculationReturn<TResult> {
   const [state, setState] = useState<CalculationState<TResult>>({ status: 'idle' })
+  const [runCount, setRunCount] = useState(0)
   const throwToErrorBoundary = useThrowToErrorBoundary()
 
   // フォーム値変更時は error なら idle へ戻し、success なら結果を保持したまま stale にする（Issue #9）。
@@ -97,12 +103,14 @@ export function useCalculation<
     calcResult.match(
       (value) => {
         setState({ status: 'success', result: value, stale: false })
+        setRunCount(count => count + 1)
       },
       (domainError) => {
         setState({ status: 'error', error: formatDomainError(domainError) })
+        setRunCount(count => count + 1)
       },
     )
   }
 
-  return { ...state, run }
+  return { ...state, run, runCount }
 }
