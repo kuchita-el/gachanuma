@@ -37,7 +37,9 @@ import { formatCount } from '@/lib/format-number'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
-  targetCount: targetCountInputSchema,
+  // 天井 ON 時は目標成功回数を disabled にし、resolver へは undefined を渡す（Issue #12、下の resolver 参照）。
+  // 天井フィールドと同じく v.optional() で省略可能にし、onSubmit で narrowing する。
+  targetCount: v.optional(targetCountInputSchema),
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
   // 天井2フィールドは pityEnabled=true のときのみマウントされ、OFF 時は
@@ -49,9 +51,26 @@ const schema = v.object({
 
 const CONFIDENCE_PRESETS = [50, 75, 90, 95, 99] as const
 
+const baseResolver = valibotResolver(schema)
+
+/**
+ * 天井 ON 時に目標成功回数を検証対象から外す resolver（Issue #12）。
+ *
+ * react-hook-form は disabled フィールドの値も resolver に渡す（submit 値から除くのは検証後）。
+ * そのため disabled にした目標成功回数が不正値のままだと、天井計算なのに検証エラーで送信できない。
+ * 天井 ON 時は targetCount を undefined にしてから検証する。form state の値自体は保持されるため、
+ * 天井 OFF に戻すと入力値が復元される。
+ */
+const resolver: typeof baseResolver = (values, context, options) =>
+  baseResolver(
+    values.pityEnabled ? { ...values, targetCount: undefined } : values,
+    context,
+    options,
+  )
+
 export function ForwardForm() {
   const form = useForm({
-    resolver: valibotResolver(schema),
+    resolver,
     mode: 'onBlur',
     defaultValues: {
       successRate: '',
@@ -67,6 +86,7 @@ export function ForwardForm() {
     control,
     getValues,
     setValue,
+    clearErrors,
     subscribe,
     formState: { errors },
   } = form
@@ -119,6 +139,10 @@ export function ForwardForm() {
         )
       }
       else {
+        // 天井 OFF 時は目標成功回数が有効で、resolver が検証済みの値を渡す不変条件のため narrowing する。
+        if (form.targetCount === undefined) {
+          throw new Error('天井無効時に目標成功回数の値が存在しません')
+        }
         calcResult = calculateTrialCountForMultipleSuccess(
           form.successRate,
           form.targetCount,
@@ -169,9 +193,16 @@ export function ForwardForm() {
             name="targetCount"
             label="目標成功回数"
             suffix="回"
-            helperText="1〜100 の整数を入力してください"
+            helperText={
+              pityEnabled
+                ? '天井を考慮する場合は、目標成功回数は1回で計算します'
+                : '1〜100 の整数を入力してください'
+            }
             inputMode="numeric"
             className="mt-4"
+            // 天井計算は1回成功のみ対応のため、天井 ON 時は入力不可にする。非表示にしないのは
+            // 制約を伝えるためと、OFF に戻したとき入力値を復元するため（Issue #12）。
+            disabled={pityEnabled}
           />
 
           <FormField
@@ -225,7 +256,11 @@ export function ForwardForm() {
                 <Switch
                   id={pityEnabledId}
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked)
+                    // 目標成功回数は disabled になり検証対象外となるため、残っているエラー表示を消す（Issue #12）
+                    if (checked) clearErrors('targetCount')
+                  }}
                 />
                 <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
               </div>

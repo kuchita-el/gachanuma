@@ -621,16 +621,50 @@ describe('ForwardForm', () => {
       expect(status).not.toHaveTextContent('個獲得')
     })
 
-    it('Switch ON 時に目標成功回数エラーがあっても計算ボタンは disabled にならない（targetCount は無視されるため）', async () => {
+    it('Switch ON で目標成功回数が disabled になり、補足文が天井用に切り替わる（Issue #12）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      const target = screen.getByLabelText('目標成功回数')
+      expect(target).not.toBeDisabled()
+      expect(screen.getByText('1〜100 の整数を入力してください')).toBeInTheDocument()
+
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(target).toBeDisabled()
+      expect(screen.getByText('天井を考慮する場合は、目標成功回数は1回で計算します')).toBeInTheDocument()
+      expect(screen.queryByText('1〜100 の整数を入力してください')).not.toBeInTheDocument()
+    })
+
+    it('目標成功回数が不正値のまま Switch ON にすると、エラー表示が消え天井計算ができる（Issue #12）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
       const target = screen.getByLabelText('目標成功回数')
       await user.clear(target)
       await user.type(target, '0')
       await user.tab()
-      // Switch ON 中は targetCount エラーが disabled に反映されない
-      expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
+      expect(await screen.findByText('目標成功回数は1以上を指定してください。')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(screen.queryByText('目標成功回数は1以上を指定してください。')).not.toBeInTheDocument()
+      expect(target).toHaveAttribute('aria-invalid', 'false')
+
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('100回')
+    })
+
+    it('Switch ON → OFF で目標成功回数が再び入力可能になり、入力値が復元される（Issue #12）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const target = screen.getByLabelText('目標成功回数') as HTMLInputElement
+      await user.clear(target)
+      await user.type(target, '5')
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      expect(target).toBeDisabled()
+      await user.click(sw)
+      expect(target).not.toBeDisabled()
+      expect(target.value).toBe('5')
     })
 
     it('Switch ON で天井回数に不正値→OFF→submit で計算が成立する（shouldUnregister による隠れたバリデーション解除）', async () => {
