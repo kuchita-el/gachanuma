@@ -63,7 +63,7 @@ describe('useKeepFocusOnPress', () => {
     expect(input).toHaveFocus()
   })
 
-  it('click 自体が pointerType を持つ場合はそれを優先する: タッチの記録が残っていても、キーボード由来（空文字）ならフォーカスを変えない', () => {
+  it('click がキーボード由来（pointerType が空文字）なら、タッチの記録が残っていてもフォーカスを変えない', () => {
     const { input, button } = setup()
     // 指をボタンの外へずらして離した等で、click が来ないままタッチの記録が残った状態
     fireEvent.pointerDown(button, { pointerType: 'touch' })
@@ -75,6 +75,13 @@ describe('useKeepFocusOnPress', () => {
   it('click 自体が pointerType: touch を持つ場合は、pointerdown の記録がなくてもフォーカスを外す', () => {
     const { input, button } = setup()
     fireEvent(button, new PointerEvent('click', { bubbles: true, cancelable: true, pointerType: 'touch' }))
+    expect(input).not.toHaveFocus()
+  })
+
+  it('pointerdown がタッチなら、click 側の pointerType が touch 以外（mouse など）でもフォーカスを外す', () => {
+    const { input, button } = setup()
+    fireEvent.pointerDown(button, { pointerType: 'touch' })
+    fireEvent(button, new PointerEvent('click', { bubbles: true, cancelable: true, pointerType: 'mouse' }))
     expect(input).not.toHaveFocus()
   })
 

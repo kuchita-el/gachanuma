@@ -35,9 +35,14 @@ export function useKeepFocusOnPress(onClick?: () => void) {
       event.preventDefault()
     },
     onClick: (event: MouseEvent<HTMLElement>) => {
-      const pointerType = getClickPointerType(event.nativeEvent) ?? pointerTypeRef.current
+      const clickPointerType = getClickPointerType(event.nativeEvent)
+      const recordedPointerType = pointerTypeRef.current
       pointerTypeRef.current = ''
-      if ((pointerType === 'touch' || pointerType === 'pen') && document.activeElement instanceof HTMLInputElement) {
+      // click 側の値だけに頼らないのは、iOS Safari がタップの click に 'touch' を入れるか確認できていないため。
+      // click 側はキーボード由来（空文字）の判定にだけ使い、記録が残っていてもフォーカスを外さない。
+      const pressedByTouch = clickPointerType !== ''
+        && [clickPointerType, recordedPointerType].some(type => type === 'touch' || type === 'pen')
+      if (pressedByTouch && document.activeElement instanceof HTMLInputElement) {
         document.activeElement.blur()
       }
       onClick?.()
