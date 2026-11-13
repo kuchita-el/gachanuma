@@ -12,12 +12,25 @@ import {
 export const DEFAULT_CONFIDENCE_PERCENT = 90
 
 /**
+ * 数値入力欄の生文字列を検証前に正規化する純関数（Issue #13）。
+ *
+ * 入力欄は type="text" のため、IME の全角数字（"１０" / "０．５"）がそのまま入る。
+ * NFKC 正規化で全角数字・全角ピリオド・全角マイナス・全角空白を半角化し、前後の空白を trim する。
+ * 正規化は表記ゆれの吸収のみに留め、数値としての妥当性は呼び出し側（v.decimal() 等）が全体一致で判定する。
+ */
+export function normalizeNumericInput(input: string): string {
+  return input.normalize('NFKC').trim()
+}
+
+/**
  * フォーム入力（文字列または数値）を数値型に確定するヘルパスキーマ。
  *
- * 文字列分岐は v.decimal() で全体一致を強制してから Number() で数値化する。
+ * 文字列分岐は normalizeNumericInput で全角→半角・前後空白除去を行った後、
+ * v.decimal() で全体一致を強制してから Number() で数値化する。
  * 「全体一致」が肝で、parseFloat の貪欲解釈（"12abc" → 12、"5,000" → 5、"1e2"
- * → 100、"0x10" → 0、"Infinity" → Infinity、前後空白許容）を排除し、
- * UI フォームでユーザが意図しない値が無音で通過するのを防ぐ。
+ * → 100、"0x10" → 0、"Infinity" → Infinity）を排除し、
+ * UI フォームでユーザが意図しない値が無音で通過するのを防ぐ。全体一致は正規化後の文字列に
+ * 対して行うため、正規化（全角半角化・trim）以外の表記ゆれは引き続き弾かれる。
  *
  * 失敗時のメッセージは union 自体に紐づけ、文字列分岐・数値分岐どちらの失敗でも
  * 単一の「数値を指定してください。」を返す。output 型は number（有限値とは限らない点に
@@ -25,7 +38,7 @@ export const DEFAULT_CONFIDENCE_PERCENT = 90
  */
 export const numericInputSchema = v.union(
   [
-    v.pipe(v.string(), v.decimal(), v.transform(Number)),
+    v.pipe(v.string(), v.transform(normalizeNumericInput), v.decimal(), v.transform(Number)),
     v.number(),
   ],
   '数値を指定してください。',
@@ -63,17 +76,17 @@ export const confidencePercentageSchema = v.pipe(
   // 数値性は string→decimal / number の union で担保し、非数値・空文字は単一の
   // 「数値を指定してください。」を返す。この union は numericInputSchema と同一の数値受理仕様を
   // 意図的に複製したもの（整数チェックを挟むため numericInputSchema をそのまま使えない）。
-  // numericInputSchema 側の数値受理仕様（v.decimal）を変更する際は本スキーマも追従させること。
+  // numericInputSchema 側の数値受理仕様（正規化 + v.decimal）を変更する際は本スキーマも追従させること。
   // 文字列分岐末尾の恒等 transform（string→string）は
   // 2 つの役割を持つ:
   //   1. valibot union が分岐内ステップ（v.decimal）の既定メッセージではなく union メッセージを
   //      採用する条件を満たす（transform を持たないと "Invalid decimal" が漏れる）。
-  //   2. 検証後も生文字列を保持し、後続の整数チェックで小数点の有無を判定できるようにする。
+  //   2. 検証後も（正規化済みの）文字列を保持し、後続の整数チェックで小数点の有無を判定できるようにする。
   // 整数チェックは union の外に置く。union 内に置くと整数違反まで union メッセージに飲み込まれ
   // 「整数を指定してください。」を返せないため。Input 型は string|number を維持し、branded ratio
   // 出力がフォーム値（Input）へ代入可能な状態（Control 型整合）を保つ。
   v.union(
-    [v.pipe(v.string(), v.decimal(), v.transform(s => s)), v.number()],
+    [v.pipe(v.string(), v.transform(normalizeNumericInput), v.decimal(), v.transform(s => s)), v.number()],
     '数値を指定してください。',
   ),
   v.check(

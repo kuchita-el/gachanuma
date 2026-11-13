@@ -62,8 +62,6 @@ export function InverseForm() {
             suffix="%"
             helperText="0より大きく100未満の数値を入力してください"
             inputMode="decimal"
-            type="number"
-            step="any"
           />
 
           <NumberInputField
@@ -73,7 +71,6 @@ export function InverseForm() {
             suffix="回"
             helperText="1以上の整数を入力してください"
             inputMode="numeric"
-            type="number"
             className="mt-4"
           />
 

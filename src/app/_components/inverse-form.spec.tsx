@@ -39,6 +39,17 @@ describe('InverseForm', () => {
     expect(status).toHaveTextContent('4回試行したとき少なくとも1回成功する確率')
   })
 
+  it('全角数字（成功率 "５０" / 試行回数 "４"）でも半角と同じ結果が表示される（Issue #13: type="text" 化の全角正規化）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '５０')
+    await user.type(screen.getByLabelText('試行回数'), '４')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    const status = await screen.findByRole('status', { name: '計算結果' })
+    expect(status).toHaveTextContent('93.75%')
+    expect(status).toHaveTextContent('4回試行したとき少なくとも1回成功する確率')
+  })
+
   it('成功率 10 + 試行回数 22 で計算すると 90% 以上の値（90.15%）が表示される', async () => {
     const user = userEvent.setup()
     render(<InverseForm />)
@@ -190,20 +201,20 @@ describe('InverseForm', () => {
     expect(status).toHaveAttribute('aria-live', 'polite')
   })
 
-  it('成功率 Input に inputmode=decimal / type=number / step=any / aria-describedby が付与される', () => {
+  it('成功率 Input に inputmode=decimal / type=text / aria-describedby が付与される', () => {
     render(<InverseForm />)
     const input = screen.getByLabelText('成功率')
     expect(input).toHaveAttribute('inputmode', 'decimal')
-    expect(input).toHaveAttribute('type', 'number')
-    expect(input).toHaveAttribute('step', 'any')
+    expect(input).toHaveAttribute('type', 'text')
+    expect(input).not.toHaveAttribute('step')
     expect(input).toHaveAttribute('aria-describedby')
   })
 
-  it('試行回数 Input に inputmode=numeric / type=number / aria-describedby が付与される', () => {
+  it('試行回数 Input に inputmode=numeric / type=text / aria-describedby が付与される', () => {
     render(<InverseForm />)
     const input = screen.getByLabelText('試行回数')
     expect(input).toHaveAttribute('inputmode', 'numeric')
-    expect(input).toHaveAttribute('type', 'number')
+    expect(input).toHaveAttribute('type', 'text')
     expect(input).toHaveAttribute('aria-describedby')
   })
 
@@ -392,8 +403,8 @@ describe('InverseForm', () => {
       expect(
         screen.queryByText(/予期しないエラーが発生しました/),
       ).not.toBeInTheDocument()
-      expect(await screen.findByLabelText('成功率')).toHaveValue(null)
-      expect(screen.getByLabelText('試行回数')).toHaveValue(null)
+      expect(await screen.findByLabelText('成功率')).toHaveValue('')
+      expect(screen.getByLabelText('試行回数')).toHaveValue('')
       await user.type(screen.getByLabelText('成功率'), '50')
       await user.type(screen.getByLabelText('試行回数'), '4')
       await user.click(screen.getByRole('button', { name: '計算' }))
