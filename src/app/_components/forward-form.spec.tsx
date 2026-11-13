@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ForwardForm } from './forward-form'
@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
 import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
 import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
+import { STALE_RESULT_NOTICE } from './result-panel'
 
 vi.mock('@/probability/required-trials', async (importOriginal) => {
   const actual
@@ -40,6 +41,22 @@ const isErrorBoundaryLogFor = (
   && (call[1] as { pathname?: unknown }).pathname === expected.pathname
   && (call[1] as { name?: unknown }).name === expected.name
 
+/**
+ * 計算ボタンを押したとき、対象フィールドがエラーになりフォーカスされ、結果が表示されないことを検証する（Issue #21）。
+ * 計算ボタンは常に押せるため、不正入力は react-hook-form の既定動作（最初のエラーフィールドへフォーカス）で伝える。
+ */
+async function expectSubmitBlockedWithFocus(
+  user: ReturnType<typeof userEvent.setup>,
+  input: HTMLElement,
+) {
+  const submit = screen.getByRole('button', { name: '計算' })
+  expect(submit).toBeEnabled()
+  await user.click(submit)
+  expect(input).toHaveAttribute('aria-invalid', 'true')
+  expect(input).toHaveFocus()
+  expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+}
+
 describe('ForwardForm', () => {
   it('成功率ラベルと入力欄が表示される', () => {
     render(<ForwardForm />)
@@ -53,7 +70,7 @@ describe('ForwardForm', () => {
     await user.click(screen.getByRole('button', { name: '計算' }))
     const status = await screen.findByRole('status', { name: '計算結果' })
     expect(status).toHaveTextContent('4回')
-    expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
+    expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
   })
 
   it('成功率 10 を入力して計算ボタンを押すと 22回 が表示される', async () => {
@@ -170,7 +187,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('50%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('成功率 0.01 + 信頼度 99 で計算すると 1,000 以上の回数が桁区切りで「46,050回」と表示される', async () => {
@@ -191,7 +208,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('44回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度 7（ratio 往復で誤差が出る値）でも結果文言は「7%」が厳密表示される（浮動小数点ドリフト回帰）', async () => {
@@ -205,7 +222,7 @@ describe('ForwardForm', () => {
       await user.type(confidence, '7')
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
-      expect(status).toHaveTextContent('7%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('7%の確率で少なくとも1回成功するために必要な試行回数')
       expect(status).not.toHaveTextContent('7.000000000000001')
     })
 
@@ -219,68 +236,101 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
       expect(status).not.toHaveTextContent('NaN')
     })
 
-    it('信頼度 0 でフォーカスアウトするとエラー文言と aria-invalid と計算ボタン disabled', async () => {
+    it('信頼度 0 でフォーカスアウトするとエラー文言と aria-invalid → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('信頼度')
       await user.clear(input)
       await user.type(input, '0')
       await user.tab()
       expect(await screen.findByText('0より大きく100未満の数値を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('信頼度 100 でフォーカスアウトするとエラー文言と計算ボタン disabled', async () => {
+    it('信頼度 100 でフォーカスアウトするとエラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('信頼度')
       await user.clear(input)
       await user.type(input, '100')
       await user.tab()
       expect(await screen.findByText('0より大きく100未満の数値を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('信頼度 90.5（非整数）でエラー文言と計算ボタン disabled', async () => {
+    it('信頼度 90.5（非整数）でエラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('信頼度')
       await user.clear(input)
       await user.type(input, '90.5')
       await user.tab()
       expect(await screen.findByText('整数を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('信頼度を空欄にすると数値エラー文言と計算ボタン disabled', async () => {
+    it('信頼度を空欄にすると数値エラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('信頼度')
       await user.clear(input)
       await user.tab()
       expect(await screen.findByText('数値を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('成功率 0/100 では計算ボタン disabled にはならず（信頼度起因のみ）、submit→aria-invalid の既存フローが維持される', async () => {
+    it('成功率 0 で計算ボタンを押すと成功率にフォーカスが移り計算されない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const input = screen.getByLabelText('成功率')
+      await user.type(input, '0')
+      await expectSubmitBlockedWithFocus(user, input)
+    })
+
+    it('計算ボタンの押し下げでは入力欄のフォーカスを奪わない（押下中の検証でボタンがずれ、クリックが無視されるのを防ぐ）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       const successRate = screen.getByLabelText('成功率')
-      await user.type(successRate, '0')
+      await user.type(successRate, '50')
+      await user.pointer({ keys: '[MouseLeft>]', target: screen.getByRole('button', { name: '計算' }) })
+      expect(successRate).toHaveFocus()
+      expect(successRate).toHaveAttribute('aria-invalid', 'false')
+    })
+
+    it('計算ボタンは入力が不正でも常に押せる（Issue #21）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const confidence = screen.getByLabelText('信頼度')
+      await user.clear(confidence)
       await user.tab()
-      const submit = screen.getByRole('button', { name: '計算' })
-      expect(submit).not.toBeDisabled()
-      await user.click(submit)
-      expect(successRate).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+      expect(await screen.findByText('数値を指定してください。')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '計算' })).toBeEnabled()
+    })
+
+    it('複数のフィールドが不正なとき、最初のエラーフィールド（成功率）にフォーカスが移る（Issue #21）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const confidence = screen.getByLabelText('信頼度')
+      await user.clear(confidence)
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(screen.getByLabelText('成功率')).toHaveFocus()
+      expect(confidence).toHaveAttribute('aria-invalid', 'true')
     })
 
     it('成功率 10 + 信頼度デフォルト 90 で計算すると 22回 と 90%文言が表示される（AC3 中央値）', async () => {
@@ -290,7 +340,7 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('22回')
-      expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度 50 で計算後、信頼度 99 に変更して再計算すると結果文言が 99% に更新される（状態遷移）', async () => {
@@ -301,13 +351,13 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       let status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('50%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('50%の確率で少なくとも1回成功するために必要な試行回数')
 
       await user.click(screen.getByRole('button', { name: '99%' }))
       await user.click(screen.getByRole('button', { name: '計算' }))
       status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('44回')
-      expect(status).toHaveTextContent('99%の確率で成功するために必要な試行回数')
+      expect(status).toHaveTextContent('99%の確率で少なくとも1回成功するために必要な試行回数')
     })
 
     it('信頼度フィールドを直接 75 に編集するとプリセット 75 の aria-pressed が true になる（表示双方向）', async () => {
@@ -373,11 +423,11 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('4回')
-      expect(status).toHaveTextContent('90%の確率で成功するために必要な試行回数')
-      expect(status).not.toHaveTextContent('個獲得')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('回以上成功')
     })
 
-    it('目標成功回数 2 + 成功率 50 で「7回」「（2個獲得）」補助文言', async () => {
+    it('目標成功回数 2 + 成功率 50 で「7回」「2回以上成功する」説明文（Issue #26）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
@@ -387,7 +437,8 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('7回')
-      expect(status).toHaveTextContent('（2個獲得）')
+      expect(status).toHaveTextContent('90%の確率で2回以上成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('獲得')
     })
 
     it('目標成功回数 10 + 成功率 50 で計算結果が表示される', async () => {
@@ -400,66 +451,76 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent(/\d+回/)
-      expect(status).toHaveTextContent('（10個獲得）')
+      expect(status).toHaveTextContent('90%の確率で10回以上成功するために必要な試行回数')
     })
 
-    it('目標成功回数 0 でフォーカスアウト → aria-invalid + エラー文言 + 計算ボタン disabled', async () => {
+    it('目標成功回数 0 でフォーカスアウト → aria-invalid + エラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('目標成功回数')
       await user.clear(input)
       await user.type(input, '0')
       await user.tab()
       expect(await screen.findByText('目標成功回数は1以上を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('目標成功回数 101 でフォーカスアウト → エラー文言「100以下」+ disabled', async () => {
+    it('目標成功回数 101 でフォーカスアウト → エラー文言「100以下」→ 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('目標成功回数')
       await user.clear(input)
       await user.type(input, '101')
       await user.tab()
       expect(await screen.findByText('目標成功回数は100以下を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('目標成功回数 1.5（非整数）でフォーカスアウト → エラー文言「整数」+ disabled', async () => {
+    it('目標成功回数 1.5（非整数）でフォーカスアウト → エラー文言「整数」→ 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('目標成功回数')
       await user.clear(input)
       await user.type(input, '1.5')
       await user.tab()
       expect(await screen.findByText('目標成功回数は整数を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('目標成功回数 -1 でフォーカスアウト → エラー文言「1以上」+ disabled', async () => {
+    it('目標成功回数 -1 でフォーカスアウト → エラー文言「1以上」→ 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('目標成功回数')
       await user.clear(input)
       await user.type(input, '-1')
       await user.tab()
       expect(await screen.findByText('目標成功回数は1以上を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('目標成功回数空欄でフォーカスアウト → 数値エラー文言 + disabled', async () => {
+    it('目標成功回数空欄でフォーカスアウト → 数値エラー文言 → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       const input = screen.getByLabelText('目標成功回数')
       await user.clear(input)
       await user.tab()
       expect(await screen.findByText('数値を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
   })
 
@@ -532,9 +593,11 @@ describe('ForwardForm', () => {
       expect(status).not.toHaveTextContent('天井')
     })
 
-    it('Switch ON で天井回数 0 を入力するとエラー文言 + aria-invalid + disabled', async () => {
+    it('Switch ON で天井回数 0 を入力するとエラー文言 + aria-invalid → 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
       const input = screen.getByLabelText('天井回数')
       await user.clear(input)
@@ -542,12 +605,14 @@ describe('ForwardForm', () => {
       await user.tab()
       expect(await screen.findByText('天井回数は1以上を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
-    it('Switch ON ですり抜け率 -1 を入力するとエラー文言「0以上100以下」+ disabled', async () => {
+    it('Switch ON ですり抜け率 -1 を入力するとエラー文言「0以上100以下」→ 計算ボタンを押すとそのフィールドにフォーカスが移り計算されない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      // 成功率を有効にしておき、エラーのある対象フィールドが最初のエラーになるようにする
+      await user.type(screen.getByLabelText('成功率'), '50')
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
       const input = screen.getByLabelText('天井すり抜け率')
       await user.clear(input)
@@ -555,7 +620,7 @@ describe('ForwardForm', () => {
       await user.tab()
       expect(await screen.findByText('0以上100以下の数値を指定してください。')).toBeInTheDocument()
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
+      await expectSubmitBlockedWithFocus(user, input)
     })
 
     it('Switch ON ですり抜け率 0 と 100 は境界値として受理される', async () => {
@@ -591,7 +656,7 @@ describe('ForwardForm', () => {
       expect(status).toHaveTextContent('5回')
     })
 
-    it('Switch OFF にすると pityCount のエラーがあっても disabled にならない', async () => {
+    it('Switch ON で天井回数に不正値→OFF にすると天井回数のエラーで計算が妨げられない', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       const sw = screen.getByRole('switch', { name: '天井を考慮する' })
@@ -600,14 +665,15 @@ describe('ForwardForm', () => {
       await user.clear(pity)
       await user.type(pity, '0')
       await user.tab()
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
 
       await user.click(sw)
       expect(sw).toHaveAttribute('aria-checked', 'false')
-      expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(await screen.findByRole('status', { name: '計算結果' })).toBeInTheDocument()
     })
 
-    it('Switch ON + 目標成功回数 3 で計算しても結果領域に「3個獲得」補助文言は表示されない（天井計算は1個前提）', async () => {
+    it('Switch ON + 目標成功回数 3 で計算しても説明文は「少なくとも1回成功」になる（天井計算は1回成功前提、Issue #26）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       const target = screen.getByLabelText('目標成功回数')
@@ -618,19 +684,54 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(status).toHaveTextContent('100回')
-      expect(status).not.toHaveTextContent('個獲得')
+      expect(status).toHaveTextContent('90%の確率で少なくとも1回成功するために必要な試行回数')
+      expect(status).not.toHaveTextContent('3回以上')
     })
 
-    it('Switch ON 時に目標成功回数エラーがあっても計算ボタンは disabled にならない（targetCount は無視されるため）', async () => {
+    it('Switch ON で目標成功回数が disabled になり、補足文が天井用に切り替わる（Issue #12）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
+      const target = screen.getByLabelText('目標成功回数')
+      expect(target).not.toBeDisabled()
+      expect(screen.getByText('1〜100 の整数を入力してください')).toBeInTheDocument()
+
       await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(target).toBeDisabled()
+      expect(screen.getByText('天井を考慮する場合は、目標成功回数は1回で計算します')).toBeInTheDocument()
+      expect(screen.queryByText('1〜100 の整数を入力してください')).not.toBeInTheDocument()
+    })
+
+    it('目標成功回数が不正値のまま Switch ON にすると、エラー表示が消え天井計算ができる（Issue #12）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
       const target = screen.getByLabelText('目標成功回数')
       await user.clear(target)
       await user.type(target, '0')
       await user.tab()
-      // Switch ON 中は targetCount エラーが disabled に反映されない
-      expect(screen.getByRole('button', { name: '計算' })).not.toBeDisabled()
+      expect(await screen.findByText('目標成功回数は1以上を指定してください。')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(screen.queryByText('目標成功回数は1以上を指定してください。')).not.toBeInTheDocument()
+      expect(target).toHaveAttribute('aria-invalid', 'false')
+
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('100回')
+    })
+
+    it('Switch ON → OFF で目標成功回数が再び入力可能になり、入力値が復元される（Issue #12）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const target = screen.getByLabelText('目標成功回数') as HTMLInputElement
+      await user.clear(target)
+      await user.type(target, '5')
+      const sw = screen.getByRole('switch', { name: '天井を考慮する' })
+      await user.click(sw)
+      expect(target).toBeDisabled()
+      await user.click(sw)
+      expect(target).not.toBeDisabled()
+      expect(target.value).toBe('5')
     })
 
     it('Switch ON で天井回数に不正値→OFF→submit で計算が成立する（shouldUnregister による隠れたバリデーション解除）', async () => {
@@ -642,7 +743,6 @@ describe('ForwardForm', () => {
       await user.clear(pity)
       await user.type(pity, '0')
       await user.tab()
-      expect(screen.getByRole('button', { name: '計算' })).toBeDisabled()
 
       await user.click(sw)
       expect(sw).toHaveAttribute('aria-checked', 'false')
@@ -651,6 +751,166 @@ describe('ForwardForm', () => {
       const status = await screen.findByRole('status', { name: '計算結果' })
       // 通常計算(成功率50, 信頼度90, 目標成功回数1) → 4回
       expect(status).toHaveTextContent('4回')
+    })
+  })
+
+  describe('古い結果の表示（Issue #9）', () => {
+    async function calculateWithSuccessRate50(user: ReturnType<typeof userEvent.setup>) {
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('4回')
+      return status
+    }
+
+    it('計算直後は結果が薄表示されず、注記も表示されない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      expect(screen.getByTestId('result-panel-body')).not.toHaveClass('opacity-50')
+      expect(screen.queryByText(STALE_RESULT_NOTICE)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'この入力で再計算' })).not.toBeInTheDocument()
+    })
+
+    it('計算後に入力を変更すると、結果とグラフが薄表示になり、注記と「この入力で再計算」が表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.type(screen.getByLabelText('成功率'), '0')
+
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(status).toHaveTextContent('4回')
+      expect(screen.getByTestId('result-panel-body')).toHaveClass('opacity-50')
+      expect(screen.getByTestId('probability-chart-container')).toHaveClass('opacity-50')
+      expect(screen.getByRole('button', { name: 'この入力で再計算' })).toBeInTheDocument()
+    })
+
+    it('「この入力で再計算」を押すと新しい入力で計算され、薄表示と注記が消える', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '10')
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+
+      const status = screen.getByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('22回')
+      expect(status).not.toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(screen.getByTestId('result-panel-body')).not.toHaveClass('opacity-50')
+      expect(screen.getByTestId('probability-chart-container')).not.toHaveClass('opacity-50')
+    })
+
+    it('入力をエラー値にして「この入力で再計算」を押すと、エラーフィールドにフォーカスが移り、古い結果は薄表示のまま残る', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await calculateWithSuccessRate50(user)
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '100')
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+
+      expect(successRate).toHaveAttribute('aria-invalid', 'true')
+      expect(successRate).toHaveFocus()
+      const status = screen.getByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('4回')
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(screen.getByTestId('result-panel-body')).toHaveClass('opacity-50')
+    })
+
+    it('天井スイッチの ON/OFF でも古い結果として表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+
+    it('信頼度プリセットの変更でも古い結果として表示される', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const status = await calculateWithSuccessRate50(user)
+      await user.click(screen.getByRole('button', { name: '99%' }))
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+  })
+
+  describe('計算後の結果へのスクロール（Issue #19）', () => {
+    let scrollIntoView: MockInstance<Element['scrollIntoView']>
+
+    beforeEach(() => {
+      // jsdom の scrollIntoView は vitest.setup.ts で補った no-op。呼び出しを監視する
+      scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView')
+    })
+
+    afterEach(() => {
+      scrollIntoView.mockRestore()
+    })
+
+    it('初期表示ではスクロールしない', () => {
+      render(<ForwardForm />)
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+
+    it('計算すると結果パネルを含む領域へ block: nearest でスクロールする（フォーカスは移さない）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }))
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(status)
+      // 結果パネルへフォーカスは移さない（計算ボタンは押し下げでフォーカスを奪わないため、入力欄に残る）
+      expect(successRate).toHaveFocus()
+    })
+
+    it('同じ入力で再計算しても毎回スクロールする', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    })
+
+    it('入力変更（古い結果の表示）ではスクロールせず、「この入力で再計算」ではスクロールする', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+
+      const successRate = screen.getByLabelText('成功率')
+      await user.clear(successRate)
+      await user.type(successRate, '10')
+      expect(await screen.findByText(STALE_RESULT_NOTICE)).toBeInTheDocument()
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+      expect(scrollIntoView).toHaveBeenCalledTimes(2)
+    })
+
+    it('ドメインエラー時はエラー Alert を含む領域へスクロールする', async () => {
+      vi.mocked(calculateTrialCountForMultipleSuccess).mockReturnValueOnce(
+        makeDomainErrResult('ドメインエラー（テスト用）'),
+      )
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const alert = await screen.findByRole('alert')
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(alert)
+    })
+
+    it('入力エラーで計算されなかったときはスクロールしない', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '0')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      expect(scrollIntoView).not.toHaveBeenCalled()
     })
   })
 
@@ -941,9 +1201,9 @@ describe('ForwardForm', () => {
       await user.click(screen.getByRole('button', { name: '計算' }))
       await screen.findByRole('status', { name: '計算結果' })
       expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
-      // 結果領域(role=status) の直後の兄弟要素として probability-chart が存在
+      // 結果領域(role=status) を包む要素の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
       const adjacent = container.querySelector(
-        '[role="status"] + [data-testid="probability-chart"]',
+        'div:has(> div > [role="status"]) + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
       )
       expect(adjacent).not.toBeNull()
     })

@@ -95,3 +95,14 @@ devcontainer は GUI を持たないため headless 起動が必須。プラグ�
 ## Language
 
 The application UI and codebase use Japanese for user-facing text and comments. Error messages in validation schemas are in Japanese.
+
+## コードコメント
+
+「コードには How、テストコードには What、コミットログには Why、コードコメントには Why not を書こう」（t_wada）に従う。
+
+- コメントには、コードを読んでも分からないことだけを書く
+  - What: 関数・型・props が何を表すか（JSDoc）
+  - Why / Why not: なぜこの方法にしたか、なぜ他の案を採らないか（ライブラリの癖や採らなかった案など）
+- How（コードが何をしているかの言い換え）は書かない。コードを読めば分かるため
+- 同じ理由を複数箇所に書かない。共通の関数やフックの JSDoc にまとめ、呼び出し側には書かない
+- 変更の経緯はコメントではなくコミットメッセージに書く。コメントには関連 Issue 番号（例: `（Issue #12）`）だけを残す

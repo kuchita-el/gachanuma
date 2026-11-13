@@ -6,6 +6,7 @@ import {
 } from './form-schemas'
 import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
 import { valibotResolver } from '@hookform/resolvers/valibot'
+import { useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,7 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
+import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
 import { useCalculation } from '@/lib/use-calculation'
+import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
 
 const schema = v.object({
@@ -36,6 +39,8 @@ export function InverseForm() {
     cumulativeProbabilityRatio: number
     trialCount: number
   }>(subscribe)
+  const resultAreaRef = useRef<HTMLDivElement>(null)
+  useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
 
   const onSubmit = handleSubmit((form) => {
     // schema が branded ratio/count を出力するため onSubmit での再 parse は不要（Issue #114: 所有モデル(b)）。
@@ -74,34 +79,43 @@ export function InverseForm() {
             className="mt-4"
           />
 
-          <Button type="submit" className="mt-4">
+          <Button
+            type="submit"
+            className="mt-4"
+            onMouseDown={keepFocusOnMouseDown}
+          >
             計算
           </Button>
         </form>
       </Form>
 
-      {calc.status === 'success' && (
-        <ResultPanel className="mt-8">
-          <p className="text-3xl font-bold">
-            {formatProbabilityPercent(calc.result.cumulativeProbabilityRatio)}
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {formatCount(calc.result.trialCount)}
-            回試行したとき少なくとも1回成功する確率
-          </p>
-        </ResultPanel>
-      )}
-
-      {calc.status === 'error' && (
-        <Alert
-          variant="destructive"
-          role="alert"
-          aria-live="assertive"
-          className="mt-4"
-        >
-          <AlertDescription>{calc.error}</AlertDescription>
-        </Alert>
-      )}
+      <div ref={resultAreaRef}>
+        {calc.status === 'success' && (
+          <ResultPanel
+            className="mt-8"
+            stale={calc.stale}
+            onRecalculate={() => void onSubmit()}
+          >
+            <p className="text-3xl font-bold">
+              {formatProbabilityPercent(calc.result.cumulativeProbabilityRatio)}
+            </p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {formatCount(calc.result.trialCount)}
+              回試行したとき少なくとも1回成功する確率
+            </p>
+          </ResultPanel>
+        )}
+        {calc.status === 'error' && (
+          <Alert
+            variant="destructive"
+            role="alert"
+            aria-live="assertive"
+            className="mt-4"
+          >
+            <AlertDescription>{calc.error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
     </div>
   )
 }

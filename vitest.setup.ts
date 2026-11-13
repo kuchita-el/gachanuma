@@ -12,6 +12,12 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   } as unknown as typeof ResizeObserver
 }
 
+// jsdom には Element.prototype.scrollIntoView の実装がないため、何もしない関数を補う。
+// 計算後に結果へスクロールする処理（Issue #19）の呼び出しを検証するテストは vi.spyOn で監視する。
+if (typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => {}
+}
+
 afterEach(() => {
   cleanup()
 })

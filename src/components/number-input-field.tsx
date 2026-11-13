@@ -26,12 +26,15 @@ type NumberInputFieldProps<
   // 条件付きレンダリング箇所でアンマウント時に form state から該当フィールドを除去するための
   // field-level 設定。内部の FormField（Controller ラッパ）へ passthrough する（Issue #80 / D案）。
   shouldUnregister?: boolean
+  // react-hook-form にフィールドの無効状態を伝えるため、Input ではなく FormField（Controller）へ渡す。
+  // field オブジェクト経由で Input の disabled 属性にも反映される（Issue #12）。
+  disabled?: boolean
   // モバイルで表示する仮想キーボードの種類。type="text" 固定のため、数値キーボードはこれで指定する（Issue #13）。
   inputMode: 'decimal' | 'numeric'
 } & Omit<
   React.ComponentProps<'input'>,
   // type は "text" 固定。step / min / max は type="text" では効かないため受け付けない（値域は Valibot スキーマが担う）。
-  'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref' | 'type' | 'step' | 'min' | 'max' | 'inputMode'
+  'name' | 'value' | 'defaultValue' | 'onChange' | 'onBlur' | 'ref' | 'type' | 'step' | 'min' | 'max' | 'inputMode' | 'disabled'
 >
 
 function NumberInputField<
@@ -45,6 +48,7 @@ function NumberInputField<
   helperText,
   className,
   shouldUnregister,
+  disabled,
   ...inputProps
 }: NumberInputFieldProps<TFieldValues, TName>) {
   return (
@@ -52,6 +56,7 @@ function NumberInputField<
       control={control}
       name={name}
       shouldUnregister={shouldUnregister}
+      disabled={disabled}
       render={({ field }) => (
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>

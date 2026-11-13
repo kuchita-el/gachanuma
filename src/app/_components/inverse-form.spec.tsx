@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { InverseForm } from './inverse-form'
+import { STALE_RESULT_NOTICE } from './result-panel'
 import { ErrorBoundary } from '@/lib/test/error-boundary-test-helper'
 import { calculateCumulativeSuccessProbability } from '@/probability/cumulative-probability'
 import { makeDomainErrResult } from '@/lib/test/make-domain-err-result'
@@ -256,6 +257,97 @@ describe('InverseForm', () => {
     await user.tab()
     const submit = screen.getByRole('button', { name: '計算' })
     expect(submit).not.toBeDisabled()
+  })
+
+  it('不正入力で計算ボタンを押すと最初のエラーフィールドにフォーカスが移る（Issue #21: 順算と挙動を統一）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '50')
+    const trialCount = screen.getByLabelText('試行回数')
+    await user.type(trialCount, '0')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(trialCount).toHaveAttribute('aria-invalid', 'true')
+    expect(trialCount).toHaveFocus()
+    expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+  })
+
+  it('成功率・試行回数がともに不正なとき、先頭の成功率にフォーカスが移る（Issue #21）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('試行回数'), '0')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(screen.getByLabelText('成功率')).toHaveFocus()
+  })
+
+  describe('古い結果の表示（Issue #9）', () => {
+    it('計算後に入力を変更すると薄表示と注記が出て、「この入力で再計算」で新しい結果になる', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const trialCount = screen.getByLabelText('試行回数')
+      await user.type(trialCount, '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(status).toHaveTextContent('93.75%')
+      expect(status).not.toHaveTextContent(STALE_RESULT_NOTICE)
+
+      await user.clear(trialCount)
+      await user.type(trialCount, '1')
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(status).toHaveTextContent('93.75%')
+      expect(screen.getByTestId('result-panel-body')).toHaveClass('opacity-50')
+
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+      expect(status).toHaveTextContent('50.00%')
+      expect(status).not.toHaveTextContent(STALE_RESULT_NOTICE)
+      expect(screen.getByTestId('result-panel-body')).not.toHaveClass('opacity-50')
+    })
+
+    it('入力をエラー値にして「この入力で再計算」を押すと、エラーフィールドにフォーカスが移り古い結果が残る', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      const trialCount = screen.getByLabelText('試行回数')
+      await user.type(trialCount, '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+
+      await user.clear(trialCount)
+      await user.type(trialCount, '0')
+      await user.click(screen.getByRole('button', { name: 'この入力で再計算' }))
+      expect(trialCount).toHaveAttribute('aria-invalid', 'true')
+      expect(trialCount).toHaveFocus()
+      expect(status).toHaveTextContent('93.75%')
+      expect(status).toHaveTextContent(STALE_RESULT_NOTICE)
+    })
+  })
+
+  describe('計算後の結果へのスクロール（Issue #19）', () => {
+    let scrollIntoView: MockInstance<Element['scrollIntoView']>
+
+    beforeEach(() => {
+      // jsdom の scrollIntoView は vitest.setup.ts で補った no-op。呼び出しを監視する
+      scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView')
+    })
+
+    afterEach(() => {
+      scrollIntoView.mockRestore()
+    })
+
+    it('計算すると結果パネルを含む領域へスクロールし、入力変更ではスクロールしない', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.type(screen.getByLabelText('試行回数'), '4')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const status = await screen.findByRole('status', { name: '計算結果' })
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }))
+      expect(scrollIntoView.mock.contexts[0]).toContainElement(status)
+
+      await user.type(screen.getByLabelText('試行回数'), '0')
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('入力変更時の calculationError クリア', () => {

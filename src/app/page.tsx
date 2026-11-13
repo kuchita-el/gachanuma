@@ -12,10 +12,15 @@ export default function Home() {
           <TabsTrigger value="forward">順算</TabsTrigger>
           <TabsTrigger value="inverse">逆算</TabsTrigger>
         </TabsList>
-        <TabsContent value="forward">
+        {/*
+          タブを往復しても入力値と結果を保持する（Issue #10）。forceMount 時は Radix が hidden 属性を
+          付けないため、非表示はクラスで指定する。
+          状態を page に持ち上げる案は、useForm を2つ親に持たせることになり変更が大きいため採らない。
+        */}
+        <TabsContent value="forward" forceMount className="data-[state=inactive]:hidden">
           <ForwardForm />
         </TabsContent>
-        <TabsContent value="inverse">
+        <TabsContent value="inverse" forceMount className="data-[state=inactive]:hidden">
           <InverseForm />
         </TabsContent>
       </Tabs>

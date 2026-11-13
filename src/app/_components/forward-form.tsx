@@ -13,7 +13,7 @@ import { calculateTrialCountWithPity } from '@/probability/required-trials-with-
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import * as v from 'valibot'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -32,12 +32,16 @@ import { NumberInputField } from '@/components/number-input-field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
 import { useCalculation } from '@/lib/use-calculation'
+import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount } from '@/lib/format-number'
+import { cn } from '@/lib/utils'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
-  targetCount: targetCountInputSchema,
+  // 天井 ON 時は使わない値のため省略可能（Issue #12、下の resolver 参照）
+  targetCount: v.optional(targetCountInputSchema),
   confidence: confidencePercentageSchema,
   pityEnabled: v.boolean(),
   // 天井2フィールドは pityEnabled=true のときのみマウントされ、OFF 時は
@@ -49,9 +53,28 @@ const schema = v.object({
 
 const CONFIDENCE_PRESETS = [50, 75, 90, 95, 99] as const
 
+const baseResolver = valibotResolver(schema)
+
+/**
+ * 天井 ON 時に目標成功回数を検証対象から外す resolver（Issue #12）。
+ *
+ * react-hook-form は disabled フィールドの値も resolver に渡す（submit 値から除くのは検証後）ため、
+ * disabled にするだけでは、目標成功回数が不正値のまま天井計算をしようとすると検証エラーで送信できない。
+ * form state の値は変えないので、天井 OFF に戻すと入力値が復元される。
+ *
+ * スキーマを v.variant('pityEnabled', ...) で分岐させる案は、フォーム値の型が union になり
+ * NumberInputField 等の型付けが複雑になるため採らない。
+ */
+const resolver: typeof baseResolver = (values, context, options) =>
+  baseResolver(
+    values.pityEnabled ? { ...values, targetCount: undefined } : values,
+    context,
+    options,
+  )
+
 export function ForwardForm() {
   const form = useForm({
-    resolver: valibotResolver(schema),
+    resolver,
     mode: 'onBlur',
     defaultValues: {
       successRate: '',
@@ -67,8 +90,8 @@ export function ForwardForm() {
     control,
     getValues,
     setValue,
+    clearErrors,
     subscribe,
-    formState: { errors },
   } = form
 
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
@@ -81,6 +104,8 @@ export function ForwardForm() {
     pity?: { pityCount: number, slipRatePercent: number }
   }>(subscribe)
   const pityEnabledId = useId()
+  const resultAreaRef = useRef<HTMLDivElement>(null)
+  useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
 
   const onSubmit = handleSubmit((form) => {
     // 計算は schema の branded ratio/count（Output）を直接消費する（Issue #114: 所有モデル(b)、再 parse 廃止）。
@@ -119,6 +144,10 @@ export function ForwardForm() {
         )
       }
       else {
+        // 天井 OFF 時は resolver が目標成功回数を検証済みのため、ここに来ることはない
+        if (form.targetCount === undefined) {
+          throw new Error('天井無効時に目標成功回数の値が存在しません')
+        }
         calcResult = calculateTrialCountForMultipleSuccess(
           form.successRate,
           form.targetCount,
@@ -126,8 +155,8 @@ export function ForwardForm() {
         )
       }
 
-      // 天井計算は「目的キャラ1個排出」固定（Issue #34）。targetCount は無視されるため、
-      // 結果表示の「N個獲得」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
+      // 天井計算は「1回成功」固定（Issue #34）。targetCount は無視されるため、
+      // 結果表示の「N回以上成功」誤表示を避けるため pityEnabled=true 時は 1 に正規化する。
       return calcResult.map(value => ({
         trialCount: value,
         confidencePercent: Number(input.confidence),
@@ -142,14 +171,6 @@ export function ForwardForm() {
       }))
     })
   })
-
-  // pityEnabled=true のときは天井計算が targetCount を無視するため、targetCount のエラーは
-  // disabled に反映しない（pity 用フィールドのエラーのみで disabled 制御）。
-  const submitDisabled
-    = !!errors.confidence
-      || (pityEnabled
-        ? !!errors.pityCount || !!errors.slipRatePercent
-        : !!errors.targetCount)
 
   return (
     <div>
@@ -169,9 +190,16 @@ export function ForwardForm() {
             name="targetCount"
             label="目標成功回数"
             suffix="回"
-            helperText="1〜100 の整数を入力してください"
+            helperText={
+              pityEnabled
+                ? '天井を考慮する場合は、目標成功回数は1回で計算します'
+                : '1〜100 の整数を入力してください'
+            }
             inputMode="numeric"
             className="mt-4"
+            // 天井計算は1回成功のみ対応のため、天井 ON 時は入力不可にする。非表示にしないのは
+            // 制約を伝えるためと、OFF に戻したとき入力値を復元するため（Issue #12）。
+            disabled={pityEnabled}
           />
 
           <FormField
@@ -225,7 +253,11 @@ export function ForwardForm() {
                 <Switch
                   id={pityEnabledId}
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked)
+                    // disabled 中は再検証されないため、ON にする前のエラー表示が残り続けてしまう（Issue #12）
+                    if (checked) clearErrors('targetCount')
+                  }}
                 />
                 <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
               </div>
@@ -260,65 +292,76 @@ export function ForwardForm() {
             </>
           )}
 
-          {/* disabled は信頼度・目標成功回数・天井起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
+          {/*
+            計算ボタンは常に押せる（Issue #21）。disabled のボタンはフォーカスできず理由が伝わらないため、
+            不正入力時は react-hook-form の既定動作（全フィールド検証・最初のエラーフィールドへフォーカス・
+            FormMessage 表示）で理由を伝える。
+          */}
           <Button
             type="submit"
             className="mt-4"
-            disabled={submitDisabled}
+            onMouseDown={keepFocusOnMouseDown}
           >
             計算
           </Button>
         </form>
       </Form>
 
-      {calc.status === 'success' && (
-        <ResultPanel className="mt-8">
-          <p className="text-3xl font-bold">
-            {formatCount(calc.result.trialCount)}
-            回
-            {calc.result.targetCount >= 2 && (
-              <span className="text-muted-foreground ml-2 text-base font-normal">
-                （
-                {formatCount(calc.result.targetCount)}
-                個獲得）
-              </span>
-            )}
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {calc.result.confidencePercent}
-            %の確率で成功するために必要な試行回数
-          </p>
-          {calc.result.pity && (
-            <p className="text-muted-foreground mt-1 text-sm">
-              天井
-              {' '}
-              {formatCount(calc.result.pity.pityCount)}
-              {' '}
-              回・すり抜け率
-              {' '}
-              {calc.result.pity.slipRatePercent}
-              % 込み
+      <div ref={resultAreaRef}>
+        {calc.status === 'success' && (
+          <ResultPanel
+            className="mt-8"
+            stale={calc.stale}
+            onRecalculate={() => void onSubmit()}
+          >
+            <p className="text-3xl font-bold">
+              {formatCount(calc.result.trialCount)}
+              回
             </p>
-          )}
-        </ResultPanel>
-      )}
+            <p className="text-muted-foreground mt-1 text-sm">
+              {calc.result.confidencePercent}
+              %の確率で
+              {calc.result.targetCount >= 2
+                ? `${formatCount(calc.result.targetCount)}回以上`
+                : '少なくとも1回'}
+              成功するために必要な試行回数
+            </p>
+            {calc.result.pity && (
+              <p className="text-muted-foreground mt-1 text-sm">
+                天井
+                {' '}
+                {formatCount(calc.result.pity.pityCount)}
+                {' '}
+                回・すり抜け率
+                {' '}
+                {calc.result.pity.slipRatePercent}
+                % 込み
+              </p>
+            )}
+          </ResultPanel>
+        )}
+        {calc.status === 'error' && (
+          <Alert
+            variant="destructive"
+            role="alert"
+            aria-live="assertive"
+            className="mt-4"
+          >
+            <AlertDescription>{calc.error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       {calc.status === 'success' && (
-        <ProbabilityChart
-          successRatePercent={calc.result.successRatePercent}
-          confidencePercent={calc.result.confidencePercent}
-        />
-      )}
-
-      {calc.status === 'error' && (
-        <Alert
-          variant="destructive"
-          role="alert"
-          aria-live="assertive"
-          className="mt-4"
+        <div
+          data-testid="probability-chart-container"
+          className={cn('transition-opacity', calc.stale && 'opacity-50')}
         >
-          <AlertDescription>{calc.error}</AlertDescription>
-        </Alert>
+          <ProbabilityChart
+            successRatePercent={calc.result.successRatePercent}
+            confidencePercent={calc.result.confidencePercent}
+          />
+        </div>
       )}
     </div>
   )

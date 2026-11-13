@@ -152,8 +152,8 @@ describe('useCalculation', () => {
     expect(result.current.status).toBe('idle')
   })
 
-  // UC-6: success 状態でフォーム値変更 → success 保持（result も保持）
-  it('成功後に subscribe callback が発火しても status=success と result が保持される', () => {
+  // UC-6: success 状態でフォーム値変更 → success 保持（result も保持）かつ stale=true（Issue #9）
+  it('成功後に subscribe callback が発火すると status=success と result を保持したまま stale=true になる', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
       useCalculation<number>(harness.subscribe),
@@ -162,11 +162,45 @@ describe('useCalculation', () => {
     expect(result.current.status).toBe('success')
     if (result.current.status === 'success') {
       expect(result.current.result).toBe(99)
+      expect(result.current.stale).toBe(false)
     }
     act(() => harness.fireCallback())
     expect(result.current.status).toBe('success')
     if (result.current.status === 'success') {
       expect(result.current.result).toBe(99)
+      expect(result.current.stale).toBe(true)
+    }
+  })
+
+  // UC-6b: stale な success から run 成功で stale=false に戻る（Issue #9）
+  it('stale な状態で再計算に成功すると、新しい result で stale=false になる', () => {
+    const harness = createSubscribeHarness()
+    const { result } = renderHook(() =>
+      useCalculation<number>(harness.subscribe),
+    )
+    act(() => result.current.run(() => ok(1)))
+    act(() => harness.fireCallback())
+    act(() => result.current.run(() => ok(2)))
+    expect(result.current.status).toBe('success')
+    if (result.current.status === 'success') {
+      expect(result.current.result).toBe(2)
+      expect(result.current.stale).toBe(false)
+    }
+  })
+
+  // UC-6c: stale 済みの success で再度フォーム値変更しても stale のまま result を保持する
+  it('stale 済みでさらに subscribe callback が発火しても stale=true と result を保持する', () => {
+    const harness = createSubscribeHarness()
+    const { result } = renderHook(() =>
+      useCalculation<number>(harness.subscribe),
+    )
+    act(() => result.current.run(() => ok(1)))
+    act(() => harness.fireCallback())
+    act(() => harness.fireCallback())
+    expect(result.current.status).toBe('success')
+    if (result.current.status === 'success') {
+      expect(result.current.result).toBe(1)
+      expect(result.current.stale).toBe(true)
     }
   })
 
@@ -179,6 +213,27 @@ describe('useCalculation', () => {
     expect(result.current.status).toBe('idle')
     act(() => harness.fireCallback())
     expect(result.current.status).toBe('idle')
+  })
+
+  // UC-12: runCount は run が success / error に遷移するたびに増え、入力変更では増えない（Issue #19）
+  it('runCount は計算実行（成功・ドメインエラー）のたびに増え、フォーム値変更では増えない', () => {
+    const harness = createSubscribeHarness()
+    const { result } = renderHook(() =>
+      useCalculation<number>(harness.subscribe),
+    )
+    expect(result.current.runCount).toBe(0)
+    act(() => result.current.run(() => ok(1)))
+    expect(result.current.runCount).toBe(1)
+    act(() => result.current.run(() => ok(1)))
+    expect(result.current.runCount).toBe(2)
+    act(() => harness.fireCallback())
+    expect(result.current.runCount).toBe(2)
+    act(() =>
+      result.current.run(() =>
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
+      ),
+    )
+    expect(result.current.runCount).toBe(3)
   })
 
   // UC-11: run は判別に関与せず、どの status でも常時アクセス可能（spread 構造の回帰）

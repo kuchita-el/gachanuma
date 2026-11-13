@@ -14,10 +14,13 @@ import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
  * `idle`（初期・フォーム値変更後のリセット）/ `success`（計算成功）/ `error`（ドメインエラー）の
  * 3 状態を `status` で弁別する。`result` は `success` のみ、`error` は `error` のみが持つ必須
  * プロパティであり、「両方を同時に持つ」「非 idle で両方を持たない」状態を型で排除する（Issue #108）。
+ *
+ * `success` の `stale` は「計算後にフォーム値が変更され、表示中の結果が現在の入力と一致しない」ことを表す
+ * （Issue #9）。`run` 成功で `false`、その後のフォーム値変更で `true` になる。
  */
 export type CalculationState<TResult>
   = | { status: 'idle' }
-    | { status: 'success', result: TResult }
+    | { status: 'success', result: TResult, stale: boolean }
     | { status: 'error', error: string }
 
 /**
@@ -35,9 +38,10 @@ export type CalculationState<TResult>
  * `const calc = useCalculation(...)` のように union オブジェクトを保持したまま
  * `calc.status === 'success'` で判別し、ブランチ内で `calc.result` を参照すること。
  *
- * フォーム値変更時の遷移は status 別に非対称: `error` のときのみ `idle` へ遷移し（Alert 消滅）、
- * `success` / `idle` は no-op（成功結果は次の計算実行まで表示継続）。`setState` の更新関数は
- * 非 error 時に同一参照を返すため不要な再レンダを起こさない。
+ * フォーム値変更時の遷移は status 別に非対称: `error` のときは `idle` へ遷移し（Alert 消滅）、
+ * `success` のときは結果を保持したまま `stale: true` にする（古い結果として薄く表示する。Issue #9）。
+ * `idle` と、すでに `stale` な `success` は no-op。`setState` の更新関数は no-op 時に同一参照を
+ * 返すため不要な再レンダを起こさない。
  *
  * `run` は計算実行サンク（`() => Result<TResult, DomainError>`）を毎回受け取る方式。
  * 計算関数の呼び出しは呼び出し側（form）に残るため、form 単体 spec の
@@ -61,6 +65,11 @@ export type CalculationState<TResult>
  */
 export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
   run: (calc: () => Result<TResult, DomainError>) => void
+  /**
+   * `run` が成功またはドメインエラーに遷移した回数。計算を実行するたびに増える。
+   * 計算後に結果へスクロールするトリガとして使う（Issue #19）。入力変更では増えない。
+   */
+  runCount: number
 }
 
 export function useCalculation<
@@ -68,12 +77,15 @@ export function useCalculation<
   TFieldValues extends FieldValues = FieldValues,
 >(subscribe: UseFormSubscribe<TFieldValues>): UseCalculationReturn<TResult> {
   const [state, setState] = useState<CalculationState<TResult>>({ status: 'idle' })
+  const [runCount, setRunCount] = useState(0)
   const throwToErrorBoundary = useThrowToErrorBoundary()
 
-  // フォーム値変更時は error のときだけ idle へ戻す。success/idle は同一参照を返して no-op
-  // （成功結果の表示継続・不要な再レンダ抑止）。
   const handleFormValueChange = useCallback(() => {
-    setState(prev => (prev.status === 'error' ? { status: 'idle' } : prev))
+    setState((prev) => {
+      if (prev.status === 'error') return { status: 'idle' }
+      if (prev.status === 'success' && !prev.stale) return { ...prev, stale: true }
+      return prev
+    })
   }, [])
   useFormValueChange(subscribe, handleFormValueChange)
 
@@ -88,13 +100,15 @@ export function useCalculation<
     }
     calcResult.match(
       (value) => {
-        setState({ status: 'success', result: value })
+        setState({ status: 'success', result: value, stale: false })
+        setRunCount(count => count + 1)
       },
       (domainError) => {
         setState({ status: 'error', error: formatDomainError(domainError) })
+        setRunCount(count => count + 1)
       },
     )
   }
 
-  return { ...state, run }
+  return { ...state, run, runCount }
 }
