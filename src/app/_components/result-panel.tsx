@@ -21,36 +21,35 @@ type ResultPanelProps = {
 
 function ResultPanel({ children, className, stale = false, onRecalculate }: ResultPanelProps) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-label="計算結果"
-      className={cn('bg-primary/10 rounded-lg p-6', className)}
-    >
-      <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
-      <div
-        data-testid="result-panel-body"
-        className={cn('transition-opacity', stale && 'opacity-50')}
-      >
-        {children}
-      </div>
-      {/* 注記とボタンは薄表示の対象外にし、はっきり見せる。live region 内なので出現時に1回読み上げられる */}
-      {stale && (
-        <div className="mt-4 flex flex-col items-start gap-2">
-          <p className="text-sm font-medium">{STALE_RESULT_NOTICE}</p>
-          {onRecalculate && (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              // 計算ボタンと同じく、押し下げで入力欄の検証が走りボタンがずれて押下が無視されるのを防ぐ
-              onMouseDown={keepFocusOnMouseDown}
-              onClick={onRecalculate}
-            >
-              この入力で再計算
-            </Button>
-          )}
+    <div className={cn('bg-primary/10 rounded-lg p-6', className)}>
+      {/*
+        live region は見出し・結果・注記のみに限定する。再計算ボタンを含めると、結果が変わるたびに
+        ボタンのラベルまで読み上げられるため、ボタンは live region の外に置く。
+      */}
+      <div role="status" aria-live="polite" aria-label="計算結果">
+        <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
+        <div
+          data-testid="result-panel-body"
+          className={cn('transition-opacity', stale && 'opacity-50')}
+        >
+          {children}
         </div>
+        {/* 注記は薄表示の対象外にし、はっきり見せる。live region 内なので出現時に1回読み上げられる */}
+        {stale && (
+          <p className="mt-4 text-sm font-medium">{STALE_RESULT_NOTICE}</p>
+        )}
+      </div>
+      {stale && onRecalculate && (
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 min-h-11"
+          // 計算ボタンと同じく、押し下げで入力欄の検証が走りボタンがずれて押下が無視されるのを防ぐ
+          onMouseDown={keepFocusOnMouseDown}
+          onClick={onRecalculate}
+        >
+          この入力で再計算
+        </Button>
       )}
     </div>
   )

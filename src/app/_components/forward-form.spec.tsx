@@ -1203,7 +1203,7 @@ describe('ForwardForm', () => {
       expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
       // 結果領域(role=status) を包む要素の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
       const adjacent = container.querySelector(
-        'div:has(> [role="status"]) + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
+        'div:has(> div > [role="status"]) + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
       )
       expect(adjacent).not.toBeNull()
     })

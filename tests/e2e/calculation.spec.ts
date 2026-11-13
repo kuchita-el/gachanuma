@@ -309,7 +309,7 @@ test.describe('古い結果の表示 E2E', () => {
     await expect(status).toContainText('入力が変わったため、この結果は変更前の入力のものです。')
     await expect(status).toContainText('4回')
 
-    await status.getByRole('button', { name: 'この入力で再計算' }).click()
+    await page.getByRole('button', { name: 'この入力で再計算' }).click()
     await expect(status).toContainText('22回')
     await expect(status).not.toContainText('入力が変わったため')
   })

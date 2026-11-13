@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ResultPanel, STALE_RESULT_NOTICE } from '@/app/_components/result-panel'
 
 describe('ResultPanel', () => {
-  it('role="status" / aria-live="polite" / aria-label="計算結果" の三属性が同時付与される', () => {
+  it('live region（role="status" / aria-live="polite" / aria-label="計算結果"）が描画される', () => {
     render(
       <ResultPanel>
         <p>本文</p>
@@ -108,6 +108,9 @@ describe('ResultPanel（古い結果の表示、Issue #9）', () => {
     const button = screen.getByRole('button', { name: 'この入力で再計算' })
     // 注記とボタンは薄表示の対象外
     expect(screen.getByTestId('result-panel-body')).not.toContainElement(button)
+    // ボタンは live region の外に置き、結果の読み上げにボタンのラベルを含めない
+    expect(status).not.toContainElement(button)
+    expect(status).not.toHaveTextContent('この入力で再計算')
   })
 
   it('「この入力で再計算」の押し下げではフォーカスを奪わない', () => {
