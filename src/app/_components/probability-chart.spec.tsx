@@ -39,7 +39,7 @@ describe('ProbabilityChart', () => {
 
   it('X 軸目盛りの 1,000 以上の値は桁区切りで描画される', () => {
     const { container } = render(
-      <ProbabilityChart successRatePercent={0.01} confidencePercent={90} />,
+      <ProbabilityChart {...FIXED_SIZE} successRatePercent={0.01} confidencePercent={90} />,
     )
     // Y 軸目盛りは 0〜100 のため、1,000 以上の目盛りはすべて X 軸のもの
     const tickTexts = Array.from(
