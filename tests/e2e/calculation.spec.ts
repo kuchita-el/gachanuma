@@ -295,6 +295,45 @@ test.describe('入力直後の計算ボタン押下 E2E', () => {
   })
 })
 
+// タッチで計算ボタンを押したときは、入力欄のフォーカスを外して画面のキーボードを閉じる。
+// フォーカスが残るとキーボードが開いたままになり、計算結果が隠れる。
+test.describe('タッチ操作での計算 E2E', () => {
+  test.use({ hasTouch: true, viewport: { width: 375, height: 667 } })
+
+  test('成功率を入力して計算ボタンをタップすると、計算され、入力欄のフォーカスが外れる', async ({ page }) => {
+    await page.goto('/')
+    const successRate = panel(page).getByLabel('成功率')
+    await successRate.fill('50')
+    await expect(successRate).toBeFocused()
+    await panel(page).getByRole('button', { name: '計算' }).tap()
+    await expect(page.getByRole('status')).toContainText('4回')
+    await expect(successRate).not.toBeFocused()
+  })
+
+  test('不正値を入れて計算ボタンをタップすると、1回のタップでエラーの欄にフォーカスが移る', async ({ page }) => {
+    await page.goto('/')
+    const successRate = panel(page).getByLabel('成功率')
+    await successRate.fill('0')
+    await panel(page).getByRole('button', { name: '計算' }).tap()
+    await expect(successRate).toHaveAttribute('aria-invalid', 'true')
+    await expect(successRate).toBeFocused()
+    await expect(page.getByRole('status')).toHaveCount(0)
+  })
+
+  test('「この入力で再計算」をタップしたときも、入力欄のフォーカスが外れる', async ({ page }) => {
+    await page.goto('/')
+    const successRate = panel(page).getByLabel('成功率')
+    await successRate.fill('50')
+    await panel(page).getByRole('button', { name: '計算' }).tap()
+    await expect(page.getByRole('status')).toContainText('4回')
+    await successRate.fill('10')
+    await expect(successRate).toBeFocused()
+    await page.getByRole('button', { name: 'この入力で再計算' }).tap()
+    await expect(page.getByRole('status')).toContainText('22回')
+    await expect(successRate).not.toBeFocused()
+  })
+})
+
 // Issue #9: 入力変更後の古い結果の表示と、その場での再計算
 test.describe('古い結果の表示 E2E', () => {
   test('計算後に入力を変更すると注記が表示され、「この入力で再計算」で新しい結果になる', async ({ page }) => {
