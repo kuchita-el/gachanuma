@@ -19,19 +19,23 @@ import { type MouseEvent, type PointerEvent, useRef } from 'react'
  * - `mode: 'onSubmit'` にする: フォーカスアウト時にエラーを伝えられなくなる
  */
 export function useKeepFocusOnPress(onClick?: () => void) {
-  // click イベントの pointerType はブラウザによって取れないため、直前の pointerdown で記録する
+  // click が PointerEvent でないブラウザ向けに、直前の pointerdown の pointerType を記録しておく
   const pointerTypeRef = useRef('')
 
   return {
     onPointerDown: (event: PointerEvent<HTMLElement>) => {
       pointerTypeRef.current = event.pointerType
     },
+    // スクロール等でタッチが取り消されると click が来ず、記録が次の click まで残ってしまう。
+    // pointerleave では消さない。タッチでは指を離した直後、click より前に発生するため。
+    onPointerCancel: () => {
+      pointerTypeRef.current = ''
+    },
     onMouseDown: (event: MouseEvent<HTMLElement>) => {
       event.preventDefault()
     },
-    onClick: () => {
-      const pointerType = pointerTypeRef.current
-      // キーボード（Enter / Space）で押した場合は pointerdown が来ないため、フォーカスはそのまま
+    onClick: (event: MouseEvent<HTMLElement>) => {
+      const pointerType = getClickPointerType(event.nativeEvent) ?? pointerTypeRef.current
       pointerTypeRef.current = ''
       if ((pointerType === 'touch' || pointerType === 'pen') && document.activeElement instanceof HTMLInputElement) {
         document.activeElement.blur()
@@ -39,4 +43,14 @@ export function useKeepFocusOnPress(onClick?: () => void) {
       onClick?.()
     },
   }
+}
+
+/**
+ * click の pointerType を返す。click が PointerEvent でないブラウザでは undefined。
+ * キーボード（Enter による送信や Space）で押された click は空文字になる。
+ */
+function getClickPointerType(event: globalThis.MouseEvent): string | undefined {
+  return typeof window.PointerEvent === 'function' && event instanceof window.PointerEvent
+    ? event.pointerType
+    : undefined
 }

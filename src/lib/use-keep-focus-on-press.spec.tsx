@@ -55,6 +55,29 @@ describe('useKeepFocusOnPress', () => {
     expect(input).toHaveFocus()
   })
 
+  it('タッチが取り消された（pointercancel）あとのクリックでは、フォーカスを変えない', () => {
+    const { input, button } = setup()
+    fireEvent.pointerDown(button, { pointerType: 'touch' })
+    fireEvent.pointerCancel(button)
+    fireEvent.click(button)
+    expect(input).toHaveFocus()
+  })
+
+  it('click 自体が pointerType を持つ場合はそれを優先する: タッチの記録が残っていても、キーボード由来（空文字）ならフォーカスを変えない', () => {
+    const { input, button } = setup()
+    // 指をボタンの外へずらして離した等で、click が来ないままタッチの記録が残った状態
+    fireEvent.pointerDown(button, { pointerType: 'touch' })
+    // 入力欄の Enter による送信で、ブラウザが送信ボタンに送る click
+    fireEvent(button, new PointerEvent('click', { bubbles: true, cancelable: true, pointerType: '' }))
+    expect(input).toHaveFocus()
+  })
+
+  it('click 自体が pointerType: touch を持つ場合は、pointerdown の記録がなくてもフォーカスを外す', () => {
+    const { input, button } = setup()
+    fireEvent(button, new PointerEvent('click', { bubbles: true, cancelable: true, pointerType: 'touch' }))
+    expect(input).not.toHaveFocus()
+  })
+
   it('クリックすると onClick が呼ばれる', () => {
     const onClick = vi.fn()
     const { button } = setup(onClick)
