@@ -258,6 +258,26 @@ describe('InverseForm', () => {
     expect(submit).not.toBeDisabled()
   })
 
+  it('不正入力で計算ボタンを押すと最初のエラーフィールドにフォーカスが移る（Issue #21: 順算と挙動を統一）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('成功率'), '50')
+    const trialCount = screen.getByLabelText('試行回数')
+    await user.type(trialCount, '0')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(trialCount).toHaveAttribute('aria-invalid', 'true')
+    expect(trialCount).toHaveFocus()
+    expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
+  })
+
+  it('成功率・試行回数がともに不正なとき、先頭の成功率にフォーカスが移る（Issue #21）', async () => {
+    const user = userEvent.setup()
+    render(<InverseForm />)
+    await user.type(screen.getByLabelText('試行回数'), '0')
+    await user.click(screen.getByRole('button', { name: '計算' }))
+    expect(screen.getByLabelText('成功率')).toHaveFocus()
+  })
+
   describe('入力変更時の calculationError クリア', () => {
     it('成功率を変更すると Alert が消える', async () => {
       vi.mocked(calculateCumulativeSuccessProbability).mockReturnValueOnce(

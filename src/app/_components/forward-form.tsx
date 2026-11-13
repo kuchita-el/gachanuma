@@ -88,7 +88,6 @@ export function ForwardForm() {
     setValue,
     clearErrors,
     subscribe,
-    formState: { errors },
   } = form
 
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
@@ -166,14 +165,6 @@ export function ForwardForm() {
       }))
     })
   })
-
-  // pityEnabled=true のときは天井計算が targetCount を無視するため、targetCount のエラーは
-  // disabled に反映しない（pity 用フィールドのエラーのみで disabled 制御）。
-  const submitDisabled
-    = !!errors.confidence
-      || (pityEnabled
-        ? !!errors.pityCount || !!errors.slipRatePercent
-        : !!errors.targetCount)
 
   return (
     <div>
@@ -295,12 +286,12 @@ export function ForwardForm() {
             </>
           )}
 
-          {/* disabled は信頼度・目標成功回数・天井起因のみ。成功率 0/100 は既存の submit→aria-invalid フローで処理する */}
-          <Button
-            type="submit"
-            className="mt-4"
-            disabled={submitDisabled}
-          >
+          {/*
+            計算ボタンは常に押せる（Issue #21）。disabled のボタンはフォーカスできず理由が伝わらないため、
+            不正入力時は react-hook-form の既定動作（全フィールド検証・最初のエラーフィールドへフォーカス・
+            FormMessage 表示）で理由を伝える。
+          */}
+          <Button type="submit" className="mt-4">
             計算
           </Button>
         </form>
