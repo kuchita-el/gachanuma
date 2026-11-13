@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
-import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
+import { useKeepFocusOnPress } from '@/lib/use-keep-focus-on-press'
 import { cn } from '@/lib/utils'
 
 /** 入力変更後に表示する、結果が古いことの注記（Issue #9） */
@@ -20,6 +20,7 @@ type ResultPanelProps = {
 }
 
 function ResultPanel({ children, className, stale = false, onRecalculate }: ResultPanelProps) {
+  const recalculatePressProps = useKeepFocusOnPress(onRecalculate)
   return (
     <div className={cn('bg-primary/10 rounded-lg p-6', className)}>
       {/* 再計算ボタンを live region に含めると、結果が変わるたびにボタンのラベルまで読み上げられる */}
@@ -41,8 +42,7 @@ function ResultPanel({ children, className, stale = false, onRecalculate }: Resu
           type="button"
           variant="outline"
           className="mt-2 min-h-11"
-          onMouseDown={keepFocusOnMouseDown}
-          onClick={onRecalculate}
+          {...recalculatePressProps}
         >
           この入力で再計算
         </Button>

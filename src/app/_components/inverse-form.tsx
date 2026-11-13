@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
-import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
+import { useKeepFocusOnPress } from '@/lib/use-keep-focus-on-press'
 import { useCalculation } from '@/lib/use-calculation'
 import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
@@ -41,6 +41,7 @@ export function InverseForm() {
   }>(subscribe)
   const resultAreaRef = useRef<HTMLDivElement>(null)
   useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
+  const submitButtonPressProps = useKeepFocusOnPress()
 
   const onSubmit = handleSubmit((form) => {
     calc.run(() =>
@@ -80,7 +81,7 @@ export function InverseForm() {
           <Button
             type="submit"
             className="mt-4"
-            onMouseDown={keepFocusOnMouseDown}
+            {...submitButtonPressProps}
           >
             計算
           </Button>

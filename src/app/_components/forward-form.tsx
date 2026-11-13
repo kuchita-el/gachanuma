@@ -32,7 +32,7 @@ import { NumberInputField } from '@/components/number-input-field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
+import { useKeepFocusOnPress } from '@/lib/use-keep-focus-on-press'
 import { useCalculation } from '@/lib/use-calculation'
 import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount } from '@/lib/format-number'
@@ -104,6 +104,7 @@ export function ForwardForm() {
   const pityEnabledId = useId()
   const resultAreaRef = useRef<HTMLDivElement>(null)
   useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
+  const submitButtonPressProps = useKeepFocusOnPress()
 
   const onSubmit = handleSubmit((form) => {
     // 表示用の % は、検証後の比率から戻さず入力値から作る。比率 ×100 は浮動小数点の誤差が出るため
@@ -286,7 +287,7 @@ export function ForwardForm() {
           <Button
             type="submit"
             className="mt-4"
-            onMouseDown={keepFocusOnMouseDown}
+            {...submitButtonPressProps}
           >
             計算
           </Button>
