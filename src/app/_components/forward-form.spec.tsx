@@ -717,6 +717,17 @@ describe('ForwardForm', () => {
       expect(screen.queryByText(/1〜100 の整数を入力してください/)).not.toBeInTheDocument()
     })
 
+    it('天井回数・すり抜け率の説明文は、意味と入力規則を簡潔に示す（Issue #18）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      const helperOf = (label: string) =>
+        document.getElementById(screen.getByLabelText(label).getAttribute('aria-describedby')!.split(' ')[0]!)
+      // すり抜け率が 0% でなければ天井でも外れるため、「確定」とは言い切らない
+      expect(helperOf('天井回数')).toHaveTextContent('この回数目の試行で天井が発動します。1以上の整数を入力してください')
+      expect(helperOf('天井すり抜け率')).toHaveTextContent('天井で目的のもの以外が出る確率です。0以上100以下の数値を入力してください')
+    })
+
     it('目標成功回数が不正値のまま Switch ON にすると、エラー表示が消え天井計算ができる（Issue #12）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)

@@ -272,7 +272,7 @@ export function ForwardForm() {
                 name="pityCount"
                 label="天井回数"
                 suffix="回"
-                helperText="この回数目の試行で、目的のものが確定します。1以上の整数を入力してください"
+                helperText="この回数目の試行で天井が発動します。1以上の整数を入力してください"
                 inputMode="numeric"
                 className="mt-4"
                 // 天井 OFF 時に、非表示の天井フィールドの不正値で計算できなくなるのを防ぐ（Issue #80）
@@ -284,7 +284,9 @@ export function ForwardForm() {
                 name="slipRatePercent"
                 label="天井すり抜け率"
                 suffix="%"
-                helperText="天井で目的のもの以外が出る確率です。0% なら天井で必ず成功し、100% なら天井なしと同じです。0以上100以下の数値を入力してください"
+                // 0% / 100% の意味は「計算の前提」に書き、ここには書かない。説明文は aria-describedby で
+                // フォーカスのたびに全文が読み上げられるため、短く保つ（Issue #18）
+                helperText="天井で目的のもの以外が出る確率です。0以上100以下の数値を入力してください"
                 inputMode="decimal"
                 className="mt-4"
                 shouldUnregister
