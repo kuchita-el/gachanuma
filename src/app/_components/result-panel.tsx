@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
+import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
 import { cn } from '@/lib/utils'
 
 /** 入力変更後に表示する、結果が古いことの注記（Issue #9） */
@@ -42,6 +43,8 @@ function ResultPanel({ children, className, stale = false, onRecalculate }: Resu
               type="button"
               variant="outline"
               className="min-h-11"
+              // 計算ボタンと同じく、押し下げで入力欄の検証が走りボタンがずれて押下が無視されるのを防ぐ
+              onMouseDown={keepFocusOnMouseDown}
               onClick={onRecalculate}
             >
               この入力で再計算

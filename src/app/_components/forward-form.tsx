@@ -32,6 +32,7 @@ import { NumberInputField } from '@/components/number-input-field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
 import { useCalculation } from '@/lib/use-calculation'
 import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount } from '@/lib/format-number'
@@ -295,7 +296,12 @@ export function ForwardForm() {
             不正入力時は react-hook-form の既定動作（全フィールド検証・最初のエラーフィールドへフォーカス・
             FormMessage 表示）で理由を伝える。
           */}
-          <Button type="submit" className="mt-4">
+          <Button
+            type="submit"
+            className="mt-4"
+            // 押し下げで入力欄のフォーカスが外れると、検証エラーの表示でボタンがずれて1回目の押下が無視されるため
+            onMouseDown={keepFocusOnMouseDown}
+          >
             計算
           </Button>
         </form>

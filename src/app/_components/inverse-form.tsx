@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
+import { keepFocusOnMouseDown } from '@/lib/keep-focus-on-mouse-down'
 import { useCalculation } from '@/lib/use-calculation'
 import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
@@ -78,7 +79,12 @@ export function InverseForm() {
             className="mt-4"
           />
 
-          <Button type="submit" className="mt-4">
+          <Button
+            type="submit"
+            className="mt-4"
+            // 押し下げで入力欄のフォーカスが外れると、検証エラーの表示でボタンがずれて1回目の押下が無視されるため
+            onMouseDown={keepFocusOnMouseDown}
+          >
             計算
           </Button>
         </form>

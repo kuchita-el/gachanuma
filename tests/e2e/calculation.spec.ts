@@ -154,9 +154,9 @@ test.describe('天井UI E2E', () => {
 
   test('Switch ON + すり抜け率 -1 で計算ボタンを押すと、すり抜け率にフォーカスが移りエラー文言が表示される', async ({ page }) => {
     await page.getByRole('switch', { name: '天井を考慮する' }).click()
+    await panel(page).getByLabel('成功率').fill('1')
     const slip = panel(page).getByLabel('天井すり抜け率')
     await slip.fill('-1')
-    await panel(page).getByLabel('成功率').fill('1')
     await panel(page).getByRole('button', { name: '計算' }).click()
     await expect(slip).toHaveAttribute('aria-invalid', 'true')
     await expect(slip).toBeFocused()
@@ -252,6 +252,46 @@ test.describe('数値入力欄 E2E', () => {
     await panel(page).getByLabel('成功率').fill('５０')
     await panel(page).getByRole('button', { name: '計算' }).click()
     await expect(page.getByRole('status')).toContainText('4回')
+  })
+})
+
+// Issue #21: 入力欄からフォーカスを外さずに計算ボタンを押しても、1回目の押下で検証・フォーカス移動が起きる。
+// 押し下げでフォーカスが外れると onBlur 検証のエラー表示でボタンがずれ、click が発生しなくなる不具合の回帰テスト。
+test.describe('入力直後の計算ボタン押下 E2E', () => {
+  for (const { label, value } of [
+    { label: '成功率', value: '0' },
+    { label: '信頼度', value: '0' },
+    { label: '目標成功回数', value: '0' },
+  ]) {
+    test(`${label}に不正値を入れてそのまま計算ボタンを1回押すと、${label}にフォーカスが移る`, async ({ page }) => {
+      await page.goto('/')
+      if (label !== '成功率') await panel(page).getByLabel('成功率').fill('50')
+      const input = panel(page).getByLabel(label)
+      await input.fill(value)
+      await expect(input).toBeFocused()
+      await panel(page).getByRole('button', { name: '計算' }).click()
+      await expect(input).toHaveAttribute('aria-invalid', 'true')
+      await expect(input).toBeFocused()
+    })
+  }
+
+  test('有効な値を入れてそのまま計算ボタンを1回押すと計算される', async ({ page }) => {
+    await page.goto('/')
+    await panel(page).getByLabel('成功率').fill('50')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    await expect(page.getByRole('status')).toContainText('4回')
+  })
+
+  test('計算後に不正値を入れてそのまま「この入力で再計算」を1回押すと、その欄にフォーカスが移る', async ({ page }) => {
+    await page.goto('/')
+    const successRate = panel(page).getByLabel('成功率')
+    await successRate.fill('50')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    await expect(page.getByRole('status')).toContainText('4回')
+    await successRate.fill('100')
+    await page.getByRole('button', { name: 'この入力で再計算' }).click()
+    await expect(successRate).toHaveAttribute('aria-invalid', 'true')
+    await expect(successRate).toBeFocused()
   })
 })
 

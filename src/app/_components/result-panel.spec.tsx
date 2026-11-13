@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -108,6 +108,15 @@ describe('ResultPanel（古い結果の表示、Issue #9）', () => {
     const button = screen.getByRole('button', { name: 'この入力で再計算' })
     // 注記とボタンは薄表示の対象外
     expect(screen.getByTestId('result-panel-body')).not.toContainElement(button)
+  })
+
+  it('「この入力で再計算」の押し下げではフォーカスを奪わない', () => {
+    render(
+      <ResultPanel stale onRecalculate={() => {}}>
+        <p>本文</p>
+      </ResultPanel>,
+    )
+    expect(fireEvent.mouseDown(screen.getByRole('button', { name: 'この入力で再計算' }))).toBe(false)
   })
 
   it('「この入力で再計算」を押すと onRecalculate が呼ばれる', async () => {

@@ -303,6 +303,16 @@ describe('ForwardForm', () => {
       await expectSubmitBlockedWithFocus(user, input)
     })
 
+    it('計算ボタンの押し下げでは入力欄のフォーカスを奪わない（押下中の検証でボタンがずれ、クリックが無視されるのを防ぐ）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.pointer({ keys: '[MouseLeft>]', target: screen.getByRole('button', { name: '計算' }) })
+      expect(successRate).toHaveFocus()
+      expect(successRate).toHaveAttribute('aria-invalid', 'false')
+    })
+
     it('計算ボタンは入力が不正でも常に押せる（Issue #21）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
@@ -845,14 +855,15 @@ describe('ForwardForm', () => {
     it('計算すると結果パネルを含む領域へ block: nearest でスクロールする（フォーカスは移さない）', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
-      await user.type(screen.getByLabelText('成功率'), '50')
-      const submit = screen.getByRole('button', { name: '計算' })
-      await user.click(submit)
+      const successRate = screen.getByLabelText('成功率')
+      await user.type(successRate, '50')
+      await user.click(screen.getByRole('button', { name: '計算' }))
       const status = await screen.findByRole('status', { name: '計算結果' })
       expect(scrollIntoView).toHaveBeenCalledTimes(1)
       expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }))
       expect(scrollIntoView.mock.contexts[0]).toContainElement(status)
-      expect(submit).toHaveFocus()
+      // 結果パネルへフォーカスは移さない（計算ボタンは押し下げでフォーカスを奪わないため、入力欄に残る）
+      expect(successRate).toHaveFocus()
     })
 
     it('同じ入力で再計算しても毎回スクロールする', async () => {
