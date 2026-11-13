@@ -23,10 +23,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="ja" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         <header className="bg-primary text-primary-foreground">
           <div className="mx-auto max-w-screen-sm px-4 py-4">
             <h1 className="text-lg font-semibold">確率の泥沼</h1>
