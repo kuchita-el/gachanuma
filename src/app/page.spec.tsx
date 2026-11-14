@@ -39,7 +39,7 @@ describe('Home (タブUI)', () => {
     await user.click(summary)
     expect(details).toHaveAttribute('open')
     expect(within(details).getByText('各試行は互いに独立で、成功率は毎回同じとして計算します。')).toBeInTheDocument()
-    expect(within(details).getByText(/天井すり抜け率 0% は天井で必ず成功、100% は天井がないのと同じです。/)).toBeInTheDocument()
+    expect(within(details).getByText(/天井すり抜け率 0% は天井で必ず成功、100% は天井の回で必ず外れる（天井の効果がない）として計算します。/)).toBeInTheDocument()
   })
 
   it('初期表示では順算タブが選択状態（aria-selected=true）', () => {

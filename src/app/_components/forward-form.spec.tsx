@@ -1241,7 +1241,7 @@ describe('ForwardForm', () => {
       expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
       // 結果領域(role=status) を包む要素の直後の兄弟要素（薄表示用のコンテナ）の中に probability-chart が存在
       const adjacent = container.querySelector(
-        'div:has(> div > [role="status"]) + [data-testid="probability-chart-container"] > [data-testid="probability-chart"]',
+        'div:has(> div > [role="status"]) + [data-testid="probability-chart-container"] [data-testid="probability-chart"]',
       )
       expect(adjacent).not.toBeNull()
     })
@@ -1254,21 +1254,42 @@ describe('ForwardForm', () => {
       expect(screen.queryByTestId('probability-chart')).not.toBeInTheDocument()
     })
 
-    it('信頼度を変更して再計算するとグラフの破線ラベルが更新される', async () => {
+    it('信頼度を変更して再計算するとグラフの信頼度線のラベルが更新される', async () => {
       const user = userEvent.setup()
       render(<ForwardForm />)
       await user.type(screen.getByLabelText('成功率'), '50')
       await user.click(screen.getByRole('button', { name: '計算' }))
       await screen.findByRole('status', { name: '計算結果' })
-      // 初期 c=90 → 90% ラベルが少なくとも 1 つ（プリセットボタンの「90%」と兼用、デフォルト線と重複なし）
-      expect(screen.getAllByText('90%').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText('信頼度 90%')).toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: '99%' }))
       await user.click(screen.getByRole('button', { name: '計算' }))
       await screen.findByRole('status', { name: '計算結果' })
-      // c=99 → 99% ラベル（プリセットボタンと破線ラベル）+ 90% デフォルト線
-      // 「99%」はプリセットボタン + 破線ラベルで複数存在しうるため getAllByText
-      expect(screen.getAllByText('99%').length).toBeGreaterThanOrEqual(2)
+      expect(screen.getByText('信頼度 99%')).toBeInTheDocument()
+      expect(screen.getByText('目安 90%')).toBeInTheDocument()
+    })
+
+    it('目標成功回数 2 以上では、グラフが複数回成功の曲線になり、マーカーが計算結果と一致する（Issue #8）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '50')
+      await user.clear(screen.getByLabelText('目標成功回数'))
+      await user.type(screen.getByLabelText('目標成功回数'), '2')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await screen.findByRole('status', { name: '計算結果' })
+      // 単発の曲線なら 7回で 99.22%。2回以上成功の曲線では 93.75%
+      expect(screen.getByText('7回: 93.75%')).toBeInTheDocument()
+    })
+
+    it('天井 ON では、グラフが天井ありの曲線になる（Issue #8）', async () => {
+      const user = userEvent.setup()
+      render(<ForwardForm />)
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.click(screen.getByRole('switch', { name: '天井を考慮する' }))
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await screen.findByRole('status', { name: '計算結果' })
+      // 天井 100回・すり抜け率 0% なら 100回で必ず成功する
+      expect(screen.getByText('100回: 99.99%超')).toBeInTheDocument()
     })
   })
 })

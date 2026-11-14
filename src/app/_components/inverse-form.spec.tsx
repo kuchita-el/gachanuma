@@ -504,4 +504,46 @@ describe('InverseForm', () => {
       expect(status).toHaveTextContent('93.75%')
     })
   })
+
+  describe('累積確率グラフ（Issue #17）', () => {
+    it('計算前はグラフを表示しない', () => {
+      render(<InverseForm />)
+      expect(screen.queryByTestId('probability-chart-container')).not.toBeInTheDocument()
+    })
+
+    it('計算するとグラフを表示し、入力した試行回数にマーカーを置く。信頼度線は描かない', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.type(screen.getByLabelText('試行回数'), '100')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await screen.findByRole('status', { name: '計算結果' })
+      expect(screen.getByTestId('probability-chart')).toBeInTheDocument()
+      expect(screen.getByText('100回: 63.40%')).toBeInTheDocument()
+      expect(screen.queryByText(/^信頼度/)).not.toBeInTheDocument()
+      expect(screen.getByText('目安 90%')).toBeInTheDocument()
+    })
+
+    it('グラフの代替テキストに、入力した試行回数での確率を含める（Issue #25）', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.type(screen.getByLabelText('試行回数'), '100')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      const chart = await screen.findByRole('img', { name: '試行回数に対する累積成功確率の折れ線グラフ' })
+      expect(document.getElementById(chart.getAttribute('aria-describedby')!))
+        .toHaveTextContent('入力した試行回数の100回で63.40%。')
+    })
+
+    it('計算後に入力を変更すると、グラフも薄く表示する', async () => {
+      const user = userEvent.setup()
+      render(<InverseForm />)
+      await user.type(screen.getByLabelText('成功率'), '1')
+      await user.type(screen.getByLabelText('試行回数'), '100')
+      await user.click(screen.getByRole('button', { name: '計算' }))
+      await screen.findByRole('status', { name: '計算結果' })
+      await user.type(screen.getByLabelText('試行回数'), '0')
+      expect(screen.getByTestId('probability-chart-container')).toHaveClass('opacity-50')
+    })
+  })
 })

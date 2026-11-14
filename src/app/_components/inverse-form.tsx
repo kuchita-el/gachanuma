@@ -14,10 +14,14 @@ import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { NumberInputField } from '@/components/number-input-field'
 import { ResultPanel } from './result-panel'
+import { ProbabilityChart } from './probability-chart'
+import { type SuccessCurve } from '@/probability/success-curve'
+import { type TrialCount } from '@/probability/value-types'
 import { useKeepFocusOnPress } from '@/lib/use-keep-focus-on-press'
 import { useCalculation } from '@/lib/use-calculation'
 import { useScrollIntoViewOnChange } from '@/lib/use-scroll-into-view-on-change'
 import { formatCount, formatProbabilityPercent } from '@/lib/format-number'
+import { cn } from '@/lib/utils'
 
 const schema = v.object({
   successRate: probabilityPercentageSchema,
@@ -37,7 +41,8 @@ export function InverseForm() {
 
   const calc = useCalculation<{
     cumulativeProbabilityRatio: number
-    trialCount: number
+    trialCount: TrialCount
+    curve: SuccessCurve
   }>(subscribe)
   const resultAreaRef = useRef<HTMLDivElement>(null)
   useScrollIntoViewOnChange(resultAreaRef, calc.runCount)
@@ -51,6 +56,7 @@ export function InverseForm() {
       ).map(value => ({
         cumulativeProbabilityRatio: value,
         trialCount: form.trialCount,
+        curve: { kind: 'single', successRate: form.successRate },
       })),
     )
   })
@@ -115,6 +121,19 @@ export function InverseForm() {
           </Alert>
         )}
       </div>
+
+      {calc.status === 'success' && (
+        <div
+          data-testid="probability-chart-container"
+          className={cn('transition-opacity', calc.stale && 'opacity-50')}
+        >
+          {/* 逆算は信頼度を入力しないため、信頼度線は描かず、入力した試行回数にマーカーを置く（Issue #17） */}
+          <ProbabilityChart
+            curve={calc.result.curve}
+            marker={{ trialCount: calc.result.trialCount, caption: '入力した試行回数' }}
+          />
+        </div>
+      )}
     </div>
   )
 }

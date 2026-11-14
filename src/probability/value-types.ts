@@ -84,3 +84,19 @@ export const validCumulativeSuccessRatioSchema = v.pipe(
 )
 
 export type CumulativeSuccessRatio = v.InferOutput<typeof validCumulativeSuccessRatioSchema>
+
+/**
+ * 曲線上の累積達成確率（目標を達成している確率、0以上1以下）（Issue #8）。
+ *
+ * `CumulativeSuccessRatio` と違い 0 を含める。複数回成功では試行回数が目標成功回数未満なら確率は
+ * ちょうど 0 になり、天井ありでは成功率が極小でも天井で確率が跳ね上がるため、0 に丸まった点も
+ * 曲線の一部として描けるから。
+ */
+export const validAchievementRatioSchema = v.pipe(
+  v.number('数値を指定してください。'),
+  v.minValue(0, '累積達成確率は0以上の値を指定してください。'),
+  v.maxValue(1, '累積達成確率は1以下の値を指定してください。'),
+  v.brand('AchievementRatio'),
+)
+
+export type AchievementRatio = v.InferOutput<typeof validAchievementRatioSchema>

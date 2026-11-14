@@ -92,7 +92,7 @@ export const targetCountInputSchema = v.pipe(
 /**
  * 天井すり抜け率（%、0以上100以下）を検証し、計算層の比率 SlipRateRatio に変換するスキーマ。
  *
- * 0% は天井で必ず成功、100% は天井が無効なのと同じ。両端を含む点が成功率と異なる。
+ * 0% は天井で必ず成功、100% は天井の回で必ず外れる（天井の効果がない）。両端を含む点が成功率と異なる。
  */
 export const slipRatePercentageSchema = v.pipe(
   numericInputSchema,
