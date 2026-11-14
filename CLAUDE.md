@@ -50,6 +50,7 @@ npx vitest --watch
 - `src/components/ui/` - shadcn/ui で導入したコンポーネント（`src/components/` のサブカテゴリ）
 - `src/lib/` - ユーティリティ（`cn` ヘルパ等）
 - `src/probability/` - 確率計算ロジック・バリデーションスキーマ・ユニットテスト
+- `scripts/generate-icons.mjs` - `src/app/` のアイコン（`icon.svg` / `apple-icon.png` / `favicon.ico`）と OGP 画像（`opengraph-image.png`）を生成する。デザインや、OGP 画像に載せているリード文（`page.tsx` / `layout.tsx` の description と同じ文言）を変えたら `node scripts/generate-icons.mjs` で再生成し、生成物をコミットする
 
 ### コンポーネント配置規約
 - `src/app/` 直下は Next.js 規約ファイル（`page.tsx` / `layout.tsx` / `error.tsx` / `loading.tsx` / `not-found.tsx` / `route.ts` / `template.tsx` 等）のみ配置する
