@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCount, formatProbabilityPercent } from './format-number'
+import { formatCount, formatInputPercent, formatProbabilityPercent } from './format-number'
 
 describe('formatCount', () => {
   it('999 は桁区切りなし', () => {
@@ -63,7 +63,21 @@ describe('formatProbabilityPercent', () => {
     expect(formatProbabilityPercent(1.11e-15)).toBe('0.000001%未満')
   })
 
-  it('0（アンダーフロー）は「0.000001%未満」（0% と表示しない）', () => {
-    expect(formatProbabilityPercent(0)).toBe('0.000001%未満')
+  it('ちょうど 0 は「0%」（複数回成功で試行回数が目標成功回数未満のときの曲線の値、Issue #8）', () => {
+    expect(formatProbabilityPercent(0)).toBe('0%')
+  })
+})
+
+describe('formatInputPercent', () => {
+  it.each([
+    [0.01, '1%'],
+    [0.07, '7%'],
+    [0.006, '0.6%'],
+    [0.5, '50%'],
+    [0, '0%'],
+    [1, '100%'],
+    [0.000123, '0.0123%'],
+  ])('%f → %s（比率 ×100 の浮動小数点誤差を出さない）', (ratio, expected) => {
+    expect(formatInputPercent(ratio)).toBe(expected)
   })
 })

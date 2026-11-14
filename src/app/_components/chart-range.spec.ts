@@ -1,35 +1,72 @@
 import { describe, it, expect } from 'vitest'
 import * as v from 'valibot'
 import {
+  computeNiceTicks,
+  computeXAxisRange,
   computeXAxisUpperBound,
   sampleTrialCounts,
 } from './chart-range'
+import type { SuccessCurve } from '@/probability/success-curve'
 import { formatDomainError } from '@/lib/format-domain-error'
-import { validProbabilityRatioSchema, validTrialCountSchema } from '@/probability/value-types'
+import {
+  validPityCountSchema,
+  validProbabilityRatioSchema,
+  validSlipRateRatioSchema,
+  validTargetCountSchema,
+  validTrialCountSchema,
+} from '@/probability/value-types'
 
 // 計算層は検証済みブランド値を受領する。spec では生数値を v.parse でブランド化して渡す。
 const prob = (r: number) => v.parse(validProbabilityRatioSchema, r)
 const trial = (n: number) => v.parse(validTrialCountSchema, n)
+const single = (p: number): SuccessCurve => ({ kind: 'single', successRate: prob(p) })
 
 describe('computeXAxisUpperBound', () => {
   it('p=0.5 → 11（N99=7, ceil(10.5)=11、AC2 検証）', () => {
-    expect(computeXAxisUpperBound(prob(0.5))._unsafeUnwrap()).toBe(11)
+    expect(computeXAxisUpperBound(single(0.5))._unsafeUnwrap()).toBe(11)
   })
 
   it('p=0.1 → 66（N99=44, ceil(66)=66）', () => {
-    expect(computeXAxisUpperBound(prob(0.1))._unsafeUnwrap()).toBe(66)
+    expect(computeXAxisUpperBound(single(0.1))._unsafeUnwrap()).toBe(66)
   })
 
   it('p=0.9 → 3（N99=2, ceil(3)=3、高成功率境界）', () => {
-    expect(computeXAxisUpperBound(prob(0.9))._unsafeUnwrap()).toBe(3)
+    expect(computeXAxisUpperBound(single(0.9))._unsafeUnwrap()).toBe(3)
   })
 
   it('p=0.01 → 689（N99=459, ceil(688.5)=689）', () => {
-    expect(computeXAxisUpperBound(prob(0.01))._unsafeUnwrap()).toBe(689)
+    expect(computeXAxisUpperBound(single(0.01))._unsafeUnwrap()).toBe(689)
   })
 
   it('p 極小（1e-17）は NonFiniteResult を err 返却（required-trials 経由）', () => {
-    expect(computeXAxisUpperBound(prob(1e-17))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
+    expect(computeXAxisUpperBound(single(1e-17))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
+  })
+
+  it('複数回成功の曲線では、その曲線が 99% に届く回数の 1.5 倍になる（p=0.01, r=3 → N99=838 → 1257）', () => {
+    const curve: SuccessCurve = {
+      kind: 'multiple',
+      successRate: prob(0.01),
+      targetCount: v.parse(validTargetCountSchema, 3),
+    }
+    expect(computeXAxisUpperBound(curve)._unsafeUnwrap()).toBe(1257)
+  })
+
+  it('天井ありの曲線では、その曲線が 99% に届く回数の 1.5 倍になる（p=0.01, N=100, m=0 → N99=100 → 150）', () => {
+    const curve: SuccessCurve = {
+      kind: 'pity',
+      successRate: prob(0.01),
+      pityCount: v.parse(validPityCountSchema, 100),
+      slipRate: v.parse(validSlipRateRatioSchema, 0),
+    }
+    expect(computeXAxisUpperBound(curve)._unsafeUnwrap()).toBe(150)
+  })
+
+  it('include を渡すと、その 1.2 倍（切り上げ）以上になる（p=0.5, include=1000 → 1200）', () => {
+    expect(computeXAxisUpperBound(single(0.5), trial(1000))._unsafeUnwrap()).toBe(1200)
+  })
+
+  it('include が小さければ N99 × 1.5 のまま（p=0.01, include=230 → 689）', () => {
+    expect(computeXAxisUpperBound(single(0.01), trial(230))._unsafeUnwrap()).toBe(689)
   })
 })
 
@@ -93,5 +130,49 @@ describe('sampleTrialCounts', () => {
 
   it('maxPoints=0 は InvalidInput を err 返却', () => {
     expect(sampleTrialCounts(trial(100), 0)._unsafeUnwrapErr().kind).toBe('InvalidInput')
+  })
+})
+
+describe('computeNiceTicks', () => {
+  it.each([
+    [1, [0, 1]],
+    [3, [0, 1, 2, 3]],
+    [4, [0, 1, 2, 3, 4]],
+    [11, [0, 5, 10, 15]],
+    [66, [0, 20, 40, 60, 80]],
+    [150, [0, 50, 100, 150]],
+    [689, [0, 200, 400, 600, 800]],
+    [1000, [0, 200, 400, 600, 800, 1000]],
+    [69075, [0, 20000, 40000, 60000, 80000]],
+  ])('上限 %i → %j', (upperBound, expected) => {
+    expect(computeNiceTicks(trial(upperBound))).toEqual(expected)
+  })
+
+  it('末尾の目盛りは上限以上で、目盛りは 6 本以下', () => {
+    for (let ub = 1; ub <= 5000; ub++) {
+      const ticks = computeNiceTicks(trial(ub))
+      expect(ticks[0]).toBe(0)
+      expect(ticks.at(-1)).toBeGreaterThanOrEqual(ub)
+      expect(ticks.length).toBeLessThanOrEqual(6)
+      expect(ticks.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+})
+
+describe('computeXAxisRange', () => {
+  it('上限を切りの良い目盛りの末尾まで広げる（p=0.01 → 689 → 800）', () => {
+    expect(computeXAxisRange(single(0.01))._unsafeUnwrap()).toEqual({
+      upperBound: 800,
+      ticks: [0, 200, 400, 600, 800],
+    })
+  })
+
+  it('include は範囲に必ず含まれる（p=0.5, include=1000 → 1200）', () => {
+    const { upperBound } = computeXAxisRange(single(0.5), trial(1000))._unsafeUnwrap()
+    expect(upperBound).toBeGreaterThanOrEqual(1200)
+  })
+
+  it('曲線の計算エラーはそのまま返す（p=1e-17）', () => {
+    expect(computeXAxisRange(single(1e-17))._unsafeUnwrapErr().kind).toBe('NonFiniteResult')
   })
 })

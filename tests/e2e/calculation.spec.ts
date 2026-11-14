@@ -182,14 +182,38 @@ test.describe('累積確率グラフ E2E', () => {
     await expect(page.locator('[data-testid="probability-chart"]')).toHaveCount(0)
   })
 
-  test('計算実行後にグラフが描画される（成功率50で svg + 90%補助線ラベル）', async ({ page }) => {
+  test('計算実行後にグラフが描画される（成功率50で svg + 信頼度線ラベル + 結果マーカー）', async ({ page }) => {
     await panel(page).getByLabel('成功率').fill('50')
     await panel(page).getByRole('button', { name: '計算' }).click()
     await expect(page.locator('[data-testid="probability-chart"] svg')).toBeVisible()
-    // 信頼度 90 の破線ラベル「90%」が SVG 内に存在
-    await expect(
-      page.locator('[data-testid="probability-chart"] text').filter({ hasText: '90%' }).first(),
-    ).toBeVisible()
+    const chartText = page.locator('[data-testid="probability-chart"] text')
+    await expect(chartText.filter({ hasText: '信頼度 90%' })).toBeVisible()
+    await expect(chartText.filter({ hasText: '4回: 93.75%' })).toBeVisible()
+  })
+
+  test('グラフにホバーすると、試行回数と累積成功確率のツールチップが出る（Issue #16）', async ({ page }) => {
+    await panel(page).getByLabel('成功率').fill('1')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    const svg = page.locator('[data-testid="probability-chart"] svg').first()
+    await expect(svg).toBeVisible()
+    // グラフは画面下にあるため、座標を取る前にスクロールして画面内に入れる
+    await svg.scrollIntoViewIfNeeded()
+    const box = (await svg.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page.locator('.recharts-tooltip-wrapper')).toHaveText(/^\d{1,3}(,\d{3})*回: [\d.]+%$/)
+    // 結果パネルの live region と区別できるよう、ツールチップは status を持たない（Issue #25）
+    await expect(page.getByRole('status')).toHaveCount(1)
+  })
+
+  test('逆算でも計算後にグラフが描画され、入力した試行回数にマーカーが出る（Issue #17）', async ({ page }) => {
+    await page.getByRole('tab', { name: '成功する確率' }).click()
+    await panel(page).getByLabel('成功率').fill('1')
+    await panel(page).getByLabel('試行回数').fill('100')
+    await panel(page).getByRole('button', { name: '計算' }).click()
+    const chartText = panel(page).locator('[data-testid="probability-chart"] text')
+    await expect(chartText.filter({ hasText: '100回: 63.40%' })).toBeVisible()
+    await expect(chartText.filter({ hasText: '目安 90%' })).toBeVisible()
+    await expect(chartText.filter({ hasText: /^信頼度/ })).toHaveCount(0)
   })
 
   test('成功率 0 でエラー時はグラフが描画されない', async ({ page }) => {
@@ -215,19 +239,22 @@ test.describe('グラフのレスポンシブ表示 E2E', () => {
       }))
       expect(scrollWidth).toBe(innerWidth)
 
-      // グラフがコンテンツ幅いっぱいに描画され、参照線ラベルが SVG 内に収まる
+      // グラフがコンテンツ幅いっぱいに描画され、参照線・マーカーのラベルが SVG 内に収まる
       const chartBox = await page.locator('[data-testid="probability-chart"]').boundingBox()
       const svgBox = await page.locator('[data-testid="probability-chart"] svg').first().boundingBox()
       expect(chartBox).not.toBeNull()
       expect(svgBox).not.toBeNull()
       expect(Math.abs(svgBox!.width - chartBox!.width)).toBeLessThanOrEqual(1)
-      const labelBox = await page
-        .locator('[data-testid="probability-chart"] text')
-        .filter({ hasText: '90%' })
-        .first()
-        .boundingBox()
-      expect(labelBox).not.toBeNull()
-      expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(svgBox!.x + svgBox!.width)
+      for (const label of ['信頼度 90%', '4回: 93.75%']) {
+        const labelBox = await page
+          .locator('[data-testid="probability-chart"] text')
+          .filter({ hasText: label })
+          .first()
+          .boundingBox()
+        expect(labelBox).not.toBeNull()
+        expect(labelBox!.x).toBeGreaterThanOrEqual(svgBox!.x)
+        expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(svgBox!.x + svgBox!.width)
+      }
     })
   }
 })

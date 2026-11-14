@@ -8,8 +8,8 @@ import {
   slipRatePercentageSchema,
   targetCountInputSchema,
 } from './form-schemas'
-import { calculateTrialCountForMultipleSuccess } from '@/probability/required-trials'
-import { calculateTrialCountWithPity } from '@/probability/required-trials-with-pity'
+import { calculateTrialCountOnCurve, type SuccessCurve } from '@/probability/success-curve'
+import { type TrialCount } from '@/probability/value-types'
 import { ProbabilityChart } from './probability-chart'
 import { ResultPanel } from './result-panel'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -95,11 +95,11 @@ export function ForwardForm() {
   const pityEnabled = useWatch({ control, name: 'pityEnabled' })
 
   const calc = useCalculation<{
-    trialCount: number
+    trialCount: TrialCount
     confidencePercent: number
     targetCount: number
-    successRatePercent: number
     pity?: { pityCount: number, slipRatePercent: number }
+    curve: SuccessCurve
   }>(subscribe)
   const pityEnabledId = useId()
   const resultAreaRef = useRef<HTMLDivElement>(null)
@@ -115,48 +115,43 @@ export function ForwardForm() {
     const input = {
       confidence: normalize(raw.confidence),
       targetCount: normalize(raw.targetCount),
-      successRate: normalize(raw.successRate),
       pityCount: normalize(raw.pityCount),
       slipRatePercent: normalize(raw.slipRatePercent),
     }
     calc.run(() => {
-      let calcResult
+      let curve: SuccessCurve
       if (form.pityEnabled) {
         // 天井 ON 時は天井フィールドが必ず登録されているため、ここに来ることはない
         if (form.pityCount === undefined || form.slipRatePercent === undefined) {
           throw new Error('天井有効時に天井フィールドの値が存在しません')
         }
-        calcResult = calculateTrialCountWithPity(
-          form.successRate,
-          form.pityCount,
-          form.slipRatePercent,
-          form.confidence,
-        )
+        curve = {
+          kind: 'pity',
+          successRate: form.successRate,
+          pityCount: form.pityCount,
+          slipRate: form.slipRatePercent,
+        }
       }
       else {
         // 天井 OFF 時は resolver が目標成功回数を検証済みのため、ここに来ることはない
         if (form.targetCount === undefined) {
           throw new Error('天井無効時に目標成功回数の値が存在しません')
         }
-        calcResult = calculateTrialCountForMultipleSuccess(
-          form.successRate,
-          form.targetCount,
-          form.confidence,
-        )
+        curve = { kind: 'multiple', successRate: form.successRate, targetCount: form.targetCount }
       }
 
       // 天井計算は1回成功のみ対応（Issue #34）。入力された目標成功回数で「N回以上成功」と表示しないため
-      return calcResult.map(value => ({
+      return calculateTrialCountOnCurve(curve, form.confidence).map(value => ({
         trialCount: value,
         confidencePercent: Number(input.confidence),
         targetCount: form.pityEnabled ? 1 : Number(input.targetCount),
-        successRatePercent: Number(input.successRate),
         pity: form.pityEnabled
           ? {
             pityCount: Number(input.pityCount),
             slipRatePercent: Number(input.slipRatePercent),
           }
           : undefined,
+        curve,
       }))
     })
   })
@@ -359,8 +354,9 @@ export function ForwardForm() {
           className={cn('transition-opacity', calc.stale && 'opacity-50')}
         >
           <ProbabilityChart
-            successRatePercent={calc.result.successRatePercent}
+            curve={calc.result.curve}
             confidencePercent={calc.result.confidencePercent}
+            marker={{ trialCount: calc.result.trialCount, caption: '計算結果' }}
           />
         </div>
       )}
