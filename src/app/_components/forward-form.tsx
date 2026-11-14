@@ -170,7 +170,7 @@ export function ForwardForm() {
             name="successRate"
             label="成功率"
             suffix="%"
-            helperText="0より大きく100未満の数値を入力してください"
+            helperText="1回の試行で成功する確率です。0より大きく100未満の数値を入力してください"
             inputMode="decimal"
           />
 
@@ -182,7 +182,7 @@ export function ForwardForm() {
             helperText={
               pityEnabled
                 ? '天井を考慮する場合は、目標成功回数は1回で計算します'
-                : '1〜100 の整数を入力してください'
+                : '何回成功したいかです。1〜100 の整数を入力してください'
             }
             inputMode="numeric"
             className="mt-4"
@@ -197,7 +197,11 @@ export function ForwardForm() {
             render={({ field }) => (
               <FormItem className="mt-4">
                 <FormLabel>信頼度</FormLabel>
-                <div className="flex flex-wrap gap-2">
+                {/*
+                  ボタン群に名前を付けないと「50%、トグルボタン」とだけ読まれ、何の値か分からない（Issue #25）。
+                  Radix の ToggleGroup は未導入で、導入するとスタイルとテストの書き換えが増えるため採らない。
+                */}
+                <div role="group" aria-label="信頼度のプリセット" className="flex flex-wrap gap-2">
                   {CONFIDENCE_PRESETS.map((preset) => {
                     // 全角入力（"９０"）でもプリセットを選択状態にする（Issue #13）
                     const selected = normalizeNumericInput(String(field.value)) === String(preset)
@@ -205,8 +209,8 @@ export function ForwardForm() {
                       <Button
                         key={preset}
                         type="button"
-                        size="sm"
                         variant={selected ? 'default' : 'outline'}
+                        className="h-11 min-w-14"
                         aria-pressed={selected}
                         onClick={() => setValue('confidence', String(preset), { shouldValidate: true })}
                       >
@@ -228,7 +232,9 @@ export function ForwardForm() {
                     />
                   </FormControl>
                 </InputAffix>
-                <FormDescription>0より大きく100未満の整数を入力してください</FormDescription>
+                <FormDescription>
+                  求めた回数以内に目標を達成できる確率です。0より大きく100未満の整数を入力してください
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -238,7 +244,7 @@ export function ForwardForm() {
             name="pityEnabled"
             control={control}
             render={({ field }) => (
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2">
                 <Switch
                   id={pityEnabledId}
                   checked={field.value}
@@ -248,7 +254,13 @@ export function ForwardForm() {
                     if (checked) clearErrors('targetCount')
                   }}
                 />
-                <Label htmlFor={pityEnabledId}>天井を考慮する</Label>
+                {/*
+                  スイッチ本体は小さいため、ラベルを行いっぱいに広げてタップ領域にする（Issue #20）。
+                  ラベルを押すとスイッチが切り替わる。
+                */}
+                <Label htmlFor={pityEnabledId} className="min-h-11 flex-1 cursor-pointer">
+                  天井を考慮する
+                </Label>
               </div>
             )}
           />
@@ -260,7 +272,7 @@ export function ForwardForm() {
                 name="pityCount"
                 label="天井回数"
                 suffix="回"
-                helperText="1以上の整数を入力してください"
+                helperText="この回数目の試行で天井が発動します。1以上の整数を入力してください"
                 inputMode="numeric"
                 className="mt-4"
                 // 天井 OFF 時に、非表示の天井フィールドの不正値で計算できなくなるのを防ぐ（Issue #80）
@@ -272,7 +284,9 @@ export function ForwardForm() {
                 name="slipRatePercent"
                 label="天井すり抜け率"
                 suffix="%"
-                helperText="0以上100以下の数値を入力してください"
+                // 0% / 100% の意味は「計算の前提」に書き、ここには書かない。説明文は aria-describedby で
+                // フォーカスのたびに全文が読み上げられるため、短く保つ（Issue #18）
+                helperText="天井で目的のもの以外が出る確率です。0以上100以下の数値を入力してください"
                 inputMode="decimal"
                 className="mt-4"
                 shouldUnregister
@@ -286,7 +300,8 @@ export function ForwardForm() {
           */}
           <Button
             type="submit"
-            className="mt-4"
+            size="lg"
+            className="mt-6 h-11 w-full text-base"
             {...submitButtonPressProps}
           >
             計算
@@ -331,7 +346,6 @@ export function ForwardForm() {
           <Alert
             variant="destructive"
             role="alert"
-            aria-live="assertive"
             className="mt-4"
           >
             <AlertDescription>{calc.error}</AlertDescription>

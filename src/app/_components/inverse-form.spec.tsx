@@ -192,7 +192,7 @@ describe('InverseForm', () => {
     expect(screen.queryByRole('status', { name: '計算結果' })).not.toBeInTheDocument()
   })
 
-  it('結果領域に role="status" / aria-live="polite" / aria-label="計算結果"', async () => {
+  it('結果領域に role="status" / aria-live="polite" / 名前「計算結果」', async () => {
     const user = userEvent.setup()
     render(<InverseForm />)
     await user.type(screen.getByLabelText('成功率'), '50')

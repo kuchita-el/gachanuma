@@ -199,15 +199,13 @@ export function ProbabilityChart({
       </div>
     ),
     error => (
-      <div
-        role="img"
-        aria-label="グラフエラー"
-        className="text-muted-foreground mt-4 text-sm"
-      >
+      // role="img" にすると子孫のテキストが読み上げられないため、通常のテキストにする（Issue #25）。
+      // 計算結果側の表示で通知済みのため、role="status" も付けない
+      <p data-testid="probability-chart-error" className="text-muted-foreground mt-4 text-sm">
         グラフを描画できません:
         {' '}
         {formatDomainError(error)}
-      </div>
+      </p>
     ),
   )
 }

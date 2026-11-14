@@ -74,12 +74,12 @@ test.describe('確率計算 E2E', () => {
 test.describe('逆算 E2E', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('tab', { name: '逆算' }).click()
+    await page.getByRole('tab', { name: '成功する確率' }).click()
   })
 
   test('逆算タブをクリックすると aria-selected が切替わる', async ({ page }) => {
-    await expect(page.getByRole('tab', { name: '逆算' })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('tab', { name: '順算' })).toHaveAttribute('aria-selected', 'false')
+    await expect(page.getByRole('tab', { name: '成功する確率' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { name: '必要な回数' })).toHaveAttribute('aria-selected', 'false')
   })
 
   test('成功率 50 + 試行回数 4 で 93.75% が表示される', async ({ page }) => {
@@ -118,11 +118,11 @@ test.describe('タブ切替 E2E', () => {
     await panel(page).getByRole('button', { name: '計算' }).click()
     await expect(page.getByRole('status')).toContainText('4回')
 
-    await page.getByRole('tab', { name: '逆算' }).click()
+    await page.getByRole('tab', { name: '成功する確率' }).click()
     await expect(panel(page).getByLabel('試行回数')).toBeVisible()
     await expect(page.getByRole('status')).toHaveCount(0)
 
-    await page.getByRole('tab', { name: '順算' }).click()
+    await page.getByRole('tab', { name: '必要な回数' }).click()
     await expect(panel(page).getByLabel('成功率')).toHaveValue('50')
     await expect(page.getByRole('status')).toContainText('4回')
   })
@@ -266,7 +266,8 @@ test.describe('入力直後の計算ボタン押下 E2E', () => {
     test(`${label}に不正値を入れてそのまま計算ボタンを1回押すと、${label}にフォーカスが移る`, async ({ page }) => {
       await page.goto('/')
       if (label !== '成功率') await panel(page).getByLabel('成功率').fill('50')
-      const input = panel(page).getByLabel(label)
+      // 「信頼度」はプリセットのグループ名「信頼度のプリセット」にも部分一致するため、完全一致で探す
+      const input = panel(page).getByLabel(label, { exact: true })
       await input.fill(value)
       await expect(input).toBeFocused()
       await panel(page).getByRole('button', { name: '計算' }).click()

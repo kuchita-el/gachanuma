@@ -21,11 +21,13 @@ type ResultPanelProps = {
 
 function ResultPanel({ children, className, stale = false, onRecalculate }: ResultPanelProps) {
   const recalculatePressProps = useKeepFocusOnPress(onRecalculate)
+  const headingId = React.useId()
   return (
     <div className={cn('bg-primary/10 rounded-lg p-6', className)}>
       {/* 再計算ボタンを live region に含めると、結果が変わるたびにボタンのラベルまで読み上げられる */}
-      <div role="status" aria-live="polite" aria-label="計算結果">
-        <h2 className="mb-2 text-lg font-semibold">計算結果</h2>
+      {/* aria-label で名前を付けると見出しと二重に読まれうるため、見出しを参照する（Issue #25） */}
+      <div role="status" aria-live="polite" aria-labelledby={headingId}>
+        <h2 id={headingId} className="mb-2 text-lg font-semibold">計算結果</h2>
         <div
           data-testid="result-panel-body"
           className={cn('transition-opacity', stale && 'opacity-50')}

@@ -64,7 +64,7 @@ export function InverseForm() {
             name="successRate"
             label="成功率"
             suffix="%"
-            helperText="0より大きく100未満の数値を入力してください"
+            helperText="1回の試行で成功する確率です。0より大きく100未満の数値を入力してください"
             inputMode="decimal"
           />
 
@@ -80,7 +80,8 @@ export function InverseForm() {
 
           <Button
             type="submit"
-            className="mt-4"
+            size="lg"
+            className="mt-6 h-11 w-full text-base"
             {...submitButtonPressProps}
           >
             計算
@@ -108,7 +109,6 @@ export function InverseForm() {
           <Alert
             variant="destructive"
             role="alert"
-            aria-live="assertive"
             className="mt-4"
           >
             <AlertDescription>{calc.error}</AlertDescription>

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ResultPanel, STALE_RESULT_NOTICE } from '@/app/_components/result-panel'
 
 describe('ResultPanel', () => {
-  it('live region（role="status" / aria-live="polite" / aria-label="計算結果"）が描画される', () => {
+  it('live region（role="status" / aria-live="polite"）が描画され、見出し「計算結果」が名前になる', () => {
     render(
       <ResultPanel>
         <p>本文</p>
@@ -13,7 +13,17 @@ describe('ResultPanel', () => {
     )
     const root = screen.getByRole('status', { name: '計算結果' })
     expect(root).toHaveAttribute('aria-live', 'polite')
-    expect(root).toHaveAttribute('aria-label', '計算結果')
+    const heading = screen.getByRole('heading', { level: 2, name: '計算結果' })
+    expect(root).toHaveAttribute('aria-labelledby', heading.id)
+  })
+
+  it('名前は見出しの参照のみで、aria-label を重ねて付けない（Issue #25: 「計算結果 計算結果」と二重に読まれるのを防ぐ）', () => {
+    render(
+      <ResultPanel>
+        <p>本文</p>
+      </ResultPanel>,
+    )
+    expect(screen.getByRole('status')).not.toHaveAttribute('aria-label')
   })
 
   it('ルート要素が bg-primary/10 / rounded-lg / p-6 クラスを持つ', () => {
