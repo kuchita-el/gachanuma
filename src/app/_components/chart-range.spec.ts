@@ -65,6 +65,23 @@ describe('computeXAxisUpperBound', () => {
     expect(computeXAxisUpperBound(single(0.5), trial(1000))._unsafeUnwrap()).toBe(1200)
   })
 
+  describe('99% に届く回数が計算できないとき（複数回成功で反復上限を超える）', () => {
+    // 成功率 0.01%・目標 100 回: 信頼度 50% の結果は約 100 万回で計算できるが、99% は反復上限を超える
+    const curve: SuccessCurve = {
+      kind: 'multiple',
+      successRate: prob(0.0001),
+      targetCount: v.parse(validTargetCountSchema, 100),
+    }
+
+    it('include を渡せば、その 1.2 倍で上限を決める（グラフだけエラーにしない）', () => {
+      expect(computeXAxisUpperBound(curve, trial(1_000_000))._unsafeUnwrap()).toBe(1_200_000)
+    })
+
+    it('include がなければ、計算エラーをそのまま返す', () => {
+      expect(computeXAxisUpperBound(curve)._unsafeUnwrapErr().kind).toBe('IterationLimitExceeded')
+    })
+  })
+
   it('include が小さければ N99 × 1.5 のまま（p=0.01, include=230 → 689）', () => {
     expect(computeXAxisUpperBound(single(0.01), trial(230))._unsafeUnwrap()).toBe(689)
   })

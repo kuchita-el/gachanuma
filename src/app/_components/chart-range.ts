@@ -1,6 +1,6 @@
 /** 累積成功確率グラフの X 軸の範囲と、描画する点の列を求める */
 import * as v from 'valibot'
-import { Result } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import { type DomainError, parseInputOrErr, validateOrNonFinite } from '@/probability/domain-error'
 import { calculateTrialCountOnCurve, type SuccessCurve } from '@/probability/success-curve'
 import {
@@ -22,6 +22,8 @@ const MAX_TICK_INTERVALS = 5
  * 曲線が 99% に届くところまで余裕を持って描く（例: 成功率 50% → 7回 → 上限 11）。
  * include を渡したときは、その 1.2 倍（切り上げ）以上にして、計算結果や入力した試行回数を
  * 必ず範囲に含める（Issue #8 / #17）。
+ * 99% に届く回数が計算できない（例: 複数回成功で反復上限を超える）ときは、include だけで決める。
+ * 結果は計算できたのにグラフだけエラーになるのを避けるため。
  *
  * @param curve - 曲線のモデル（検証済みブランド値）
  * @param include - 必ず範囲に含めたい試行回数（検証済みブランド値）
@@ -31,16 +33,13 @@ export function computeXAxisUpperBound(
   curve: SuccessCurve,
   include?: TrialCount,
 ): Result<TrialCount, DomainError> {
-  return calculateTrialCountOnCurve(curve, N99_CONFIDENCE).andThen(n99 =>
-    validateOrNonFinite(
-      validTrialCountSchema,
-      Math.max(
-        Math.ceil(n99 * X_AXIS_EXTRA_RATIO),
-        include === undefined ? 1 : Math.ceil(include * INCLUDED_TRIAL_EXTRA_RATIO),
-      ),
-      'computeXAxisUpperBound',
-    ),
-  )
+  const includeBound = include === undefined ? 1 : Math.ceil(include * INCLUDED_TRIAL_EXTRA_RATIO)
+  return calculateTrialCountOnCurve(curve, N99_CONFIDENCE)
+    .map(n99 => Math.ceil(n99 * X_AXIS_EXTRA_RATIO))
+    .orElse(error => (include === undefined ? err(error) : ok(includeBound)))
+    .andThen(bound =>
+      validateOrNonFinite(validTrialCountSchema, Math.max(bound, includeBound), 'computeXAxisUpperBound'),
+    )
 }
 
 /**

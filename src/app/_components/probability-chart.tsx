@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useSyncExternalStore } from 'react'
+import { useId, useMemo, useSyncExternalStore } from 'react'
 import {
   CartesianGrid,
   Label,
@@ -96,6 +96,38 @@ export function markerLabelPosition(
   return `inside${vertical}${horizontal}`
 }
 
+/** グラフの描画データ（X 軸の範囲・目盛り・点列・マーカーの点）を求める */
+function computeChartData(curve: SuccessCurve, markerTrialCount: TrialCount) {
+  const toPoint = (n: TrialCount) =>
+    evaluateSuccessCurve(curve, n).map(ratio => ({
+      trialCount: n,
+      cumulativeProbabilityPercent: ratio * 100,
+    }))
+
+  return Result.combine([
+    computeXAxisRange(curve, markerTrialCount),
+    toPoint(markerTrialCount),
+  ]).andThen(([{ upperBound, ticks }, markerPoint]) =>
+    sampleTrialCounts(upperBound).andThen((samples) => {
+      // 天井の前後で確率が跳ねるため、天井回数とその直前の点を必ず含め、跳ねる位置を正しく描く。
+      // マーカーの点も含め、マーカーが折れ線の上に乗るようにする。
+      // 天井回数は整数なので、1 以上・上限以下に絞れば試行回数として妥当な値になる
+      const extras = [
+        markerTrialCount,
+        ...(curve.kind === 'pity' ? [curve.pityCount - 1, curve.pityCount] : []),
+      ].filter((n): n is TrialCount => n >= 1 && n <= upperBound)
+      const trialCounts = [...new Set([...samples, ...extras])].sort((a, b) => a - b)
+      return Result.combine(trialCounts.map(toPoint)).map(points => ({
+        upperBound,
+        ticks,
+        markerPoint,
+        // 0 回試行では成功していないため、原点から描く
+        data: [{ trialCount: 0, cumulativeProbabilityPercent: 0 }, ...points],
+      }))
+    }),
+  )
+}
+
 interface ProbabilityChartProps {
   /** 描く曲線のモデル。計算結果と同じモデルを渡し、グラフと結果を一致させる（Issue #8） */
   curve: SuccessCurve
@@ -131,33 +163,17 @@ export function ProbabilityChart({
   const descriptionId = useId()
   const isFixedSize = width !== undefined && height !== undefined
 
-  const toPoint = (n: TrialCount) =>
-    evaluateSuccessCurve(curve, n).map(ratio => ({
-      trialCount: n,
-      cumulativeProbabilityPercent: ratio * 100,
-    }))
-
-  const chartResult = Result.combine([
-    computeXAxisRange(curve, marker.trialCount),
-    toPoint(marker.trialCount),
-  ]).andThen(([{ upperBound, ticks }, markerPoint]) =>
-    sampleTrialCounts(upperBound).andThen((samples) => {
-      // 天井の前後で確率が跳ねるため、天井回数とその直前の点を必ず含め、跳ねる位置を正しく描く。
-      // マーカーの点も含め、マーカーが折れ線の上に乗るようにする。
-      // 天井回数は整数なので、1 以上・上限以下に絞れば試行回数として妥当な値になる
-      const extras = [
-        marker.trialCount,
-        ...(curve.kind === 'pity' ? [curve.pityCount - 1, curve.pityCount] : []),
-      ].filter((n): n is TrialCount => n >= 1 && n <= upperBound)
-      const trialCounts = [...new Set([...samples, ...extras])].sort((a, b) => a - b)
-      return Result.combine(trialCounts.map(toPoint)).map(points => ({
-        upperBound,
-        ticks,
-        markerPoint,
-        // 0 回試行では成功していないため、原点から描く
-        data: [{ trialCount: 0, cumulativeProbabilityPercent: 0 }, ...points],
-      }))
-    }),
+  // 曲線の評価（約 200 点の betai）と到達回数の二分探索は重いため、入力のたびの再描画
+  // （結果が古いことを示す stale の更新など）で計算し直さない
+  const markerTrialCount = marker.trialCount
+  const markerCaption = marker.caption
+  const chartResult = useMemo(
+    () => computeChartData(curve, markerTrialCount),
+    [curve, markerTrialCount],
+  )
+  const description = useMemo(
+    () => describeChart(curve, { trialCount: markerTrialCount, caption: markerCaption }),
+    [curve, markerTrialCount, markerCaption],
   )
 
   const showDefaultGuide = confidencePercent !== DEFAULT_CONFIDENCE_PERCENT
@@ -304,7 +320,7 @@ export function ProbabilityChart({
           </LineChart>
         </div>
         <p id={descriptionId} className="sr-only">
-          {describeChart(curve, marker)}
+          {description}
         </p>
       </div>
     ),
