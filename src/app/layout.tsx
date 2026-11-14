@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 })
 
 const TITLE = '確率の泥沼'
-/** ページ冒頭のリード文（page.tsx、Issue #18）と同じ文言にする */
+/** ページ冒頭のリード文（page.tsx、Issue #18）と OGP 画像の文言（scripts/generate-icons.mjs）と同じ文言にする */
 const DESCRIPTION = 'ガチャなどの成功率から、目標の確率で成功するまでに必要な回数や、決まった回数で成功する確率を計算します。'
 
 export const metadata: Metadata = {

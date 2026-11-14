@@ -22,6 +22,8 @@ test.describe('メタデータ E2E', () => {
     expect(url).toMatch(/^https?:\/\/[^/]+\/opengraph-image\.png/)
     await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200')
     await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630')
+    // twitter-image は置かず OGP 画像を共用するため、X のカードにも同じ画像が出ることを確認する
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', url!)
     const response = await request.get(new URL(url!).pathname)
     expect(response.ok()).toBe(true)
     expect(response.headers()['content-type']).toBe('image/png')
