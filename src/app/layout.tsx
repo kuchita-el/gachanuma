@@ -25,7 +25,10 @@ export default function RootLayout({
   return (
     <html lang="ja" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
-        <header className="bg-primary text-primary-foreground">
+        {/*
+          ダークモードでは --primary が明るい色に反転し、ヘッダーが眩しい帯になるため、暗い面の色にする（Issue #22）
+        */}
+        <header className="bg-primary text-primary-foreground dark:bg-card dark:text-card-foreground dark:border-b">
           <div className="mx-auto max-w-screen-sm px-4 py-4">
             <h1 className="text-lg font-semibold">確率の泥沼</h1>
           </div>
