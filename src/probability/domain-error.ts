@@ -23,6 +23,7 @@ export type NonFiniteSource
     | 'calculateCumulativeSuccessProbability'
     | 'calculateTrialCountForMultipleSuccess'
     | 'calculateTrialCountWithPity'
+    | 'evaluateSuccessCurve'
     | 'computeXAxisUpperBound'
     | 'sampleTrialCounts'
 

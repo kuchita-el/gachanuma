@@ -28,6 +28,7 @@ function formatNonFiniteResult(source: NonFiniteSource): string {
     case 'calculateTrialCountWithPity':
       return '成功率が極端に小さいため試行回数を計算できません。値を見直してください。'
     case 'calculateCumulativeSuccessProbability':
+    case 'evaluateSuccessCurve':
       return '成功率が極端に小さいため累積成功確率を計算できません。値を見直してください。'
     case 'calculateTrialCountForMultipleSuccess':
       return '計算結果が数値として表現できません。値を見直してください。'
