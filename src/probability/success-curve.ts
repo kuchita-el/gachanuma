@@ -26,10 +26,9 @@ import {
  * - `multiple`: targetCount 回以上成功する確率
  * - `pity`: 天井ありで少なくとも1回成功する確率（天井計算は1回成功のみ対応、Issue #34）
  */
-export type SuccessCurve
-  = | { kind: 'single', successRate: ProbabilityRatio }
-    | { kind: 'multiple', successRate: ProbabilityRatio, targetCount: TargetCount }
-    | { kind: 'pity', successRate: ProbabilityRatio, pityCount: PityCount, slipRate: SlipRateRatio }
+export type SuccessCurve = { kind: 'single', successRate: ProbabilityRatio }
+  | { kind: 'multiple', successRate: ProbabilityRatio, targetCount: TargetCount }
+  | { kind: 'pity', successRate: ProbabilityRatio, pityCount: PityCount, slipRate: SlipRateRatio }
 
 const toAchievement = (value: number) =>
   validateOrNonFinite(validAchievementRatioSchema, value, 'evaluateSuccessCurve')

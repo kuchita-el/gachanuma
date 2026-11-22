@@ -114,8 +114,7 @@ describe('app/error.tsx', () => {
     const error = new Error('boom')
     Object.defineProperty(error, 'stack', { value: undefined, configurable: true })
     expect(() =>
-      render(<ErrorPage error={error} reset={vi.fn()} />),
-    ).not.toThrow()
+      render(<ErrorPage error={error} reset={vi.fn()} />)).not.toThrow()
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
     expect(consoleErrorSpy).toHaveBeenCalledWith('[error-boundary]', {
       pathname: '/test-path',

@@ -38,8 +38,7 @@ export function computeXAxisUpperBound(
     .map(n99 => Math.ceil(n99 * X_AXIS_EXTRA_RATIO))
     .orElse(error => (include === undefined ? err(error) : ok(includeBound)))
     .andThen(bound =>
-      validateOrNonFinite(validTrialCountSchema, Math.max(bound, includeBound), 'computeXAxisUpperBound'),
-    )
+      validateOrNonFinite(validTrialCountSchema, Math.max(bound, includeBound), 'computeXAxisUpperBound'))
 }
 
 /**

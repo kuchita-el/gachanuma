@@ -67,7 +67,6 @@ describe('useScrollIntoViewOnChange', () => {
   it('ref が未接続（null）でも例外にならない', () => {
     mockMatchMedia(false)
     expect(() =>
-      renderHook(() => useScrollIntoViewOnChange({ current: null }, 1)),
-    ).not.toThrow()
+      renderHook(() => useScrollIntoViewOnChange({ current: null }, 1))).not.toThrow()
   })
 })

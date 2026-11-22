@@ -67,8 +67,7 @@ describe('useCalculation', () => {
   it('subscribe を受け取り、初期状態は status=idle・run は関数', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     expect(result.current.status).toBe('idle')
     expect(typeof result.current.run).toBe('function')
   })
@@ -77,8 +76,7 @@ describe('useCalculation', () => {
   it('計算成功時に status=success かつ result に値をセットする', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() => result.current.run(() => ok(42)))
     expect(result.current.status).toBe('success')
     if (result.current.status === 'success') {
@@ -90,13 +88,10 @@ describe('useCalculation', () => {
   it('ドメインエラー時に status=error かつ error に formatDomainError 文言をセットする', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() =>
       result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })))
     expect(result.current.status).toBe('error')
     if (result.current.status === 'error') {
       expect(result.current.error).toBe(
@@ -111,8 +106,7 @@ describe('useCalculation', () => {
   it('成功→失敗→成功の遷移で status と result/error が排他的に更新される', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() => result.current.run(() => ok(10)))
     expect(result.current.status).toBe('success')
     if (result.current.status === 'success') {
@@ -121,9 +115,7 @@ describe('useCalculation', () => {
 
     act(() =>
       result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })))
     expect(result.current.status).toBe('error')
     if (result.current.status === 'error') {
       expect(result.current.error).toBeDefined()
@@ -140,13 +132,10 @@ describe('useCalculation', () => {
   it('ドメインエラー後に subscribe callback が発火すると idle へ遷移する', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() =>
       result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })))
     expect(result.current.status).toBe('error')
     act(() => harness.fireCallback())
     expect(result.current.status).toBe('idle')
@@ -156,8 +145,7 @@ describe('useCalculation', () => {
   it('成功後に subscribe callback が発火すると status=success と result を保持したまま stale=true になる', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() => result.current.run(() => ok(99)))
     expect(result.current.status).toBe('success')
     if (result.current.status === 'success') {
@@ -176,8 +164,7 @@ describe('useCalculation', () => {
   it('stale な状態で再計算に成功すると、新しい result で stale=false になる', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() => result.current.run(() => ok(1)))
     act(() => harness.fireCallback())
     act(() => result.current.run(() => ok(2)))
@@ -192,8 +179,7 @@ describe('useCalculation', () => {
   it('stale 済みでさらに subscribe callback が発火しても stale=true と result を保持する', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     act(() => result.current.run(() => ok(1)))
     act(() => harness.fireCallback())
     act(() => harness.fireCallback())
@@ -208,8 +194,7 @@ describe('useCalculation', () => {
   it('idle 状態で subscribe callback が発火しても idle を維持する', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     expect(result.current.status).toBe('idle')
     act(() => harness.fireCallback())
     expect(result.current.status).toBe('idle')
@@ -219,8 +204,7 @@ describe('useCalculation', () => {
   it('runCount は計算実行（成功・ドメインエラー）のたびに増え、フォーム値変更では増えない', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     expect(result.current.runCount).toBe(0)
     act(() => result.current.run(() => ok(1)))
     expect(result.current.runCount).toBe(1)
@@ -230,9 +214,7 @@ describe('useCalculation', () => {
     expect(result.current.runCount).toBe(2)
     act(() =>
       result.current.run(() =>
-        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' }),
-      ),
-    )
+        domainErr({ kind: 'NonFiniteResult', source: 'calculateTrialCount' })))
     expect(result.current.runCount).toBe(3)
   })
 
@@ -240,8 +222,7 @@ describe('useCalculation', () => {
   it('run は status に依らず常時アクセス可能', () => {
     const harness = createSubscribeHarness()
     const { result } = renderHook(() =>
-      useCalculation<number>(harness.subscribe),
-    )
+      useCalculation<number>(harness.subscribe))
     expect(typeof result.current.run).toBe('function')
     act(() => result.current.run(() => ok(1)))
     expect(typeof result.current.run).toBe('function')
@@ -303,16 +284,13 @@ describe('useCalculation', () => {
     it('極小成功率で calculateTrialCount が NonFiniteResult を実発火し、status=error・実文言が現れる', () => {
       const harness = createSubscribeHarness()
       const { result } = renderHook(() =>
-        useCalculation<number>(harness.subscribe),
-      )
+        useCalculation<number>(harness.subscribe))
       act(() =>
         result.current.run(() =>
           calculateTrialCount(
             v.parse(validProbabilityRatioSchema, 1e-17),
             v.parse(validConfidenceSchema, 0.9),
-          ),
-        ),
-      )
+          )))
       expect(result.current.status).toBe('error')
       if (result.current.status === 'error') {
         expect(result.current.error).toBe(
@@ -324,17 +302,14 @@ describe('useCalculation', () => {
     it('極小成功率・目標2で calculateTrialCountForMultipleSuccess が IterationLimitExceeded を実発火し、status=error・実文言が現れる', () => {
       const harness = createSubscribeHarness()
       const { result } = renderHook(() =>
-        useCalculation<number>(harness.subscribe),
-      )
+        useCalculation<number>(harness.subscribe))
       act(() =>
         result.current.run(() =>
           calculateTrialCountForMultipleSuccess(
             v.parse(validProbabilityRatioSchema, 1e-17),
             v.parse(validTargetCountSchema, 2),
             v.parse(validConfidenceSchema, 0.9),
-          ),
-        ),
-      )
+          )))
       expect(result.current.status).toBe('error')
       if (result.current.status === 'error') {
         expect(result.current.error).toBe(
