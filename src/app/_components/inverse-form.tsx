@@ -57,8 +57,7 @@ export function InverseForm() {
         cumulativeProbabilityRatio: value,
         trialCount: form.trialCount,
         curve: { kind: 'single', successRate: form.successRate },
-      })),
-    )
+      })))
   })
 
   return (

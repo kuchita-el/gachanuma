@@ -78,8 +78,7 @@ describe('calculateTrialCountWithPity', () => {
   describe('単調性', () => {
     it('m 増加に対し試行回数は単調非減少', () => {
       const ns = [0, 0.1, 0.3, 0.5, 0.8, 1].map(m =>
-        calculateTrialCountWithPity(prob(0.01), pity(100), slip(m), conf(0.9))._unsafeUnwrap(),
-      )
+        calculateTrialCountWithPity(prob(0.01), pity(100), slip(m), conf(0.9))._unsafeUnwrap())
       for (let i = 1; i < ns.length; i++) {
         expect(ns[i]!).toBeGreaterThanOrEqual(ns[i - 1]!)
       }
@@ -87,8 +86,7 @@ describe('calculateTrialCountWithPity', () => {
 
     it('信頼度増加に対し試行回数は単調非減少', () => {
       const ns = [0.5, 0.8, 0.9, 0.99].map(c =>
-        calculateTrialCountWithPity(prob(0.01), pity(100), slip(0.5), conf(c))._unsafeUnwrap(),
-      )
+        calculateTrialCountWithPity(prob(0.01), pity(100), slip(0.5), conf(c))._unsafeUnwrap())
       for (let i = 1; i < ns.length; i++) {
         expect(ns[i]!).toBeGreaterThanOrEqual(ns[i - 1]!)
       }

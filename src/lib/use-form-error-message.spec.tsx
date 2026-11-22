@@ -73,8 +73,7 @@ describe('useFormValueChange', () => {
   it('unmount 時に subscribe が返した unsubscribe 関数が呼ばれる', () => {
     const harness = createSubscribeHarness()
     const { unmount } = renderHook(() =>
-      useFormValueChange(harness.subscribe, vi.fn()),
-    )
+      useFormValueChange(harness.subscribe, vi.fn()))
     expect(harness.unsubscribe).not.toHaveBeenCalled()
     unmount()
     expect(harness.unsubscribe).toHaveBeenCalledTimes(1)
@@ -85,8 +84,7 @@ describe('useFormValueChange', () => {
     const harness = createSubscribeHarness()
     const onChange = vi.fn()
     const { rerender } = renderHook(() =>
-      useFormValueChange(harness.subscribe, onChange),
-    )
+      useFormValueChange(harness.subscribe, onChange))
     expect(harness.callCount()).toBe(1)
     rerender()
     expect(harness.callCount()).toBe(1)

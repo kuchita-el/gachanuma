@@ -124,8 +124,7 @@ function computeChartData(curve: SuccessCurve, markerTrialCount: TrialCount) {
         // 0 回試行では成功していないため、原点から描く
         data: [{ trialCount: 0, cumulativeProbabilityPercent: 0 }, ...points],
       }))
-    }),
-  )
+    }))
 }
 
 interface ProbabilityChartProps {

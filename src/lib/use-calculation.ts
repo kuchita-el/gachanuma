@@ -16,10 +16,9 @@ import { useThrowToErrorBoundary } from './use-throw-to-error-boundary'
  *
  * `result` と `error` を同時に持つ状態や、どちらも持たない `success` / `error` は型の上で作れない（Issue #108）。
  */
-export type CalculationState<TResult>
-  = | { status: 'idle' }
-    | { status: 'success', result: TResult, stale: boolean }
-    | { status: 'error', error: string }
+export type CalculationState<TResult> = { status: 'idle' }
+  | { status: 'success', result: TResult, stale: boolean }
+  | { status: 'error', error: string }
 
 export type UseCalculationReturn<TResult> = CalculationState<TResult> & {
   run: (calc: () => Result<TResult, DomainError>) => void

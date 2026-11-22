@@ -18,22 +18,20 @@ import { err, ok, type Result } from 'neverthrow'
 export type DomainErrorIssue = { message: string }
 
 /** NonFiniteResult を返しうる計算関数。表示層が計算ごとに文言を変えるために使う */
-export type NonFiniteSource
-  = | 'calculateTrialCount'
-    | 'calculateCumulativeSuccessProbability'
-    | 'calculateTrialCountForMultipleSuccess'
-    | 'calculateTrialCountWithPity'
-    | 'evaluateSuccessCurve'
-    | 'computeXAxisUpperBound'
-    | 'sampleTrialCounts'
+export type NonFiniteSource = 'calculateTrialCount'
+  | 'calculateCumulativeSuccessProbability'
+  | 'calculateTrialCountForMultipleSuccess'
+  | 'calculateTrialCountWithPity'
+  | 'evaluateSuccessCurve'
+  | 'computeXAxisUpperBound'
+  | 'sampleTrialCounts'
 
 /** IterationLimitExceeded を返しうる計算関数 */
 export type IterationLimitSource = 'calculateTrialCountForMultipleSuccess'
 
-export type DomainError
-  = | { kind: 'InvalidInput', issues: DomainErrorIssue[] }
-    | { kind: 'NonFiniteResult', source: NonFiniteSource }
-    | { kind: 'IterationLimitExceeded', source: IterationLimitSource }
+export type DomainError = { kind: 'InvalidInput', issues: DomainErrorIssue[] }
+  | { kind: 'NonFiniteResult', source: NonFiniteSource }
+  | { kind: 'IterationLimitExceeded', source: IterationLimitSource }
 
 /**
  * `DomainError` の err を作る。`err({ kind: 'NonFiniteResult', ... })` と直接書くと

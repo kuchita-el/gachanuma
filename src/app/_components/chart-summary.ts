@@ -48,8 +48,7 @@ export function describeChart(curve: SuccessCurve, marker: ChartMarker): string 
     calculateTrialCountOnCurve(curve, v.parse(validConfidenceSchema, percent / 100)).match(
       n => [`${percent}%到達は${formatCount(n)}回`],
       () => [],
-    ),
-  )
+    ))
   const markerText = evaluateSuccessCurve(curve, marker.trialCount).match(
     ratio => `${marker.caption}の${formatCount(marker.trialCount)}回で${formatProbabilityPercent(ratio)}。`,
     () => '',
